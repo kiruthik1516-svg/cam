@@ -26,7 +26,10 @@ from starlette.responses import Response
 from sqlalchemy.orm import Session
 from sqlalchemy import func, extract, text, case, select, or_
 
-import jwt
+try:
+    import jwt
+except ImportError:
+    from jose import jwt  # type: ignore[no-redef]
 from auth import SECRET_KEY, ALGORITHM
 
 import cv2

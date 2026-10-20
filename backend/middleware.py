@@ -1,6 +1,9 @@
 import re
 
-import jwt
+try:
+    import jwt
+except ImportError:
+    from jose import jwt  # type: ignore[no-redef]
 from fastapi import Request
 from fastapi.responses import JSONResponse
 from starlette.middleware.base import BaseHTTPMiddleware

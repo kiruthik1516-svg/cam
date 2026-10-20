@@ -16,4 +16,6 @@ alembic>=1.13.0
 redis>=5.0.0
 sentry-sdk[fastapi]
 python-jose[cryptography]
+PyJWT>=2.8.0
 PyYAML>=6.0.1
+
