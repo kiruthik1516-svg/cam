@@ -174,7 +174,7 @@ def main():
 
     headless = (
         os.environ.get("HEADLESS", "").strip().lower() in ("true", "1", "yes")
-        or not bool(os.environ.get("DISPLAY"))
+        or (os.name != "nt" and not bool(os.environ.get("DISPLAY")))
     )
 
     if not headless:
