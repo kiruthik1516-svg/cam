@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
-import { fetchKpis, fetchVersionBundle } from '@/lib/api'
+import { fetchKpis, fetchVersionBundle, logout } from '@/lib/api'
 import { formatNumber, healthLabel } from '@/lib/format'
 import { cn } from '@/lib/utils'
 import {
@@ -10,6 +10,7 @@ import {
   Layers,
   CheckCircle2,
   HardDrive,
+  LogOut,
 } from 'lucide-react'
 import type { SystemHealth } from '@/lib/types'
 import { useDashboardMode } from '@/lib/mode-context'
@@ -212,42 +213,54 @@ export function TopNav() {
           </div>
         </div>
 
-        <div className="flex flex-wrap items-center divide-x divide-border rounded-lg border border-border bg-card/60 py-1.5">
-          <Kpi
-            icon={CameraIcon}
-            label={mode === 'live' ? "Cameras Online" : "Archive Cameras"}
-            value={
-              connectedCameras !== null && totalCameras !== null
-                ? `${connectedCameras}/${totalCameras}`
-                : '—/—'
-            }
-          />
-          <Kpi
-            icon={ScanFace}
-            label={mode === 'live' ? "Detections Today" : "Archive Detections"}
-            value={formatNumber(detectionsToday)}
-          />
-          <Kpi
-            icon={ShieldAlert}
-            label={mode === 'live' ? "Active Alerts" : "Archive Alerts"}
-            value={activeAlerts !== null ? String(activeAlerts) : '—'}
-            badge={activeAlerts ?? undefined}
-            tone="text-destructive"
-          />
-          <div className="flex items-center gap-3 px-4">
-            <span className="flex size-9 items-center justify-center rounded-md bg-muted text-muted-foreground">
-              <Activity className="size-4.5" />
-            </span>
-            <div className="leading-tight">
-              <p className="flex items-center gap-2 text-sm font-semibold">
-                <HealthDot health={health} />
-                {healthLabel[health]}
-              </p>
-              <p className="text-[11px] uppercase tracking-wide text-muted-foreground">
-                System Health
-              </p>
+        <div className="flex flex-wrap items-center gap-3">
+          <div className="flex flex-wrap items-center divide-x divide-border rounded-lg border border-border bg-card/60 py-1.5">
+            <Kpi
+              icon={CameraIcon}
+              label={mode === 'live' ? "Cameras Online" : "Archive Cameras"}
+              value={
+                connectedCameras !== null && totalCameras !== null
+                  ? `${connectedCameras}/${totalCameras}`
+                  : '—/—'
+              }
+            />
+            <Kpi
+              icon={ScanFace}
+              label={mode === 'live' ? "Detections Today" : "Archive Detections"}
+              value={formatNumber(detectionsToday)}
+            />
+            <Kpi
+              icon={ShieldAlert}
+              label={mode === 'live' ? "Active Alerts" : "Archive Alerts"}
+              value={activeAlerts !== null ? String(activeAlerts) : '—'}
+              badge={activeAlerts ?? undefined}
+              tone="text-destructive"
+            />
+            <div className="flex items-center gap-3 px-4">
+              <span className="flex size-9 items-center justify-center rounded-md bg-muted text-muted-foreground">
+                <Activity className="size-4.5" />
+              </span>
+              <div className="leading-tight">
+                <p className="flex items-center gap-2 text-sm font-semibold">
+                  <HealthDot health={health} />
+                  {healthLabel[health]}
+                </p>
+                <p className="text-[11px] uppercase tracking-wide text-muted-foreground">
+                  System Health
+                </p>
+              </div>
             </div>
           </div>
+
+          <button
+            type="button"
+            onClick={() => logout()}
+            title="Log out of Sentinel Console"
+            className="flex items-center gap-1.5 rounded-lg border border-border/80 bg-muted/60 px-3 py-2 text-xs font-semibold text-muted-foreground transition-all hover:border-destructive/40 hover:bg-destructive/10 hover:text-destructive"
+          >
+            <LogOut className="size-3.5" />
+            <span className="hidden sm:inline">Logout</span>
+          </button>
         </div>
       </div>
     </header>

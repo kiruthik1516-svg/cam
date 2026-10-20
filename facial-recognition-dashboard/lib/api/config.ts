@@ -39,8 +39,13 @@ export async function authFetch(path: string, options?: RequestInit): Promise<Re
   if (token) {
     headers.set('Authorization', `Bearer ${token}`)
   }
+  const reqOptions: RequestInit = {
+    credentials: 'include',
+    ...options,
+    headers,
+  }
   try {
-    const res = await fetch(apiUrl(path), { ...options, headers })
+    const res = await fetch(apiUrl(path), reqOptions)
     if (res.status === 401 && typeof window !== 'undefined') {
       localStorage.removeItem('sentinel_token')
       if (window.location.pathname !== '/login') {
@@ -52,6 +57,19 @@ export async function authFetch(path: string, options?: RequestInit): Promise<Re
     const msg = err instanceof Error ? err.message : String(err)
     console.error(`authFetch network error for ${path}:`, msg)
     throw new Error(`Network request failed to ${apiUrl(path)}: ${msg}`)
+  }
+}
+
+export async function logout(): Promise<void> {
+  try {
+    await authFetch('/api/auth/logout', { method: 'POST' })
+  } catch (err) {
+    console.warn('Logout request warning:', err)
+  } finally {
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('sentinel_token')
+      window.location.href = '/login'
+    }
   }
 }
 
@@ -196,13 +214,34 @@ export const fetchVersionBundle = async (): Promise<VersionBundle> => {
   }
 }
 
-export function getCameraStreamUrl(cameraId: string): string {
+export async function getCameraStreamTicket(cameraId: string): Promise<string | null> {
+  try {
+    const res = await authFetch(`/api/cameras/${encodeURIComponent(cameraId)}/stream-ticket`, {
+      method: 'POST',
+    })
+    if (res.ok) {
+      const data = await res.json()
+      return data.ticket || null
+    }
+  } catch (e) {
+    console.warn(`Failed to acquire stream ticket for camera ${cameraId}:`, e)
+  }
+  return null
+}
+
+export function getCameraStreamUrl(cameraId: string, ticket?: string | null): string {
+  if (ticket) {
+    return apiUrl(`/api/cameras/${encodeURIComponent(cameraId)}/stream?ticket=${encodeURIComponent(ticket)}`)
+  }
   const token = typeof window !== 'undefined' ? localStorage.getItem('sentinel_token') : null
   const query = token ? `?token=${encodeURIComponent(token)}` : ''
   return apiUrl(`/api/cameras/${encodeURIComponent(cameraId)}/stream${query}`)
 }
 
-export function getCameraSnapshotUrl(cameraId: string): string {
+export function getCameraSnapshotUrl(cameraId: string, ticket?: string | null): string {
+  if (ticket) {
+    return apiUrl(`/api/cameras/${encodeURIComponent(cameraId)}/stream/snapshot?ticket=${encodeURIComponent(ticket)}`)
+  }
   const token = typeof window !== 'undefined' ? localStorage.getItem('sentinel_token') : null
   const query = token ? `?token=${encodeURIComponent(token)}` : ''
   return apiUrl(`/api/cameras/${encodeURIComponent(cameraId)}/stream/snapshot${query}`)

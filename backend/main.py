@@ -30,7 +30,7 @@ try:
     import jwt
 except ImportError:
     from jose import jwt  # type: ignore[no-redef]
-from auth import SECRET_KEY, ALGORITHM
+from auth import SECRET_KEY, ALGORITHM, get_current_user, create_stream_ticket
 
 import cv2
 import numpy as np
@@ -802,6 +802,24 @@ async def _mjpeg_frame_generator(camera_id: str):
         )
         if frame is not None:
             await asyncio.sleep(1.0 / 25)  # ~25 fps cap
+
+
+@app.post(
+    "/api/cameras/{camera_id}/stream-ticket",
+    summary="Generate single-use stream ticket for live or snapshot view",
+)
+async def generate_stream_ticket(
+    camera_id: str,
+    user: str = Depends(get_current_user),
+    lifetime_seconds: float = Query(30.0, ge=5.0, le=300.0),
+):
+    """Generate a short-lived single-use ticket for stream viewing (solves S1/S5)."""
+    ticket = create_stream_ticket(camera_id=camera_id, user=user, lifetime_seconds=lifetime_seconds)
+    return {
+        "ticket": ticket,
+        "camera_id": camera_id,
+        "expires_in": lifetime_seconds,
+    }
 
 
 @app.get(

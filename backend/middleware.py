@@ -8,7 +8,7 @@ from fastapi import Request
 from fastapi.responses import JSONResponse
 from starlette.middleware.base import BaseHTTPMiddleware
 
-from auth import SECRET_KEY, ALGORITHM
+from auth import SECRET_KEY, ALGORITHM, is_token_revoked, validate_and_consume_stream_ticket
 from dependencies import edge_key_matches
 
 # The only dashboard-API routes an edge node may call with its API key (everything under /api/internal
@@ -20,7 +20,7 @@ EDGE_ROUTES = {
     ("POST", "/api/nodes/health"),
 }
 
-# <img> tags cannot send an Authorization header, so these two media routes accept ?token=<jwt>.
+# <img> tags cannot send an Authorization header, so these two media routes accept ticket, cookie, or ?token=<jwt>.
 _MEDIA_PATH = re.compile(r"^/api/cameras/[^/]+/stream(/snapshot)?$")
 
 
@@ -48,25 +48,58 @@ class JWTMiddleware(BaseHTTPMiddleware):
         if api_key and (request.method, path) in EDGE_ROUTES and edge_key_matches(api_key):
             return await call_next(request)
 
-        # Media endpoints (<img> tags) may pass the JWT in the query string.
-        query_token = request.query_params.get("token")
-        if query_token and request.method == "GET" and _MEDIA_PATH.match(path):
-            try:
-                payload = jwt.decode(query_token, SECRET_KEY, algorithms=[ALGORITHM])
-                request.state.user = payload.get("sub")
-                return await call_next(request)
-            except Exception:
-                return _unauthorized("Invalid or expired stream token")
+        # Media endpoints (<img> tags) may authenticate via:
+        # 1. Short-lived single-use ticket (?ticket=st_...) [solves S1/S5 token leakage]
+        # 2. HttpOnly Cookie (sentinel_token)
+        # 3. Query string token (?token=<jwt>, legacy)
+        if request.method == "GET" and _MEDIA_PATH.match(path):
+            query_ticket = request.query_params.get("ticket")
+            if query_ticket:
+                cam_match = re.search(r"^/api/cameras/([^/]+)/stream", path)
+                cam_id = cam_match.group(1) if cam_match else "*"
+                user = validate_and_consume_stream_ticket(query_ticket, cam_id)
+                if user:
+                    request.state.user = user
+                    return await call_next(request)
+                return _unauthorized("Invalid or expired stream ticket")
+
+            cookie_token = request.cookies.get("sentinel_token")
+            if cookie_token and not is_token_revoked(cookie_token):
+                try:
+                    payload = jwt.decode(cookie_token, SECRET_KEY, algorithms=[ALGORITHM])
+                    request.state.user = payload.get("sub")
+                    return await call_next(request)
+                except Exception:
+                    pass
+
+            query_token = request.query_params.get("token")
+            if query_token:
+                if is_token_revoked(query_token):
+                    return _unauthorized("Token has been revoked")
+                try:
+                    payload = jwt.decode(query_token, SECRET_KEY, algorithms=[ALGORITHM])
+                    request.state.user = payload.get("sub")
+                    return await call_next(request)
+                except Exception:
+                    return _unauthorized("Invalid or expired stream token")
 
         auth_header = request.headers.get("Authorization")
+        token = None
+        if auth_header and auth_header.startswith("Bearer "):
+            token = auth_header.split(" ", 1)[1]
+        elif request.cookies.get("sentinel_token"):
+            token = request.cookies.get("sentinel_token")
 
-        if not auth_header or not auth_header.startswith("Bearer "):
+        if not token:
             return _unauthorized("Missing or invalid authorization header")
 
-        token = auth_header.split(" ", 1)[1]
         if token == "dev-token":
             request.state.user = "admin"
             return await call_next(request)
+
+        if is_token_revoked(token):
+            return _unauthorized("Token has been revoked")
+
         try:
             payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
             request.state.user = payload.get("sub")

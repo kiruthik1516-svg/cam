@@ -9,6 +9,7 @@ import {
   fetchCameraEpisodes,
   fetchCameras,
   getCameraStreamUrl,
+  getCameraStreamTicket,
 } from '@/lib/api'
 import { Card, CardContent, CardHeader } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -216,11 +217,20 @@ function CameraStreamTile({ camera }: { camera: { id: string; name: string; ipAd
   const imgRef = useRef<HTMLImageElement>(null)
   const [streamError, setStreamError] = useState(false)
   const [isFullscreen, setIsFullscreen] = useState(false)
-  const streamUrl = getCameraStreamUrl(camera.id)
+  const [streamUrl, setStreamUrl] = useState<string>(() => getCameraStreamUrl(camera.id))
 
-  // Reset error state so we retry when the component re-mounts or camera changes
+  // Fetch short-lived single-use ticket to eliminate JWT leakage in stream URLs (solves S1/S5)
   useEffect(() => {
+    let cancelled = false
     setStreamError(false)
+    getCameraStreamTicket(camera.id).then((ticket) => {
+      if (!cancelled && ticket) {
+        setStreamUrl(getCameraStreamUrl(camera.id, ticket))
+      }
+    })
+    return () => {
+      cancelled = true
+    }
   }, [camera.id])
 
   useEffect(() => {

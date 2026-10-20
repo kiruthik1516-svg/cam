@@ -28,6 +28,7 @@ export default function LoginPage() {
       const res = await fetch(apiUrl("/api/auth/login"), {
         method: "POST",
         headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        credentials: "include",
         body: formData.toString(),
       });
 

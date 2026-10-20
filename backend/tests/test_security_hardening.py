@@ -31,8 +31,10 @@ def _jwt():
 
 @pytest.fixture(autouse=True)
 def _reset_login_limiter():
+    client.cookies.clear()
     auth._failed_logins.clear()
     yield
+    client.cookies.clear()
     auth._failed_logins.clear()
 
 
