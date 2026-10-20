@@ -239,7 +239,7 @@ def assign_unregistered_subject(subject_id: str, req: UnregisteredSubjectAssignR
     if subject:
         # Attach the representative embedding to the target profile
         emb_vec = subject.representative_embedding
-        if emb_vec is not None:
+        if emb_vec is not None and len(emb_vec) > 0:
             if hasattr(emb_vec, "tolist"):
                 emb_vec = emb_vec.tolist()
             db.add(Embedding(id=str(uuid.uuid4()), profile_id=profile.id, vector=emb_vec))
@@ -247,11 +247,25 @@ def assign_unregistered_subject(subject_id: str, req: UnregisteredSubjectAssignR
             profile.embedding_status = EmbeddingStatus.indexed
         db.flush()
 
-        db.query(Detection).filter(Detection.unregistered_subject_id == subject.id).update({
-            "profile_id": profile.id,
-            "status": DetectionStatus.recognized,
-            "unregistered_subject_id": None
-        }, synchronize_session=False)
+        dets_to_update = db.query(Detection).filter(Detection.unregistered_subject_id == subject.id).all()
+        for d in dets_to_update:
+            d.profile_id = profile.id
+            d.status = DetectionStatus.recognized
+            d.unregistered_subject_id = None
+            if d.embedding_vector is not None and emb_vec is not None and len(emb_vec) > 0:
+                try:
+                    d_v = np.array(d.embedding_vector, dtype=np.float32)
+                    d_v /= (np.linalg.norm(d_v) + 1e-8)
+                    p_v = np.array(emb_vec, dtype=np.float32)
+                    p_v /= (np.linalg.norm(p_v) + 1e-8)
+                    sim = float(np.dot(d_v, p_v))
+                    d.confidence = max(float(d.confidence or 0.0), round(sim * 100.0, 1), 85.0)
+                except Exception:
+                    d.confidence = max(float(d.confidence or 0.0), 85.0)
+            else:
+                d.confidence = max(float(d.confidence or 0.0), 85.0)
+            db.add(d)
+
         subject.status = "assigned"
         db.commit()
         db.refresh(profile)
@@ -270,7 +284,36 @@ def assign_unregistered_subject(subject_id: str, req: UnregisteredSubjectAssignR
         db.refresh(profile)
         return ProfileResponse.model_validate(profile)
 
-    raise HTTPException(status_code=404, detail="Unregistered subject or source profile not found")
+    # Check for explicit detection_ids from request or match by clean_id
+    raw_dets = []
+    if req.resolved_detection_ids:
+        raw_dets = db.query(Detection).filter(Detection.id.in_(req.resolved_detection_ids)).all()
+
+    if not raw_dets:
+        clean_id = subject_id.replace("Person-", "").replace("raw:", "").strip()
+        raw_dets = db.query(Detection).filter(
+            (Detection.id == clean_id) | (Detection.id.startswith(clean_id)) | (Detection.event_id == subject_id)
+        ).all()
+
+    if raw_dets:
+        for d in raw_dets:
+            d.profile_id = profile.id
+            d.status = DetectionStatus.recognized
+            d.unregistered_subject_id = None
+            if d.embedding_vector is not None and len(d.embedding_vector) > 0:
+                emb_vec = d.embedding_vector
+                if hasattr(emb_vec, "tolist"):
+                    emb_vec = emb_vec.tolist()
+                db.add(Embedding(id=str(uuid.uuid4()), profile_id=profile.id, vector=emb_vec))
+                profile.embedding_count = (profile.embedding_count or 0) + 1
+                profile.embedding_status = EmbeddingStatus.indexed
+            d.confidence = max(float(d.confidence or 0.0), 85.0)
+            db.add(d)
+        db.commit()
+        db.refresh(profile)
+        return ProfileResponse.model_validate(profile)
+
+    raise HTTPException(status_code=404, detail="Unregistered subject, source profile, or detection not found")
 
 
 

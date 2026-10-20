@@ -6,6 +6,11 @@ from typing import Optional
 
 import numpy as np
 
+try:
+    from .safeio import load_npz
+except ImportError:  # running outside the package
+    from safeio import load_npz
+
 
 class PendingSaver:
     """Save unknown face crops and embeddings for later review.
@@ -41,7 +46,7 @@ class PendingSaver:
     def _load_existing_pending(self) -> None:
         for path in sorted(self.base.glob('pending_*.npz')):
             try:
-                with np.load(path, allow_pickle=True) as data:
+                with load_npz(path) as data:
                     emb = np.asarray(data['embedding'], dtype=np.float32)
                     if emb.ndim != 1:
                         continue

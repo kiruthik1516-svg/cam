@@ -4,13 +4,15 @@ import logging
 from datetime import datetime
 from typing import Optional, List
 
-from fastapi import APIRouter, File, UploadFile, Form, Depends, HTTPException
+from fastapi import APIRouter, File, UploadFile, Form, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
 from database import get_db
+from state import streaming_camera_ids
+from utils import live_camera_ids, archive_camera_ids
 from models import Camera, CameraConfig, CameraStatus as CameraStatusEnum
 from schemas import (
-    CameraResponse, CameraConfigResponse, CameraConfigUpdateRequest,
+    CameraResponse, CameraUpdateRequest, CameraConfigResponse, CameraConfigUpdateRequest,
     CameraConfigRollbackRequest, CameraConfigHistoryResponse
 )
 from config import IST
@@ -20,10 +22,77 @@ logger = logging.getLogger(__name__)
 router = APIRouter(tags=["Cameras"])
 
 @router.get("/api/cameras", response_model=list[CameraResponse])
-def get_cameras(db: Session = Depends(get_db)):
-    """Get all cameras with health status."""
+def get_cameras(
+    source: Optional[str] = Query(None, description="'live' for cameras streaming now or with live data, 'archive' for imported footage"),
+    batch_id: Optional[str] = Query(None, description="With source=archive, limit to one import batch"),
+    db: Session = Depends(get_db),
+):
+    """Get cameras with health status. Without ``source`` every camera row is returned."""
     cameras = db.query(Camera).all()
+    if source == "live":
+        live_ids = live_camera_ids(db)
+        streaming = streaming_camera_ids()
+        result = []
+        for camera in cameras:
+            if camera.id not in live_ids:
+                continue
+            item = CameraResponse.model_validate(camera)
+            item.status = "online" if camera.id in streaming else "offline"
+            result.append(item)
+        return result
+    if source == "archive":
+        archive_ids = archive_camera_ids(db, batch_id)
+        return [CameraResponse.model_validate(c) for c in cameras if c.id in archive_ids]
     return [CameraResponse.model_validate(c) for c in cameras]
+
+
+@router.get("/api/cameras/{camera_id}", response_model=CameraResponse)
+def get_camera(camera_id: str, db: Session = Depends(get_db)):
+    """Get single camera details."""
+    camera = db.query(Camera).filter(Camera.id == camera_id).first()
+    if not camera:
+        raise HTTPException(status_code=404, detail=f"Camera {camera_id} not found")
+    item = CameraResponse.model_validate(camera)
+    item.status = "online" if camera.id in streaming_camera_ids() else "offline"
+    return item
+
+
+@router.put("/api/cameras/{camera_id}", response_model=CameraResponse)
+def update_camera(
+    camera_id: str,
+    payload: CameraUpdateRequest,
+    db: Session = Depends(get_db),
+):
+    """Update camera metadata including display name and physical zone (solves R7)."""
+    camera = db.query(Camera).filter(Camera.id == camera_id).first()
+    if not camera:
+        raise HTTPException(status_code=404, detail=f"Camera {camera_id} not found")
+
+    if payload.name is not None:
+        camera.name = payload.name.strip()
+    if payload.zone is not None:
+        camera.zone = payload.zone.strip()
+    if payload.ip_address is not None:
+        camera.ip_address = payload.ip_address.strip()
+    if payload.rtsp_url is not None:
+        camera.rtsp_url = payload.rtsp_url.strip()
+
+    camera.updated_at = datetime.now(IST)
+    db.commit()
+    db.refresh(camera)
+
+    # Sync node with topology graph if loaded
+    from state import topology_graph
+    if topology_graph is not None:
+        topology_graph.add_node(
+            camera_id=camera.id,
+            name=camera.name or camera.id,
+            zone=camera.zone or "",
+        )
+
+    item = CameraResponse.model_validate(camera)
+    item.status = "online" if camera.id in streaming_camera_ids() else "offline"
+    return item
 
 
 @router.get("/api/cameras/{camera_id}/config", response_model=CameraConfigResponse)

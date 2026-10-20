@@ -104,6 +104,7 @@ export interface IngestionProgress {
   processing_fps: number;
   elapsed_seconds: number;
   eta_seconds: number;
+  scenario?: string;
 }
 
 export interface GpuStatusResponse {
@@ -151,6 +152,7 @@ export async function startBatchIngest(payload: {
   batch_name?: string;
   enable_motion_gating?: boolean;
   max_workers?: number;
+  scenario?: string;
 }): Promise<{ status: string; directory: string; batch_name?: string }> {
   const res = await authFetch('/api/video-audit/ingest', {
     method: 'POST',
@@ -163,6 +165,7 @@ export async function startBatchIngest(payload: {
       batch_name: payload.batch_name,
       enable_motion_gating: payload.enable_motion_gating ?? true,
       max_workers: payload.max_workers,
+      scenario: payload.scenario ?? 'auto',
     }),
   });
   return handleResponse<{ status: string; directory: string; batch_name?: string }>(res);

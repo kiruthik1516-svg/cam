@@ -4,6 +4,7 @@ from enum import Enum
 from typing import Optional, List, Tuple, Dict, Any
 from pydantic import ConfigDict, BaseModel, field_validator, model_validator, field_serializer
 from config import to_ist_iso
+from facial_recognition.sources import redact_url
 
 
 # ==================== Enums ====================
@@ -57,6 +58,11 @@ class CameraBase(BaseModel):
     ip_address: Optional[str] = None
     rtsp_url: Optional[str] = None
 
+    @field_serializer('rtsp_url', when_used='always')
+    def _mask_rtsp_credentials(self, v: Optional[str]):
+        # A stream URL may embed user:password@; never return it to the browser.
+        return redact_url(v) if v else v
+
 
 class CameraResponse(CameraBase):
     status: str
@@ -73,6 +79,13 @@ class CameraResponse(CameraBase):
     @field_serializer('last_heartbeat', when_used='always')
     def serialize_ist_last_heartbeat(self, v: Optional[datetime]):
         return to_ist_iso(v) if v is not None else None
+
+
+class CameraUpdateRequest(BaseModel):
+    name: Optional[str] = None
+    zone: Optional[str] = None
+    ip_address: Optional[str] = None
+    rtsp_url: Optional[str] = None
 
 
 # ==================== Profile ====================
@@ -141,10 +154,16 @@ class UnregisteredSubjectRegisterRequest(BaseModel):
 class UnregisteredSubjectAssignRequest(BaseModel):
     profile_id: Optional[str] = None
     profileId: Optional[str] = None
+    detection_ids: Optional[List[str]] = None
+    detectionIds: Optional[List[str]] = None
 
     @property
     def resolved_profile_id(self) -> str:
         return (self.profile_id or self.profileId or "").strip()
+
+    @property
+    def resolved_detection_ids(self) -> List[str]:
+        return self.detection_ids or self.detectionIds or []
 
 
 class UnregisteredSubjectMergeRequest(BaseModel):
@@ -417,6 +436,15 @@ class SystemKpisResponse(BaseModel):
     recognitions_today: int
     unknowns_today: int
     average_confidence: float
+    # Fields the dashboard header reads (added so it no longer shows zeros / a false "Critical").
+    connected_cameras: int = 0
+    total_cameras: int = 0
+    detections_today: int = 0
+    active_alerts: int = 0
+    system_health: str = "yellow"   # green | yellow | red
+    gpu_load: float = 0.0
+    cpu_load: float = 0.0
+    avg_latency_ms: float = 0.0
 
 
 # ==================== Thresholds ====================
@@ -595,6 +623,11 @@ class CameraEdgeResponse(BaseModel):
     distance_meters: float
     transition_probability: float
     bidirectional: bool
+
+
+class CameraEdgeDeleteRequest(BaseModel):
+    from_camera_id: str
+    to_camera_id: str
 
 
 class CameraNodeResponse(BaseModel):

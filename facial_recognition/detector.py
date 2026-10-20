@@ -381,6 +381,34 @@ class InsightFaceDetector:
         if 'recognition' not in self.app.models:
             return None
 
+        rec_model = self.app.models['recognition']
+
+        # Universal CCTV Enhancement: 5-point landmark similarity alignment + CLAHE illumination normalization
+        aligned = align_face_crop(
+            frame,
+            face_dict['bbox'],
+            kps=face_dict.get('kps'),
+            target_size=(112, 112),
+            normalize_illumination=True,
+        )
+        if aligned is not None and aligned.size > 0 and hasattr(rec_model, 'get_feat'):
+            try:
+                feat = rec_model.get_feat(aligned)
+                if feat is not None:
+                    if 'genderage' in self.app.models:
+                        try:
+                            face_wrap = Face(bbox=np.array(face_dict['bbox']))
+                            self.app.models['genderage'].get(frame, face_wrap)
+                            if hasattr(face_wrap, 'sex') and face_wrap.sex is not None:
+                                face_dict['gender'] = "male" if face_wrap.sex == "M" else "female" if face_wrap.sex == "F" else "unknown"
+                            if hasattr(face_wrap, 'age') and face_wrap.age is not None:
+                                face_dict['age'] = int(face_wrap.age)
+                        except Exception:
+                            pass
+                    return np.asarray(feat, dtype=np.float32).flatten()
+            except Exception as e:
+                logging.getLogger(__name__).debug("Direct aligned feature extraction failed, using fallback: %s", e)
+
         bbox = face_dict['bbox']
         kps = face_dict.get('kps')
         if kps is None:

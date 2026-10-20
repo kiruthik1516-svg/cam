@@ -12,6 +12,7 @@ export const fetchCameraEpisodes = async (
   gapThreshold: number = 45.0,
   minDwell: number = 0.0,
   minConfidence: number = 0.0,
+  hideTransientNoise?: boolean,
 ): Promise<CameraEpisode[]> => {
   let qs = `?limit=${encodeURIComponent(String(limit))}&gap_threshold=${encodeURIComponent(String(gapThreshold))}`
   if (source) qs += `&source=${encodeURIComponent(source)}`
@@ -20,6 +21,7 @@ export const fetchCameraEpisodes = async (
   if (profileId) qs += `&profile_id=${encodeURIComponent(profileId)}`
   if (minDwell > 0) qs += `&min_dwell=${encodeURIComponent(String(minDwell))}`
   if (minConfidence > 0) qs += `&min_confidence=${encodeURIComponent(String(minConfidence))}`
+  if (hideTransientNoise !== undefined) qs += `&hide_transient_noise=${encodeURIComponent(String(hideTransientNoise))}`
   const response = await authFetch(`/api/logs/episodes${qs}`)
   const raw = await handleResponse<any>(response)
   try {
@@ -176,11 +178,15 @@ export const fetchUnregisteredSubjects = async (): Promise<UnregisteredSubject[]
   }
 }
 
-export const assignUnregisteredSubject = async (id: string, profileId: string): Promise<void> => {
+export const assignUnregisteredSubject = async (
+  id: string,
+  profileId: string,
+  detectionIds?: string[]
+): Promise<void> => {
   const response = await authFetch(`/api/unregistered-subjects/${encodeURIComponent(id)}/assign`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ profileId }),
+    body: JSON.stringify({ profileId, detectionIds }),
   })
   await handleResponse<any>(response)
 }

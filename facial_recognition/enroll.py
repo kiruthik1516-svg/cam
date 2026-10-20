@@ -49,9 +49,9 @@ def build_gallery(known_faces_dir: Path, gallery_path: Path, use_gpu: bool, det_
 
     if len(labels) == 0:
         print('No faces enrolled. The gallery will be empty.')
-        np.savez_compressed(gallery_path, labels=np.array([], dtype=object), embeddings=np.zeros((0, 512), dtype=np.float32))
+        np.savez_compressed(gallery_path, labels=np.array([], dtype=str), embeddings=np.zeros((0, 512), dtype=np.float32))
     else:
-        np.savez_compressed(gallery_path, labels=np.array(labels, dtype=object), embeddings=np.stack(embeddings))
+        np.savez_compressed(gallery_path, labels=np.array(labels, dtype=str), embeddings=np.stack(embeddings))
         print(f'Saved gallery with {len(labels)} enrolled faces to {gallery_path}')
 
 

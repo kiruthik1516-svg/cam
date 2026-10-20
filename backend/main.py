@@ -20,13 +20,13 @@ except ModuleNotFoundError:
 
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Depends, Query, Request, UploadFile, File, Form, HTTPException, Header
 from fastapi.middleware.cors import CORSMiddleware
+from starlette.concurrency import run_in_threadpool
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.responses import Response
 from sqlalchemy.orm import Session
 from sqlalchemy import func, extract, text, case, select, or_
 
-import hmac
-from jose import jwt
+import jwt
 from auth import SECRET_KEY, ALGORITHM
 
 import cv2
@@ -71,6 +71,7 @@ from config import settings
 from database import Base, engine, ensure_detection_event_id_column, get_db
 from models import (
     Camera, CameraConfig, Profile, Detection, Alert, ModelThreshold, Embedding, CameraTransition, SequenceAcknowledgment, EventProvenance, UnregisteredSubject,
+    CameraTopologyEdge,
     DetectionStatus as DetectionStatusEnum, CameraStatus as CameraStatusEnum,
     ProfileRole as ProfileRoleEnum, Gender as GenderEnum, EmbeddingStatus as EmbeddingStatusEnum
 )
@@ -89,7 +90,7 @@ from schemas import (
     FootfallBucketResponse, DemographicSliceResponse, AttendanceRecordFullResponse,
     DetectionCreateRequest,
     DetectionBatchRequest, SequenceSyncInfo,
-    CameraEdgeCreateRequest, CameraEdgeResponse, CameraTopologyResponse,
+    CameraEdgeCreateRequest, CameraEdgeDeleteRequest, CameraEdgeResponse, CameraTopologyResponse,
     CrossCameraEvaluationRequest, CrossCameraEvaluationResponse,
     VectorSearchRequest, VectorSearchResponse, VectorSearchMatch, VersionBundleResponse,
     NodeHealthReportRequest, NodeHealthReportResponse,
@@ -173,7 +174,91 @@ from utils import (
     alert_meta_for_detection,
     build_face_log_payload,
     extract_face_embedding,
+    is_valid_camera_id,
+    register_live_camera,
+    compute_gallery_version,
 )
+
+def _sync_topology_from_database(db: Session):
+    """Synchronize nodes and edges between database and CameraTopologyGraph (solves R5)."""
+    import uuid
+    if topology_graph is None:
+        return
+
+    # 1. Synchronize registered cameras as topology nodes with names and zones
+    cameras = db.query(Camera).all()
+    for cam in cameras:
+        topology_graph.add_node(
+            camera_id=cam.id,
+            name=cam.name or cam.id,
+            zone=cam.zone or "",
+        )
+
+    # 2. Synchronize persisted transition edges from the database
+    persisted_edges = db.query(CameraTopologyEdge).all()
+    if persisted_edges:
+        for pe in persisted_edges:
+            topology_graph.add_edge(
+                from_camera_id=pe.from_camera_id,
+                to_camera_id=pe.to_camera_id,
+                min_travel_seconds=pe.min_travel_seconds,
+                max_travel_seconds=pe.max_travel_seconds,
+                typical_travel_seconds=pe.typical_travel_seconds,
+                distance_meters=pe.distance_meters,
+                transition_probability=pe.transition_probability,
+                bidirectional=pe.bidirectional,
+            )
+        logger.debug("Synchronized %d topology edges from database", len(persisted_edges))
+    else:
+        # Bootstrap from config.yaml camera_routes if available and DB has no edges yet
+        try:
+            cfg = _load_recognition_config()
+            routes = cfg.get("camera_routes", {})
+            max_travel = float(cfg.get("max_camera_travel_seconds", 120.0))
+            bootstrapped_count = 0
+            for from_cam, targets in routes.items():
+                if not isinstance(targets, list):
+                    continue
+                for to_cam in targets:
+                    if not to_cam or from_cam == to_cam:
+                        continue
+                    # Ensure cameras exist in DB so foreign key constraints succeed
+                    for cid in (from_cam, to_cam):
+                        if not db.query(Camera).filter(Camera.id == cid).first():
+                            clean_name = cid.replace("-", " ").replace("_", " ").title()
+                            db.add(Camera(id=cid, name=clean_name, zone="General Facility"))
+                    db.flush()
+
+                    new_edge = CameraTopologyEdge(
+                        id=str(uuid.uuid4()),
+                        from_camera_id=from_cam,
+                        to_camera_id=to_cam,
+                        min_travel_seconds=2.0,
+                        max_travel_seconds=max_travel,
+                        typical_travel_seconds=min(15.0, max_travel / 2),
+                        distance_meters=10.0,
+                        transition_probability=1.0,
+                        bidirectional=False,
+                    )
+                    db.add(new_edge)
+                    topology_graph.add_edge(
+                        from_camera_id=from_cam,
+                        to_camera_id=to_cam,
+                        min_travel_seconds=2.0,
+                        max_travel_seconds=max_travel,
+                        typical_travel_seconds=min(15.0, max_travel / 2),
+                        distance_meters=10.0,
+                        transition_probability=1.0,
+                        bidirectional=False,
+                    )
+                    bootstrapped_count += 1
+            if bootstrapped_count > 0:
+                db.commit()
+                logger.info("Bootstrapped %d topology edges from config.yaml into database", bootstrapped_count)
+        except Exception as exc:
+            db.rollback()
+            logger.debug("Could not bootstrap initial routes from config: %s", exc)
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -185,6 +270,13 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         logger.warning(f"Could not verify schema upgrade columns: {e}")
     logger.info("Database initialized")
+
+    try:
+        from database import SessionLocal
+        with SessionLocal() as db_session:
+            _sync_topology_from_database(db_session)
+    except Exception as e:
+        logger.warning(f"Could not synchronize camera topology on startup: {e}")
     
     should_load_ai = (
         InsightFaceDetector is not None
@@ -268,10 +360,16 @@ async def lifespan(app: FastAPI):
 
 
 
+# Interactive API docs list every route; keep them off in production.
+_is_production = os.environ.get("ENVIRONMENT", "development").lower() in ("production", "prod")
+
 app = FastAPI(
     title=settings.api_title,
     version=settings.api_version,
     lifespan=lifespan,
+    docs_url=None if _is_production else "/docs",
+    redoc_url=None if _is_production else "/redoc",
+    openapi_url=None if _is_production else "/openapi.json",
 )
 
 from auth import router as auth_router
@@ -317,14 +415,16 @@ from middleware import JWTMiddleware
 app.add_middleware(JWTMiddleware)
 app.add_middleware(SecurityHeadersMiddleware)
 
-# CORS middleware with wildcard subdomain support (e.g. https://*.vercel.app, https://*.jarvislabs.run)
+# CORS middleware with optional wildcard subdomains (e.g. https://*.vercel.app). A "*" matches exactly one
+# DNS label, so "https://*.vercel.app" does not match "https://a.b.vercel.app". Origins come from CORS_ORIGINS;
+# the defaults allow localhost only.
 _exact_origins = []
 _regex_patterns = []
 
 for _origin in settings.cors_origins:
     if "*" in _origin:
         import re
-        _pattern = "^" + re.escape(_origin).replace(r"\*", ".*") + "$"
+        _pattern = "^" + re.escape(_origin).replace(r"\*", "[A-Za-z0-9-]+") + "$"
         _regex_patterns.append(_pattern)
     else:
         _exact_origins.append(_origin)
@@ -341,7 +441,7 @@ app.add_middleware(
 )
 
 
-from dependencies import verify_edge_node
+from dependencies import verify_edge_node, edge_key_matches
 
 
 @app.post("/detect")
@@ -417,16 +517,15 @@ def get_gallery(
     labels = []
     embeddings = []
     profile_ids = []
+    embedding_ids = []
     for profile in profiles:
         for emb in profile.embeddings:
+            embedding_ids.append(str(emb.id))
             labels.append(profile.name)
             embeddings.append(np.asarray(emb.vector, dtype=np.float32).reshape(-1).tolist())
             profile_ids.append(profile.id)
 
-    # Compute a deterministic gallery version hash/count
-    gallery_version = len(profiles) * 100 + len(labels)
-    if gallery_version == 0:
-        gallery_version = 1
+    gallery_version = compute_gallery_version(embedding_ids)
 
     return {
         "version": gallery_version,
@@ -502,16 +601,8 @@ def cloud_vector_search(
 
 @app.get("/api/topology", response_model=CameraTopologyResponse)
 def get_camera_topology(db: Session = Depends(get_db)):
-    """Get active camera topology graph with allowed transition edges."""
-    # Synchronize registered cameras as topology nodes
-    cameras = db.query(Camera).all()
-    for cam in cameras:
-        if cam.id not in topology_graph.nodes:
-            topology_graph.add_node(
-                camera_id=cam.id,
-                name=cam.name or cam.id,
-                zone=cam.zone or "",
-            )
+    """Get active camera topology graph with allowed transition edges (synchronized with database)."""
+    _sync_topology_from_database(db)
     return topology_graph.to_dict()
 
 
@@ -520,7 +611,55 @@ def add_topology_edge(
     edge_req: CameraEdgeCreateRequest,
     db: Session = Depends(get_db)
 ):
-    """Add or update an allowed physical transition edge between two cameras."""
+    """Add or update an allowed physical transition edge between two cameras, persisted in database (solves R5)."""
+    import uuid
+    # Ensure from and to cameras exist in database
+    for cid in (edge_req.from_camera_id, edge_req.to_camera_id):
+        if not db.query(Camera).filter(Camera.id == cid).first():
+            clean_name = cid.replace("-", " ").replace("_", " ").title()
+            db.add(Camera(id=cid, name=clean_name, zone="General Facility"))
+    db.flush()
+
+    # Upsert edge in database
+    edge_row = db.query(CameraTopologyEdge).filter(
+        CameraTopologyEdge.from_camera_id == edge_req.from_camera_id,
+        CameraTopologyEdge.to_camera_id == edge_req.to_camera_id
+    ).first()
+    if not edge_row:
+        edge_row = CameraTopologyEdge(
+            id=str(uuid.uuid4()),
+            from_camera_id=edge_req.from_camera_id,
+            to_camera_id=edge_req.to_camera_id,
+        )
+        db.add(edge_row)
+    edge_row.min_travel_seconds = edge_req.min_travel_seconds
+    edge_row.max_travel_seconds = edge_req.max_travel_seconds
+    edge_row.typical_travel_seconds = edge_req.typical_travel_seconds
+    edge_row.distance_meters = edge_req.distance_meters
+    edge_row.transition_probability = edge_req.transition_probability
+    edge_row.bidirectional = edge_req.bidirectional
+
+    if edge_req.bidirectional:
+        rev_row = db.query(CameraTopologyEdge).filter(
+            CameraTopologyEdge.from_camera_id == edge_req.to_camera_id,
+            CameraTopologyEdge.to_camera_id == edge_req.from_camera_id
+        ).first()
+        if not rev_row:
+            rev_row = CameraTopologyEdge(
+                id=str(uuid.uuid4()),
+                from_camera_id=edge_req.to_camera_id,
+                to_camera_id=edge_req.from_camera_id,
+            )
+            db.add(rev_row)
+        rev_row.min_travel_seconds = edge_req.min_travel_seconds
+        rev_row.max_travel_seconds = edge_req.max_travel_seconds
+        rev_row.typical_travel_seconds = edge_req.typical_travel_seconds
+        rev_row.distance_meters = edge_req.distance_meters
+        rev_row.transition_probability = edge_req.transition_probability
+        rev_row.bidirectional = True
+
+    db.commit()
+
     edge = topology_graph.add_edge(
         from_camera_id=edge_req.from_camera_id,
         to_camera_id=edge_req.to_camera_id,
@@ -541,6 +680,33 @@ def add_topology_edge(
         "transition_probability": edge.transition_probability,
         "bidirectional": edge.bidirectional,
     }
+
+
+@app.delete("/api/topology/edges")
+def delete_topology_edge(
+    from_camera_id: str = Query(..., description="Origin camera id"),
+    to_camera_id: str = Query(..., description="Destination camera id"),
+    bidirectional: bool = Query(False, description="Also remove reverse edge"),
+    db: Session = Depends(get_db)
+):
+    """Delete an allowed transition edge between cameras from both database and memory."""
+    db.query(CameraTopologyEdge).filter(
+        CameraTopologyEdge.from_camera_id == from_camera_id,
+        CameraTopologyEdge.to_camera_id == to_camera_id
+    ).delete()
+    if bidirectional:
+        db.query(CameraTopologyEdge).filter(
+            CameraTopologyEdge.from_camera_id == to_camera_id,
+            CameraTopologyEdge.to_camera_id == from_camera_id
+        ).delete()
+    db.commit()
+
+    if topology_graph is not None:
+        topology_graph.remove_edge(from_camera_id, to_camera_id)
+        if bidirectional:
+            topology_graph.remove_edge(to_camera_id, from_camera_id)
+
+    return {"status": "deleted", "from_camera_id": from_camera_id, "to_camera_id": to_camera_id}
 
 
 @app.post("/api/tracking/cross-camera-evaluate", response_model=CrossCameraEvaluationResponse)
@@ -706,10 +872,16 @@ async def push_camera_frame(
     jpeg = await request.body()
     if not jpeg or len(jpeg) > 5 * 1024 * 1024:
         raise HTTPException(status_code=400, detail="Invalid frame size")
+    if not is_valid_camera_id(camera_id):
+        raise HTTPException(status_code=400, detail="Invalid camera id")
 
     slot = get_frame_slot(camera_id)
     slot.jpeg = jpeg
+    slot.last_frame_at = time.time()
     slot.event.set()
+    if not slot.registered:
+        # First frame from this camera: make sure it exists in the cameras table.
+        slot.registered = await run_in_threadpool(register_live_camera, camera_id)
     return Response(status_code=204)
 
 
@@ -730,10 +902,13 @@ async def video_push(camera_id: str, websocket: WebSocket):
       - The edge node must include the API key as a query parameter:
         wss://your-backend/ws/video/push/webcam?api_key=<EDGE_API_KEY>
     """
-    expected_key = os.environ.get("EDGE_API_KEY", "default-dev-key")
     api_key = websocket.query_params.get("api_key", "")
-    if not (api_key and hmac.compare_digest(api_key, expected_key)):
+    if not edge_key_matches(api_key):
         await websocket.close(code=4003, reason="Invalid API key")
+        return
+
+    if not is_valid_camera_id(camera_id):
+        await websocket.close(code=4400, reason="Invalid camera id")
         return
 
     await websocket.accept()
@@ -745,7 +920,10 @@ async def video_push(camera_id: str, websocket: WebSocket):
             if not data:
                 continue
             slot.jpeg = data
+            slot.last_frame_at = time.time()
             slot.event.set()   # wake any waiting MJPEG consumers
+            if not slot.registered:
+                slot.registered = await run_in_threadpool(register_live_camera, camera_id)
     except WebSocketDisconnect:
         logger.info("Edge node disconnected for camera '%s'", camera_id)
     except Exception as exc:
@@ -765,9 +943,7 @@ async def authenticate_ws(websocket: WebSocket) -> bool:
         except Exception:
             pass
 
-    api_key = websocket.query_params.get("api_key")
-    expected_key = os.environ.get("EDGE_API_KEY", "default-dev-key")
-    if api_key and hmac.compare_digest(api_key, expected_key):
+    if edge_key_matches(websocket.query_params.get("api_key")):
         return True
 
     return False

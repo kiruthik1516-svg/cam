@@ -5,6 +5,11 @@ from typing import Any, Callable
 import logging
 import cv2
 
+try:
+    from .sources import redact_url
+except ImportError:  # running outside the package
+    from sources import redact_url
+
 logger = logging.getLogger(__name__)
 
 
@@ -38,7 +43,7 @@ class CameraCapture(threading.Thread):
 
         while not self._stop_event.is_set():
             if self._capture is None or not self._capture.isOpened():
-                logger.info('[%s] connecting to source %s', self.camera_id, self.source)
+                logger.info('[%s] connecting to source %s', self.camera_id, redact_url(self.source))
                 self._connect()
                 if self._capture is None or not self._capture.isOpened():
                     logger.warning('[%s] capture not opened, retry in %s seconds', self.camera_id, self.reconnect_interval)

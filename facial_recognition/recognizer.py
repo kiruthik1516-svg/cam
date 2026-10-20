@@ -7,6 +7,11 @@ import urllib.request
 import json
 import numpy as np
 
+try:
+    from .safeio import load_npz
+except ImportError:  # running outside the package
+    from safeio import load_npz
+
 
 logger = logging.getLogger(__name__)
 
@@ -93,7 +98,7 @@ class Recognizer:
             return
 
         try:
-            gallery = np.load(gallery_path, allow_pickle=True)
+            gallery = load_npz(gallery_path)
             labels = gallery['labels'].tolist() if 'labels' in gallery else []
             embeddings = gallery['embeddings'] if 'embeddings' in gallery else np.zeros((0, 512), dtype=np.float32)
             norm_embs = self._normalize_embeddings(embeddings)
@@ -154,9 +159,9 @@ class Recognizer:
             logger.debug('Recognize took %.2f ms, best=%s (%.4f), margin=%.4f', dur, best_label, best_score, margin)
 
             # 1. Direct standard threshold match
-            # If min_confidence is explicitly passed (e.g. cluster centroid re-identification), use it
+            # If min_confidence is explicitly passed (e.g. cluster centroid re-identification), use it with 0.52 safety floor
             if min_confidence is not None:
-                effective_threshold = float(min_confidence)
+                effective_threshold = max(0.52, float(min_confidence))
             else:
                 # Require minimum 0.58 for reliable 1:N CCTV gallery matching to eliminate false hits
                 effective_threshold = max(0.58, self.threshold)

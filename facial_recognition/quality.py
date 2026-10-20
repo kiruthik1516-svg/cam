@@ -19,22 +19,22 @@ class FaceQualityAssessor:
         """
         thresholds = thresholds or {}
         self.t_high = thresholds.get('high', {
-            'min_size': 80,
-            'min_confidence': 0.7,
-            'min_sharpness': 100.0,
-            'illumination_range': [40, 210],
-            'min_pose_score': 0.65,
-            'min_occlusion_score': 0.60
+            'min_size': 70,
+            'min_confidence': 0.65,
+            'min_sharpness': 80.0,
+            'illumination_range': [35, 220],
+            'min_pose_score': 0.60,
+            'min_occlusion_score': 0.55
         })
         self.t_medium = thresholds.get('medium', {
-            'min_size': 40,
-            'min_confidence': 0.4,
-            'min_sharpness': 50.0,
-            'illumination_range': [20, 235],
-            'min_pose_score': 0.40,
-            'min_occlusion_score': 0.35
+            'min_size': 32,
+            'min_confidence': 0.40,
+            'min_sharpness': 35.0,
+            'illumination_range': [15, 240],
+            'min_pose_score': 0.35,
+            'min_occlusion_score': 0.30
         })
-        self.temporal_observations_required = thresholds.get('temporal_observations_required', 5)
+        self.temporal_observations_required = thresholds.get('temporal_observations_required', 4)
         self._fas_session: Optional[Any] = None
         self._init_deep_fas()
 

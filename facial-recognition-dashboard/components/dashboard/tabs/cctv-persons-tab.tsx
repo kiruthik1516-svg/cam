@@ -372,10 +372,13 @@ export function CctvPersonsTab({
     if (!renameTargetPerson) return
     setIsRenaming(true)
     try {
-      const sourceId = renameTargetPerson.bestLog.profileId || renameTargetPerson.name
-      await assignUnregisteredSubject(sourceId, profileId)
+      const sourceId = renameTargetPerson.bestLog.profileId || renameTargetPerson.bestLog.id || renameTargetPerson.name
+      const detectionIds = renameTargetPerson.allLogs.map((l) => l.id)
+      await assignUnregisteredSubject(sourceId, profileId, detectionIds)
       await queryClient.invalidateQueries({ queryKey: ['face-logs'] })
       await queryClient.invalidateQueries({ queryKey: ['unregistered-subjects'] })
+      await queryClient.invalidateQueries({ queryKey: ['video-audit-batches'] })
+      await queryClient.invalidateQueries({ queryKey: ['profiles-reference'] })
 
       const msg = `Successfully assigned ${renameTargetPerson.name} to ${profileName}! Status updated to Recognized with live profile linking.`
       setMergeNotification(msg)

@@ -39,14 +39,20 @@ export async function authFetch(path: string, options?: RequestInit): Promise<Re
   if (token) {
     headers.set('Authorization', `Bearer ${token}`)
   }
-  const res = await fetch(apiUrl(path), { ...options, headers })
-  if (res.status === 401 && typeof window !== 'undefined') {
-    localStorage.removeItem('sentinel_token')
-    if (window.location.pathname !== '/login') {
-      window.location.href = '/login'
+  try {
+    const res = await fetch(apiUrl(path), { ...options, headers })
+    if (res.status === 401 && typeof window !== 'undefined') {
+      localStorage.removeItem('sentinel_token')
+      if (window.location.pathname !== '/login') {
+        window.location.href = '/login'
+      }
     }
+    return res
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err)
+    console.error(`authFetch network error for ${path}:`, msg)
+    throw new Error(`Network request failed to ${apiUrl(path)}: ${msg}`)
   }
-  return res
 }
 
 const VALID_ROLES: ProfileRole[] = [

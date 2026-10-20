@@ -2,7 +2,7 @@ import uuid
 from datetime import datetime
 from typing import Optional, List
 
-from fastapi import APIRouter, Depends, Form, File, UploadFile, HTTPException
+from fastapi import APIRouter, Depends, Form, File, UploadFile, HTTPException, Query
 from sqlalchemy.orm import Session
 
 from database import get_db
@@ -45,6 +45,17 @@ async def create_profile(
     """Enroll a new profile and extract face embeddings."""
     if not name or not name.strip():
         raise HTTPException(status_code=422, detail="Profile name cannot be empty")
+
+    if photos:
+        # Enrolling from photos needs the face model in this backend process. Fail clearly instead of
+        # creating a profile that silently ends up with no embeddings.
+        from state import ai_models
+        if ai_models.get("detector") is None:
+            raise HTTPException(
+                status_code=503,
+                detail="The face model is not loaded on this backend, so photos cannot be enrolled. "
+                       "Set ENABLE_FORENSIC_SEARCH=true and restart the backend.",
+            )
 
     try:
         profile_role = ProfileRoleEnum(role) if role else ProfileRoleEnum.visitor
@@ -112,11 +123,19 @@ def update_profile(profile_id: str, req: ProfileUpdateRequest, db: Session = Dep
 
 
 @router.delete("/{profile_id}")
-def delete_profile(profile_id: str, db: Session = Depends(get_db)):
-    """Delete a profile and its vectors while retaining historical detections."""
+def delete_profile(
+    profile_id: str,
+    erase_biometrics: bool = Query(False, description="Also remove the face images and vectors stored in this person's past detections"),
+    db: Session = Depends(get_db),
+):
+    """Delete a profile and its vectors. Historical detections are kept (unlinked), unless erase_biometrics=true."""
     profile = db.query(Profile).filter(Profile.id == profile_id).first()
     if not profile:
         raise HTTPException(status_code=404, detail="Profile not found")
+    if erase_biometrics:
+        db.query(Detection).filter(Detection.profile_id == profile_id).update(
+            {"face_image": None, "embedding_vector": None}, synchronize_session=False
+        )
     db.query(Detection).filter(Detection.profile_id == profile_id).update({"profile_id": None})
     db.query(Alert).filter(Alert.profile_id == profile_id).update({"profile_id": None})
     db.query(CameraTransition).filter(CameraTransition.profile_id == profile_id).delete(synchronize_session=False)
@@ -167,6 +186,13 @@ def merge_profiles(
     keep_id = req.keepProfile or req.keepProfileId or req.profileAId
     delete_id = req.profileBId if keep_id == req.profileAId else req.profileAId
     
+    if not keep_id or not delete_id:
+        raise HTTPException(status_code=400, detail="Two profiles are required to merge")
+    if keep_id == delete_id:
+        raise HTTPException(status_code=400, detail="Choose two different profiles to merge")
+    if keep_id not in (req.profileAId, req.profileBId):
+        raise HTTPException(status_code=400, detail="The profile to keep must be one of the two being merged")
+
     keep_profile = db.query(Profile).filter(Profile.id == keep_id).first()
     delete_profile = db.query(Profile).filter(Profile.id == delete_id).first()
     
@@ -177,9 +203,14 @@ def merge_profiles(
     db.query(Detection).filter(Detection.profile_id == delete_id).update({"profile_id": keep_id})
     db.query(Embedding).filter(Embedding.profile_id == delete_id).update({"profile_id": keep_id})
     db.query(Alert).filter(Alert.profile_id == delete_id).update({"profile_id": keep_id})
-    
-    # Update embedding count
-    keep_profile.embedding_count += delete_profile.embedding_count
+    db.query(CameraTransition).filter(CameraTransition.profile_id == delete_id).update({"profile_id": keep_id})
+    db.flush()
+
+    # Recount from the vectors actually attached (adding the two stored counts can drift)
+    keep_profile.embedding_count = db.query(Embedding).filter(Embedding.profile_id == keep_id).count()
+    keep_profile.embedding_status = (
+        EmbeddingStatusEnum.indexed if keep_profile.embedding_count > 0 else EmbeddingStatusEnum.missing
+    )
     
     db.delete(delete_profile)
     db.commit()

@@ -12,7 +12,6 @@ import os
 import signal
 import threading
 import time
-from urllib.parse import quote
 from typing import Any, Deque, Dict, List, Optional, Tuple, cast
 import logging
 
@@ -58,6 +57,7 @@ if _workspace_root not in sys.path:
     sys.path.insert(0, _workspace_root)
 
 from facial_recognition.capture import CameraCapture
+from facial_recognition.sources import dvr_sources_from_env, redact_url
 from facial_recognition.detector import InsightFaceDetector  # type: ignore[reportMissingImports]
 from facial_recognition.logger import DetectionLogger
 from facial_recognition.recognizer import Recognizer
@@ -69,9 +69,10 @@ from collections import deque
 
 
 TIERS = {
-    'fast': {'det_size': (320, 320), 'frame_skip': 3},
-    'mid':  {'det_size': (256, 256), 'frame_skip': 5},
-    'slow': {'det_size': (192, 192), 'frame_skip': 8},
+    'max':  {'det_size': (480, 480), 'frame_skip': 2},
+    'fast': {'det_size': (384, 384), 'frame_skip': 3},
+    'mid':  {'det_size': (256, 256), 'frame_skip': 4},
+    'slow': {'det_size': (192, 192), 'frame_skip': 6},
 }
 
 
@@ -246,7 +247,7 @@ class CpuCameraPipeline:
         logger.info("[%s] Calibration complete. Median latency: %.1f ms -> Selected tier: %s", self.camera_id, median_latency, tier)
 
     def start(self):
-        logger.info('Starting CameraPipeline %s (source=%s)', self.camera_id, self.source)
+        logger.info('Starting CameraPipeline %s (source=%s)', self.camera_id, redact_url(self.source))
         self.capture.start()
         # Wait for first frame
         for _ in range(50):
@@ -629,14 +630,7 @@ def build_sources(cfg: Dict[str, Any], webcam_index: Optional[int] = None, webca
     if not webcam_only:
         for idx, url in enumerate(cfg.get('rtsp_urls', []) or []):
             sources.append((f'rtsp-{idx+1}', str(url)))
-        dvr_ip = os.environ.get('DVR_IP', '').strip()
-        dvr_username = os.environ.get('DVR_USERNAME', '').strip()
-        dvr_password = os.environ.get('DVR_PASSWORD', '')
-        if dvr_ip and dvr_username and dvr_password:
-            dvr_port = os.environ.get('DVR_RTSP_PORT', '554').strip()
-            dvr_path = os.environ.get('DVR_RTSP_PATH', 'Streaming/Channels/101').strip().lstrip('/')
-            source = f'rtsp://{quote(dvr_username, safe="")}:{quote(dvr_password, safe="")}@{dvr_ip}:{dvr_port}/{dvr_path}'
-            sources.append(('dvr-1', source))
+        sources.extend(dvr_sources_from_env())
     return sources
 
 
@@ -653,7 +647,7 @@ def main():
     frame_skip = options.frame_skip if options.frame_skip is not None else int(cfg.get('cpu_frame_skip', cfg.get('frame_skip', 5)))
     cpu_tier = options.tier or str(cfg.get('cpu_tier', 'auto')).lower()
     if options.max_quality and options.tier is None:
-        cpu_tier = 'fast'
+        cpu_tier = 'max'
     lock_resolution = bool(
         options.max_quality or options.det_width is not None or options.det_height is not None
     )

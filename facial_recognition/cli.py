@@ -82,8 +82,8 @@ def parse_run_args(description: str, *, cpu: bool = False) -> RunOptions:
     if cpu:
         parser.add_argument(
             '--tier',
-            choices=['auto', 'fast', 'mid', 'slow'],
-            help='CPU tier (use "fast" to avoid shrinking resolution at runtime)',
+            choices=['auto', 'max', 'fast', 'mid', 'slow'],
+            help='CPU tier ("max" 480px, "fast" 384px to maximize face coverage)',
         )
         parser.add_argument('--frame-skip', type=int, help='Run detection every N frames')
 

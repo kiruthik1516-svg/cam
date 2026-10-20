@@ -114,9 +114,10 @@ def get_camera_episodes(
     source: Optional[str] = Query(None, description="Filter by data source: 'live' or 'archive'"),
     batch_id: Optional[str] = Query(None, description="Filter by specific archive batch ID"),
     profile_id: Optional[str] = Query(None, description="Filter by profile or unregistered subject ID"),
-    gap_threshold: float = Query(45.0, ge=1.0, le=300.0, description="Max seconds gap between detections in the same episode"),
-    min_dwell: float = Query(0.0, ge=0.0, le=300.0, description="Minimum dwell duration in seconds"),
+    gap_threshold: float = Query(45.0, ge=1.0, le=7200.0, description="Max seconds gap between detections in the same episode"),
+    min_dwell: float = Query(0.0, ge=0.0, le=3600.0, description="Minimum dwell duration in seconds"),
     min_confidence: float = Query(0.0, ge=0.0, le=100.0, description="Minimum peak confidence percentage"),
+    hide_transient_noise: bool = Query(False, description="Filter out single-frame low-confidence (<52%) transient blips"),
     db: Session = Depends(get_db)
 ):
     """Get aggregated camera passage & In/Out presence episodes.
@@ -125,18 +126,36 @@ def get_camera_episodes(
     groups continuous detections into distinct presence episodes tracking
     Entry (IN), Exit (OUT), Dwell Duration, Body Flow, and Transit Handoffs.
     """
+    try:
+        limit = int(limit)
+    except Exception:
+        limit = 100
+    try:
+        gap_threshold = float(gap_threshold)
+    except Exception:
+        gap_threshold = 45.0
+    try:
+        min_dwell = float(min_dwell)
+    except Exception:
+        min_dwell = 0.0
+    try:
+        min_confidence = float(min_confidence)
+    except Exception:
+        min_confidence = 0.0
+    hide_transient_noise = bool(hide_transient_noise) if isinstance(hide_transient_noise, bool) else False
+
     query = db.query(Detection).options(
         joinedload(Detection.camera),
         joinedload(Detection.profile),
         joinedload(Detection.unregistered_subject),
     )
-    if camera_id:
+    if camera_id and isinstance(camera_id, str):
         query = query.filter(Detection.camera_id == camera_id)
-    if source:
+    if source and isinstance(source, str):
         query = query.filter(Detection.source == source)
-    if batch_id:
+    if batch_id and isinstance(batch_id, str):
         query = query.filter(Detection.batch_id == batch_id)
-    if profile_id:
+    if profile_id and isinstance(profile_id, str):
         query = query.filter(
             or_(
                 Detection.profile_id == profile_id,
@@ -197,6 +216,8 @@ def get_camera_episodes(
         if min_dwell > 0.0 and dwell < min_dwell:
             continue
         if min_confidence > 0.0 and peak_conf < min_confidence:
+            continue
+        if hide_transient_noise and len(cluster) < 2 and not first.profile_id and peak_conf < 52.0:
             continue
         
         # Identity resolution

@@ -1,6 +1,9 @@
 import hashlib
+import logging
+import re
 import uuid
 from typing import Optional, Tuple, Any, Dict
+from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
 from config import IST, to_ist_iso
@@ -12,6 +15,68 @@ from models import (
 )
 
 AVATAR_TONES = ['sky', 'amber', 'rose', 'violet', 'emerald', 'cyan', 'orange', 'indigo']
+
+logger = logging.getLogger(__name__)
+
+# Camera ids from edge nodes become database keys and URL parts: keep them simple.
+CAMERA_ID_PATTERN = re.compile(r"^[A-Za-z0-9._-]{1,64}$")
+
+
+def compute_gallery_version(embedding_ids) -> int:
+    """Deterministic gallery version derived from the enrolled vectors themselves.
+
+    It changes whenever a vector is added, removed or replaced; a count-based number stays the same when one
+    vector replaces another. Result is a positive 31-bit integer (1 for an empty gallery).
+    """
+    digest = hashlib.sha256("|".join(sorted(str(i) for i in embedding_ids)).encode("utf-8")).hexdigest()
+    if not embedding_ids:
+        return 1
+    return (int(digest[:8], 16) % 2_000_000_000) or 1
+
+
+def is_valid_camera_id(camera_id: str) -> bool:
+    return bool(CAMERA_ID_PATTERN.match(camera_id or ""))
+
+
+def live_camera_ids(db: Session) -> set:
+    """Cameras that are live: they have pushed frames, or have live (non-archive) detections."""
+    from state import known_stream_camera_ids
+    ids = set(known_stream_camera_ids())
+    rows = db.query(Detection.camera_id).filter(
+        or_(Detection.source == "live", Detection.source.is_(None))
+    ).distinct().all()
+    ids.update(row[0] for row in rows if row[0])
+    return ids
+
+
+def archive_camera_ids(db: Session, batch_id: Optional[str] = None) -> set:
+    """Cameras that appear in imported archive footage, optionally for one import batch."""
+    query = db.query(Detection.camera_id).filter(Detection.source == "archive")
+    if batch_id:
+        query = query.filter(Detection.batch_id == batch_id)
+    return {row[0] for row in query.distinct().all() if row[0]}
+
+
+def register_live_camera(camera_id: str, name: Optional[str] = None, zone: Optional[str] = None) -> bool:
+    """Create the Camera row for a live edge camera the first time it sends frames with a human-readable display name and zone."""
+    from database import SessionLocal
+    from models import CameraStatus
+    db = SessionLocal()
+    try:
+        existing = db.query(Camera).filter(Camera.id == camera_id).first()
+        if not existing:
+            # Format clean human-readable default name and zone
+            clean_name = name or camera_id.replace("-", " ").replace("_", " ").title()
+            default_zone = zone or ("Lobby / Entrance" if any(w in camera_id.lower() for w in ("reception", "door", "lane", "entrance", "gate")) else "General Facility")
+            db.add(Camera(id=camera_id, name=clean_name, zone=default_zone, status=CameraStatus.online))
+            db.commit()
+        return True
+    except Exception as exc:
+        db.rollback()
+        logger.warning("Could not register live camera %s: %s", camera_id, exc)
+        return False
+    finally:
+        db.close()
 
 def snapshot_tone_for(key: str) -> str:
     digest = hashlib.md5(key.encode('utf-8')).hexdigest()

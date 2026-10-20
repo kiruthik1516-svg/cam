@@ -25,9 +25,13 @@ def auth_headers():
 
 
 @pytest.fixture
-def sample_video_dir():
-    """Create a temporary directory containing 2 synthetic test video clips with known timestamps."""
+def sample_video_dir(monkeypatch):
+    """Create a temporary directory containing 2 synthetic test video clips with known timestamps.
+
+    The directory is also registered as the allowed footage root for the API tests.
+    """
     with tempfile.TemporaryDirectory() as tmpdir:
+        monkeypatch.setenv("FOOTAGE_ROOTS", tmpdir)
         tmp_path = Path(tmpdir)
         cam_dir = tmp_path / "Camera_01"
         cam_dir.mkdir(parents=True, exist_ok=True)
@@ -93,10 +97,11 @@ def test_api_scan_cctv_footage(client, auth_headers, sample_video_dir):
     assert rep_res.json()["total_files_scanned"] == 2
 
 
-def test_api_scan_nonexistent_directory(client, auth_headers):
+def test_api_scan_nonexistent_directory(client, auth_headers, tmp_path, monkeypatch):
+    monkeypatch.setenv("FOOTAGE_ROOTS", str(tmp_path))
     res = client.post(
         "/api/video-audit/scan",
-        json={"directory": "Z:/NonExistentDrive/Footage", "tolerance_seconds": 5.0},
+        json={"directory": str(tmp_path / "missing-folder"), "tolerance_seconds": 5.0},
         headers=auth_headers,
     )
     assert res.status_code == 404

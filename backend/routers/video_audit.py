@@ -63,6 +63,37 @@ def resolve_directory_path(dir_str: str) -> Path:
     return p.resolve()
 
 
+def allowed_footage_roots() -> List[Path]:
+    """Folders the footage tools may read: FOOTAGE_ROOTS (separated by ; or ,), default /footage."""
+    raw = os.environ.get("FOOTAGE_ROOTS", "").strip()
+    items = [part.strip() for part in re.split(r"[;,]", raw) if part.strip()] if raw else ["/footage"]
+    roots: List[Path] = []
+    for item in items:
+        try:
+            roots.append(resolve_directory_path(item))
+        except OSError:
+            continue
+    return roots
+
+
+def ensure_within_roots(path: Path) -> Path:
+    """Return the resolved path if it is inside an allowed footage folder, otherwise raise 403.
+
+    Symlinks and ".." are resolved first, so they cannot be used to step outside the allowed folders.
+    """
+    resolved = path.resolve()
+    for root in allowed_footage_roots():
+        try:
+            resolved.relative_to(root)
+            return resolved
+        except ValueError:
+            continue
+    raise HTTPException(
+        status_code=status.HTTP_403_FORBIDDEN,
+        detail="Path is outside the allowed footage folders. Set FOOTAGE_ROOTS to the folder(s) holding your footage.",
+    )
+
+
 class ScanRequest(BaseModel):
     directory: str = Field(..., description="Absolute path to CCTV footage directory or hard drive")
     tolerance_seconds: float = Field(5.0, description="Allowable gap in seconds before flagging as missing footage")
@@ -90,33 +121,17 @@ def browse_directories(path: Optional[str] = Query(None, description="Path to in
     current_path = ""
     parent_path = None
 
+    roots = allowed_footage_roots()
     if not path or not path.strip():
-        if os.name == "nt":
-            import string
-            for letter in string.ascii_uppercase:
-                drive = f"{letter}:\\"
-                if os.path.exists(drive):
-                    results.append({"name": f"{letter}: Drive", "path": drive, "is_drive": True, "has_videos": False})
-        else:
-            for letter in ["c", "d", "e", "f"]:
-                mount = Path(f"/{letter}")
-                if mount.exists():
-                    results.append({
-                        "name": f"{letter.upper()}: Drive",
-                        "path": f"{letter.upper()}:\\",
-                        "container_path": str(mount),
-                        "is_drive": True,
-                        "has_videos": False,
-                    })
-            if not results:
-                results.append({"name": "Current Workspace (/app)", "path": "/app", "is_drive": True, "has_videos": False})
+        for root in roots:
+            results.append({"name": root.name or str(root), "path": str(root), "is_drive": True, "has_videos": False})
     else:
-        resolved = resolve_directory_path(path)
+        resolved = ensure_within_roots(resolve_directory_path(path))
         if not resolved.exists() or not resolved.is_dir():
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Directory not found: {path}")
 
         current_path = str(resolved)
-        parent_path = str(resolved.parent) if resolved.parent != resolved else None
+        parent_path = str(resolved.parent) if (resolved not in roots and resolved.parent != resolved) else None
 
         VIDEO_EXTS = {".mp4", ".avi", ".mkv", ".mov", ".flv", ".wmv", ".ts", ".webm"}
         try:
@@ -160,20 +175,14 @@ def locate_folder(name: str = Query(..., description="Folder name to search for"
     """Locate a folder name across available drives to auto-complete folder selections."""
     name_clean = name.strip().strip("/\\")
     candidates = []
-
-    if os.name == "nt":
-        for letter in ["D", "C", "E"]:
-            p = Path(f"{letter}:\\{name_clean}")
-            if p.exists() and p.is_dir():
-                candidates.append(str(p))
-    else:
-        for letter in ["d", "c", "e"]:
-            p = Path(f"/{letter}/{name_clean}")
-            if p.exists() and p.is_dir():
-                candidates.append(f"{letter.upper()}:\\{name_clean}")
-        p = Path(f"/app/{name_clean}")
-        if p.exists() and p.is_dir():
-            candidates.append(str(p))
+    for root in allowed_footage_roots():
+        try:
+            match = (root / name_clean).resolve()
+            match.relative_to(root)   # reject ".." escapes
+        except (ValueError, OSError):
+            continue
+        if match.is_dir():
+            candidates.append(str(match))
 
     return {
         "name": name,
@@ -205,6 +214,8 @@ def scan_cctv_footage(req: ScanRequest):
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Scanning raw drive root is restricted for security. Please specify a CCTV folder path.",
         )
+
+    target_path = ensure_within_roots(target_path)
 
     if not target_path.exists():
         raise HTTPException(
@@ -275,6 +286,8 @@ def start_batch_ingest(req: IngestRequest):
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Ingesting raw drive root is restricted for security. Please specify a CCTV folder path.",
         )
+
+    target_path = ensure_within_roots(target_path)
 
     if not target_path.exists():
         raise HTTPException(

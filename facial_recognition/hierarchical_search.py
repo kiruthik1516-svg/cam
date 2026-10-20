@@ -20,6 +20,11 @@ from typing import Any, Callable, Dict, List, Optional, Tuple
 
 import numpy as np
 
+try:
+    from .safeio import load_npz
+except ImportError:  # running outside the package
+    from safeio import load_npz
+
 logger = logging.getLogger(__name__)
 
 
@@ -81,9 +86,9 @@ class LocalGallery:
         np.savez(
             path,
             version=np.array([self.version], dtype=np.int32),
-            labels=np.array(self.labels, dtype=object),
+            labels=np.array(self.labels, dtype=str),
             embeddings=self.embeddings,
-            profile_ids=np.array(self.profile_ids, dtype=object),
+            profile_ids=np.array([str(p) for p in self.profile_ids], dtype=str),
             last_synced_at=np.array([self.last_synced_at], dtype=np.float64),
         )
 
@@ -94,7 +99,7 @@ class LocalGallery:
         if not path.exists():
             return cls()
         try:
-            data = np.load(path, allow_pickle=True)
+            data = load_npz(path)
             version = int(data["version"][0]) if "version" in data else 1
             labels = list(data["labels"]) if "labels" in data else []
             embeddings = data["embeddings"] if "embeddings" in data else np.zeros((0, 512), dtype=np.float32)

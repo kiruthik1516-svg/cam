@@ -335,6 +335,26 @@ class CameraTransition(Base):
     to_camera = relationship("Camera", foreign_keys=[to_camera_id], back_populates="incoming_transitions")
 
 
+class CameraTopologyEdge(Base):
+    """Persisted allowed physical transition edge between cameras."""
+    __tablename__ = "camera_topology_edges"
+    __table_args__ = (
+        Index("ix_topology_from_to", "from_camera_id", "to_camera_id", unique=True),
+    )
+
+    id = Column(String, primary_key=True, index=True)
+    from_camera_id = Column(String, ForeignKey("cameras.id", ondelete="CASCADE"), nullable=False, index=True)
+    to_camera_id = Column(String, ForeignKey("cameras.id", ondelete="CASCADE"), nullable=False, index=True)
+    min_travel_seconds = Column(Float, default=2.0)
+    max_travel_seconds = Column(Float, default=120.0)
+    typical_travel_seconds = Column(Float, default=15.0)
+    distance_meters = Column(Float, default=10.0)
+    transition_probability = Column(Float, default=1.0)
+    bidirectional = Column(Boolean, default=False)
+    created_at = Column(DateTime, default=ist_now)
+    updated_at = Column(DateTime, default=ist_now, onupdate=ist_now)
+
+
 class ModelThreshold(Base):
     """Configurable model thresholds."""
     __tablename__ = "model_thresholds"

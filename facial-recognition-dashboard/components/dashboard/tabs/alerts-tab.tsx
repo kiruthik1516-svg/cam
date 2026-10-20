@@ -384,7 +384,8 @@ const EPISODE_FILTERS = [
 function PresenceEventTrail() {
   const { mode, selectedBatchId } = useDashboardMode()
   const [viewMode, setViewMode] = useState<'episodes' | 'raw'>('episodes')
-  const [gapThreshold, setGapThreshold] = useState<number>(45)
+  const [gapThreshold, setGapThreshold] = useState<number>(300) // Default 5m Desk/Room aggregation for CCTV
+  const [showTransientNoise, setShowTransientNoise] = useState(false)
   const [episodeFilter, setEpisodeFilter] = useState<'all' | 'confirmed' | 'sustained' | 'glance' | 'flagged'>('all')
   const [rawStatus, setRawStatus] = useState<'all' | DetectionStatus>('all')
   const [query, setQuery] = useState('')
@@ -409,8 +410,8 @@ function PresenceEventTrail() {
 
   // 1. Fetch Aggregated Camera Presence Episodes (In/Out & Dwell)
   const { data: episodes = [], isLoading: episodesLoading } = useQuery({
-    queryKey: ['camera-episodes', mode, selectedBatchId, gapThreshold],
-    queryFn: () => fetchCameraEpisodes(150, mode, selectedBatchId ?? undefined, undefined, undefined, gapThreshold),
+    queryKey: ['camera-episodes', mode, selectedBatchId, gapThreshold, showTransientNoise],
+    queryFn: () => fetchCameraEpisodes(150, mode, selectedBatchId ?? undefined, undefined, undefined, gapThreshold, 0, 0, !showTransientNoise),
     refetchInterval: mode === 'live' ? 3000 : false,
   })
 
@@ -421,13 +422,27 @@ function PresenceEventTrail() {
     refetchInterval: mode === 'live' ? 3000 : false,
   })
 
-  // Confirmed vs Glance metrics
-  const confirmedCount = useMemo(() => episodes.filter(e => e.dwellSeconds >= 1.0).length, [episodes])
-  const glanceCount = useMemo(() => episodes.filter(e => e.dwellSeconds < 1.0).length, [episodes])
+  // Base episodes respecting transient noise filter
+  const baseEpisodes = useMemo(() => {
+    return episodes.filter((ep) => {
+      if (!showTransientNoise) {
+        const isTransientNoise =
+          (ep.subjectName.startsWith('Transient ') || ep.subjectName.startsWith('Subject ') || ep.role === 'visitor') &&
+          ep.detectionCount < 2 &&
+          ep.peakConfidence < 52
+        if (isTransientNoise) return false
+      }
+      return true
+    })
+  }, [episodes, showTransientNoise])
+
+  // Confirmed vs Glance metrics based on base episodes
+  const confirmedCount = useMemo(() => baseEpisodes.filter(e => e.dwellSeconds >= 1.0).length, [baseEpisodes])
+  const glanceCount = useMemo(() => baseEpisodes.filter(e => e.dwellSeconds < 1.0).length, [baseEpisodes])
 
   // Filter Episodes
   const filteredEpisodes = useMemo(() => {
-    return episodes.filter((ep) => {
+    return baseEpisodes.filter((ep) => {
       if (episodeFilter === 'flagged' && ep.status !== 'flagged') return false
       if (episodeFilter === 'confirmed' && ep.dwellSeconds < 1.0) return false
       if (episodeFilter === 'sustained' && ep.dwellSeconds < 10.0) return false
@@ -445,7 +460,7 @@ function PresenceEventTrail() {
       }
       return true
     })
-  }, [episodes, episodeFilter, query])
+  }, [baseEpisodes, episodeFilter, query])
 
   // Filter Raw Logs
   const filteredRawLogs = useMemo(() => {
@@ -601,11 +616,11 @@ function PresenceEventTrail() {
           <div className="flex flex-wrap items-center gap-1.5">
             {viewMode === 'episodes' ? (
               [
-                { value: 'all' as const, label: 'All Visits', count: episodes.length },
+                { value: 'all' as const, label: 'All Visits', count: baseEpisodes.length },
                 { value: 'confirmed' as const, label: '✓ Confirmed Only (>1s)', count: confirmedCount },
                 { value: 'glance' as const, label: '⚡ Instant Glances (<1s)', count: glanceCount },
-                { value: 'sustained' as const, label: '⏱️ Sustained Dwell (>10s)', count: episodes.filter(e => e.dwellSeconds >= 10.0).length },
-                { value: 'flagged' as const, label: '🚨 Flagged', count: episodes.filter(e => e.status === 'flagged').length },
+                { value: 'sustained' as const, label: '⏱️ Sustained Dwell (>10s)', count: baseEpisodes.filter(e => e.dwellSeconds >= 10.0).length },
+                { value: 'flagged' as const, label: '🚨 Flagged', count: baseEpisodes.filter(e => e.status === 'flagged').length },
               ].map((f) => (
                 <Button
                   key={f.value}
@@ -647,7 +662,7 @@ function PresenceEventTrail() {
             )}
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2">
             {/* Sort Dropdown */}
             <div className="flex items-center gap-1.5 text-[11px] bg-muted/40 px-2 py-0.5 rounded border border-border/50">
               <ArrowUpDown className="size-3 text-info shrink-0" />
@@ -679,9 +694,12 @@ function PresenceEventTrail() {
                 <span className="text-muted-foreground font-mono text-[10px]">Gap Window:</span>
                 <div className="flex items-center gap-1">
                   {[
-                    { label: '15s Strict', value: 15 },
-                    { label: '45s Adaptive', value: 45 },
-                    { label: '90s Room', value: 90 },
+                    { label: '15s Walk', value: 15 },
+                    { label: '45s Transit', value: 45 },
+                    { label: '90s Area', value: 90 },
+                    { label: '5m Desk', value: 300 },
+                    { label: '15m Room', value: 900 },
+                    { label: '30m Shift', value: 1800 },
                   ].map((w) => (
                     <button
                       key={w.value}
@@ -704,11 +722,37 @@ function PresenceEventTrail() {
               </div>
             )}
 
+            {viewMode === 'episodes' && (
+              <Button
+                size="xs"
+                variant={showTransientNoise ? "secondary" : "ghost"}
+                onClick={() => {
+                  setShowTransientNoise(!showTransientNoise)
+                  setPage(0)
+                }}
+                className={cn(
+                  "text-[10px] h-6 px-2 gap-1 font-mono transition-colors border",
+                  showTransientNoise
+                    ? "bg-amber-500/10 text-amber-400 border-amber-500/30 font-semibold"
+                    : "text-muted-foreground hover:text-foreground border-border/40"
+                )}
+                title={showTransientNoise ? "Click to suppress fleeting 1-frame background noise" : "Click to view raw single-frame background noise"}
+              >
+                <Sparkles className="size-2.5" />
+                {showTransientNoise ? "Showing Forensic Noise" : "Hide Transient Noise"}
+              </Button>
+            )}
+
             <div className="text-[11px] text-muted-foreground font-mono flex items-center gap-1.5">
               {viewMode === 'episodes' ? (
                 <span className="flex items-center gap-1 text-info/90">
                   <Sparkles className="size-3 text-info" />
-                  Aggregated {rawLogs.length} frames into {episodes.length} visits
+                  Aggregated {rawLogs.length} frames into {baseEpisodes.length} visits
+                  {!showTransientNoise && episodes.length > baseEpisodes.length && (
+                    <span className="text-[10px] text-muted-foreground/80">
+                      ({episodes.length - baseEpisodes.length} fleeting glances suppressed)
+                    </span>
+                  )}
                 </span>
               ) : (
                 <span>Showing individual frame-by-frame audit logs</span>

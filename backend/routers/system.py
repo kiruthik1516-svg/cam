@@ -1,5 +1,5 @@
 
-from fastapi import APIRouter, File, UploadFile, Form, Depends, Query, HTTPException, Request, Response
+from fastapi import APIRouter, BackgroundTasks, File, UploadFile, Form, Depends, Query, HTTPException, Request, Response
 from sqlalchemy.orm import Session
 from sqlalchemy import func, extract, text, case, select, or_
 from datetime import datetime, timedelta, timezone
@@ -13,7 +13,8 @@ from models import ModelThreshold as DBModelThreshold
 from schemas import *
 from config import settings, IST
 from dependencies import verify_edge_node
-from state import active_version_bundle, node_health_store
+from state import active_version_bundle, node_health_store, streaming_camera_ids
+from utils import live_camera_ids, archive_camera_ids
 from websocket import manager
 
 router = APIRouter(tags=['System'])
@@ -55,9 +56,28 @@ def get_kpis(
     total_detections = det_q.with_entities(func.count(Detection.id)).scalar() or 0
     unique_profiles = det_q.with_entities(func.count(func.distinct(Detection.profile_id))).scalar() or 0
     total_profiles = db.query(func.count(Profile.id)).scalar() or 0
-    cameras_online = db.query(func.count(Camera.id)).filter(
-        Camera.status == CameraStatus.online
-    ).scalar() or 0
+    if source == "archive":
+        # Imported footage: cameras are those that appear in the (selected) archive data.
+        total_cameras = len(archive_camera_ids(db, batch_id))
+        connected_cameras = total_cameras
+        system_health = "green"
+    else:
+        # Live: a camera is connected while it keeps pushing frames.
+        live_ids = live_camera_ids(db)
+        total_cameras = len(live_ids)
+        connected_cameras = len(live_ids & streaming_camera_ids())
+        if total_cameras == 0:
+            system_health = "yellow"
+        elif connected_cameras == total_cameras:
+            system_health = "green"
+        elif connected_cameras > 0:
+            system_health = "yellow"
+        else:
+            system_health = "red"
+    cameras_online = connected_cameras
+    active_alerts = alert_q.filter(
+        Alert.acknowledged == False
+    ).with_entities(func.count(Alert.id)).scalar() or 0
     critical_alerts = alert_q.filter(
         Alert.severity == "critical",
         Alert.acknowledged == False
@@ -80,6 +100,15 @@ def get_kpis(
         Detection.confidence > 0
     ).with_entities(func.avg(Detection.confidence)).scalar() or 0.0
     
+    # The dashboard header shows "detections today" for live data and the batch total for archives
+    # (archive data is dated in the past, so "today" would always be zero).
+    if source == "archive":
+        detections_today = total_detections
+    else:
+        detections_today = det_q.filter(
+            Detection.timestamp >= today_start_ist
+        ).with_entities(func.count(Detection.id)).scalar() or 0
+
     return SystemKpisResponse(
         total_detections=total_detections,
         unique_individuals=unique_profiles or 0,
@@ -89,6 +118,11 @@ def get_kpis(
         recognitions_today=recognitions_today,
         unknowns_today=unknowns_today,
         average_confidence=float(avg_confidence),
+        connected_cameras=connected_cameras,
+        total_cameras=total_cameras,
+        detections_today=detections_today,
+        active_alerts=active_alerts,
+        system_health=system_health,
     )
 
 
@@ -147,22 +181,30 @@ def get_all_nodes_health(
 
 # ==================== Thresholds Endpoints ====================
 
+# Threshold settings that are on/off switches rather than numbers.
+_BOOLEAN_THRESHOLDS = {"auto_alert_on_blacklist"}
+
+
 @router.get("/api/thresholds", response_model=ModelThresholdsResponse)
 def get_thresholds(db: Session = Depends(get_db)):
     """Get current model thresholds."""
     # Defaults
-    thresholds = {
+    thresholds: Dict[str, Any] = {
         "similarity_confidence": 0.60,
         "liveness_threshold": 0.50,
         "age_variance": 5.0,
+        "unknown_face_retention_days": 30.0,
+        "auto_alert_on_blacklist": True,
     }
-    
-    # Load from DB if available
+
+    # Load from DB if available (every value is stored as a number; booleans are stored as 1.0 / 0.0)
     db_thresholds = db.query(DBModelThreshold).all()
     for t in db_thresholds:
-        if t.name in thresholds:
+        if t.name in _BOOLEAN_THRESHOLDS:
+            thresholds[t.name] = t.value >= 0.5
+        elif t.name in thresholds:
             thresholds[t.name] = t.value
-    
+
     return ModelThresholdsResponse(**thresholds)
 
 
@@ -172,24 +214,28 @@ def get_thresholds(db: Session = Depends(get_db)):
 @router.post("/api/thresholds", response_model=ModelThresholdsResponse)
 def update_thresholds(
     thresholds: ModelThresholdsResponse,
+    background_tasks: BackgroundTasks,
     db: Session = Depends(get_db)
 ):
     """Update model thresholds."""
     for field, value in thresholds.dict().items():
+        if value is None:
+            continue
+        # The value column is numeric. PostgreSQL rejects a boolean in a numeric column (SQLite accepts it),
+        # so store booleans as 1.0 / 0.0.
+        stored = float(value)
         existing = db.query(DBModelThreshold).filter(DBModelThreshold.name == field).first()
         if existing:
-            existing.value = value
+            existing.value = stored
         else:
-            db.add(DBModelThreshold(id=field, name=field, value=value))
+            db.add(DBModelThreshold(id=field, name=field, value=stored))
     
     db.commit()
     
-    # Broadcast to all connected clients
-    import asyncio
-    asyncio.create_task(
-        manager.broadcast("kpis", {"thresholds": thresholds.dict()})
-    )
-    
+    # Broadcast to all connected clients. This endpoint runs in a worker thread (no event loop),
+    # so schedule the async broadcast as a background task instead of asyncio.create_task.
+    background_tasks.add_task(manager.broadcast, "kpis", {"thresholds": thresholds.dict()})
+
     return thresholds
 
 

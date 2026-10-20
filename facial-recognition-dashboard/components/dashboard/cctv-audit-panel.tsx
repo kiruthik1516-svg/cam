@@ -64,6 +64,7 @@ export function CctvAuditPanel() {
   const [sampleFps, setSampleFps] = useState<number>(2.0);
   const [tolerance, setTolerance] = useState<number>(5.0);
   const [motionGating, setMotionGating] = useState<boolean>(true);
+  const [scenario, setScenario] = useState<string>('office_desk');
   const [showManifest, setShowManifest] = useState<boolean>(false);
   const [confirmPurgeId, setConfirmPurgeId] = useState<string | null>(null);
   const [showFolderBrowser, setShowFolderBrowser] = useState<boolean>(false);
@@ -174,6 +175,7 @@ export function CctvAuditPanel() {
         sample_fps: sampleFps,
         batch_name: batchName || undefined,
         enable_motion_gating: motionGating,
+        scenario: scenario,
       }),
     onSuccess: () => {
       refetchStatus();
@@ -646,6 +648,30 @@ export function CctvAuditPanel() {
                   <Zap className={cn("size-3.5", motionGating ? "fill-primary text-primary" : "text-muted-foreground")} />
                   <span>Motion Gate: {motionGating ? "ON" : "OFF"}</span>
                 </button>
+              </div>
+            </div>
+
+            {/* Scenario Preset Selector */}
+            <div className="space-y-1.5">
+              <div className="h-5 flex items-center">
+                <Label htmlFor="scenario-preset" className="text-xs text-muted-foreground flex items-center gap-1">
+                  <span>Scenario Preset</span>
+                </Label>
+              </div>
+              <div className="h-9 flex items-center">
+                <select
+                  id="scenario-preset"
+                  value={scenario}
+                  onChange={(e) => setScenario(e.target.value)}
+                  className="h-9 rounded-md border border-input bg-card/60 px-3 py-1 text-xs font-mono text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                  disabled={isScanning || isIngesting}
+                >
+                  <option value="auto">🌐 Auto / Adaptive CCTV</option>
+                  <option value="office_desk">🏢 Office Workstations & Desks</option>
+                  <option value="corridor_turnstile">🚶 Corridors & Access Gates</option>
+                  <option value="crowded_lobby">👥 Crowded Lobbies & Areas</option>
+                  <option value="wide_perimeter">🔭 Wide-Angle Perimeter</option>
+                </select>
               </div>
             </div>
           </div>

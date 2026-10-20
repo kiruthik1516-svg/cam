@@ -1,8 +1,17 @@
 """Pytest configuration and test fixtures for backend test suite."""
 
+import os
 import sys
 from pathlib import Path
 import pytest
+
+# The backend has no built-in default secrets, so the tests supply their own (set before the app is imported).
+os.environ.setdefault("SECRET_KEY", "test-jwt-secret-for-unit-tests-only")
+os.environ.setdefault("EDGE_API_KEY", "test-edge-api-key")
+# Login has no built-in default password; without one it answers 503 ("not configured") instead of 401.
+os.environ.setdefault("ADMIN_PASSWORD", "test-admin-password-for-unit-tests")
+# Always set (not setdefault): the CORS tests need this exact list, even when the environment defines its own.
+os.environ["CORS_ORIGINS"] = "http://localhost:3000,https://*.vercel.app"
 
 # Ensure backend and root workspace are on sys.path
 backend_dir = Path(__file__).resolve().parent.parent

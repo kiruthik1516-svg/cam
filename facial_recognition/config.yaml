@@ -14,35 +14,35 @@ camera_routes:
   dvr-1: []
 max_camera_travel_seconds: 300
 
-# Cosine similarity threshold for identity matching
-similarity_threshold: 0.35
+# Cosine similarity threshold for identity matching (0.55+ for reliable 1:N CCTV recognition)
+similarity_threshold: 0.55
 
 # Face Quality Thresholds for Adaptive Recognition
 # High: immediate recognition. Medium: temporal deferral. Poor: ignored.
 quality_thresholds:
   high:
-    min_size: 80
-    min_confidence: 0.7
-    min_sharpness: 100.0
-    illumination_range: [40, 210]
-    min_pose_score: 0.65
-    min_occlusion_score: 0.60
+    min_size: 70
+    min_confidence: 0.65
+    min_sharpness: 80.0
+    illumination_range: [35, 220]
+    min_pose_score: 0.60
+    min_occlusion_score: 0.55
   medium:
-    min_size: 40
-    min_confidence: 0.4
-    min_sharpness: 50.0
-    illumination_range: [20, 235]
-    min_pose_score: 0.40
-    min_occlusion_score: 0.35
-  temporal_observations_required: 5
+    min_size: 32
+    min_confidence: 0.40
+    min_sharpness: 35.0
+    illumination_range: [15, 240]
+    min_pose_score: 0.35
+    min_occlusion_score: 0.30
+  temporal_observations_required: 4
 
 # Temporal Face-Track Identity Fusion Settings
 track_fusion:
   max_observation_window_seconds: 3.0
   max_observations_per_track: 30
   min_observations_to_finalize: 3
-  finalization_similarity_threshold: 0.35
-  finalization_margin: 0.05
+  finalization_similarity_threshold: 0.55
+  finalization_margin: 0.10
   max_missed_frames: 15
   quality_weight_gamma: 2.0
   temporal_decay_lambda: 0.1
@@ -57,11 +57,11 @@ use_gpu: false
 inference_frame_width: 640
 inference_frame_height: 640
 
-# CPU-only tuning: smaller input, more frame skipping, and faster detection path.
+# CPU-only tuning: larger 384x384 detection grid for doorway cameras, optimized frame skipping.
 # Override at runtime: python facial_recognition/main_cpu.py -r 480 --max
-cpu_inference_frame_width: 160
-cpu_inference_frame_height: 160
-cpu_frame_skip: 4
+cpu_inference_frame_width: 384
+cpu_inference_frame_height: 384
+cpu_frame_skip: 3
 cpu_recognition_interval: 2
 cpu_use_fast_detector: false
 cpu_detector_model: buffalo_s
