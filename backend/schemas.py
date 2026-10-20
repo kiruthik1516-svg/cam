@@ -71,7 +71,7 @@ class CameraResponse(CameraBase):
     fps: float
     gpu_load: float
     cpu_load: float
-    last_heartbeat: datetime
+    last_heartbeat: Optional[datetime] = None
     detections_today: int
     
     model_config = ConfigDict(from_attributes=True)
