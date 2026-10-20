@@ -4,7 +4,7 @@ import fs from 'node:fs'
 
 function loadRootPublicEnv(envFile) {
   for (const line of fs.readFileSync(envFile, 'utf8').split(/\r?\n/)) {
-    const match = line.match(/^(NEXT_PUBLIC_(?:API_URL|WS_URL|EDGE_API_URL))=(.*)$/)
+    const match = line.match(/^(NEXT_PUBLIC_(?:API_URL|WS_URL))=(.*)$/)
     if (match && !process.env[match[1]]) {
       process.env[match[1]] = match[2].trim().replace(/^['"]|['"]$/g, '')
     }
@@ -48,7 +48,6 @@ const nextConfig = {
     // up even if they were loaded from outside the project directory.
     NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:1223',
     NEXT_PUBLIC_WS_URL: process.env.NEXT_PUBLIC_WS_URL || 'ws://localhost:1223',
-    NEXT_PUBLIC_EDGE_API_URL: process.env.NEXT_PUBLIC_EDGE_API_URL || '',
   },
 }
 

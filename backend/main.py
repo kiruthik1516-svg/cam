@@ -564,35 +564,92 @@ def cloud_vector_search(
 
     matches = []
     if q_norm >= 1e-6:
-        # Load all enrolled profiles and embeddings
-        profiles = db.query(Profile).filter(Profile.embedding_count > 0).all()
-        candidates = []
-        for p in profiles:
-            for emb in p.embeddings:
-                if emb.vector:
-                    target_vec = np.array(emb.vector, dtype=np.float32).flatten()
-                    emb_model = getattr(emb, 'model_version', 'w600k_mbf_v1') or 'w600k_mbf_v1'
-                    
-                    # Strictly check compatibility
-                    if not EmbeddingVersionValidator.are_compatible(query_model, emb_model, len(query_vec), len(target_vec)):
-                        continue  # Skip incompatible embeddings during migration
+        bind = db.get_bind()
+        is_pgvector = (
+            bind is not None
+            and getattr(bind, "dialect", None) is not None
+            and bind.dialect.name == "postgresql"
+            and hasattr(Embedding.vector, "cosine_distance")
+        )
 
-                    t_norm = np.linalg.norm(target_vec)
-                    if t_norm >= 1e-6:
-                        sim = float(np.dot(query_vec, target_vec) / (q_norm * t_norm))
-                        if sim >= req.threshold:
-                            candidates.append((p.name, sim, p.id, emb_model))
+        if is_pgvector:
+            # High-performance pgvector index query (solves R9: avoids pulling all vectors into Python)
+            norm_query_vec = (query_vec / q_norm).tolist()
+            max_distance = float(1.0 - req.threshold)
 
-        # Sort by similarity descending
-        candidates.sort(key=lambda x: x[1], reverse=True)
-        top_candidates = candidates[:req.top_k]
-        for name, score, p_id, emb_model in top_candidates:
-            matches.append(VectorSearchMatch(
-                identity=name,
-                score=score,
-                profile_id=p_id,
-                model_version=emb_model,
-            ))
+            query_group = EmbeddingVersionValidator.COMPATIBILITY_GROUPS.get(query_model)
+            compatible_models = [query_model]
+            if query_group:
+                compatible_models = [
+                    m for m, g in EmbeddingVersionValidator.COMPATIBILITY_GROUPS.items()
+                    if g == query_group and EmbeddingVersionValidator.KNOWN_MODEL_DIMENSIONS.get(m, 512) == len(query_vec)
+                ]
+
+            distance_expr = Embedding.vector.cosine_distance(norm_query_vec)
+            results = (
+                db.query(
+                    Profile.id,
+                    Profile.name,
+                    Embedding.model_version,
+                    distance_expr.label("distance"),
+                )
+                .join(Embedding, Profile.id == Embedding.profile_id)
+                .filter(
+                    Profile.embedding_count > 0,
+                    or_(Embedding.model_version.in_(compatible_models), Embedding.model_version.is_(None)),
+                    distance_expr <= max_distance,
+                )
+                .order_by(distance_expr.asc())
+                .limit(req.top_k)
+                .all()
+            )
+
+            for p_id, p_name, emb_model, dist in results:
+                sim = round(float(1.0 - dist), 4)
+                matches.append(
+                    VectorSearchMatch(
+                        identity=p_name,
+                        score=sim,
+                        profile_id=p_id,
+                        model_version=emb_model or query_model,
+                    )
+                )
+        else:
+            # Resilient in-memory vector comparison for SQLite / non-pgvector test environments
+            profiles = db.query(Profile).filter(Profile.embedding_count > 0).all()
+            candidates = []
+            for p in profiles:
+                for emb in p.embeddings:
+                    if emb.vector is not None:
+                        raw_v = emb.vector
+                        if isinstance(raw_v, str):
+                            try:
+                                raw_v = json.loads(raw_v)
+                            except Exception:
+                                continue
+                        target_vec = np.asarray(raw_v, dtype=np.float32).flatten()
+                        emb_model = getattr(emb, 'model_version', 'w600k_mbf_v1') or 'w600k_mbf_v1'
+                        
+                        # Strictly check compatibility
+                        if not EmbeddingVersionValidator.are_compatible(query_model, emb_model, len(query_vec), len(target_vec)):
+                            continue  # Skip incompatible embeddings during migration
+
+                        t_norm = np.linalg.norm(target_vec)
+                        if t_norm >= 1e-6:
+                            sim = float(np.dot(query_vec, target_vec) / (q_norm * t_norm))
+                            if sim >= req.threshold:
+                                candidates.append((p.name, sim, p.id, emb_model))
+
+            # Sort by similarity descending
+            candidates.sort(key=lambda x: x[1], reverse=True)
+            top_candidates = candidates[:req.top_k]
+            for name, score, p_id, emb_model in top_candidates:
+                matches.append(VectorSearchMatch(
+                    identity=name,
+                    score=score,
+                    profile_id=p_id,
+                    model_version=emb_model,
+                ))
 
     latency_ms = (time.perf_counter() - t0) * 1000.0
     return VectorSearchResponse(

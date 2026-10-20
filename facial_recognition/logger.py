@@ -327,7 +327,7 @@ class DetectionLogger:
         from datetime import datetime, timedelta
 
         api_url = os.environ.get("API_URL", "http://localhost:1223").rstrip('/')
-        api_key = os.environ.get("EDGE_API_KEY", "default-dev-key")
+        api_key = (os.environ.get("EDGE_API_KEY") or "").strip()
         
         # Recover any events stranded in SENDING state during a previous process crash
         self.ledger.recover_sending_events()

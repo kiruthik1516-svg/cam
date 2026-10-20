@@ -111,8 +111,21 @@ def validate_and_consume_stream_ticket(ticket: str, camera_id: str) -> Optional[
     return None
 
 
-def _client_id(request: Request) -> str:
-    return request.client.host if request.client else "unknown"
+def _client_id(request: Request, username: Optional[str] = None) -> str:
+    """Resolve client identifier supporting proxy forwarded IPs and per-username scoping (solves S7)."""
+    client_ip = request.client.host if request.client else "unknown"
+
+    forwarded_for = request.headers.get("x-forwarded-for")
+    if forwarded_for:
+        hops = [h.strip() for h in forwarded_for.split(",")]
+        if hops:
+            client_ip = hops[0]
+    elif request.headers.get("x-real-ip"):
+        client_ip = request.headers.get("x-real-ip").strip()
+
+    if username:
+        return f"{username.strip().lower()}@{client_ip}"
+    return client_ip
 
 
 def _recent_failures(client: str) -> Deque[float]:
@@ -175,9 +188,13 @@ async def login_for_access_token(request: Request, form_data: OAuth2PasswordRequ
             detail="ADMIN_PASSWORD is not configured on the server",
         )
 
-    client = _client_id(request)
-    attempts = _recent_failures(client)
-    if len(attempts) >= MAX_FAILED_LOGINS:
+    client_ip = _client_id(request)
+    client_user = _client_id(request, form_data.username)
+
+    user_attempts = _recent_failures(client_user)
+    ip_attempts = _recent_failures(client_ip)
+
+    if len(user_attempts) >= MAX_FAILED_LOGINS or len(ip_attempts) >= MAX_FAILED_LOGINS * 3:
         raise HTTPException(
             status_code=status.HTTP_429_TOO_MANY_REQUESTS,
             detail="Too many failed login attempts. Try again in a few minutes.",
@@ -188,14 +205,17 @@ async def login_for_access_token(request: Request, form_data: OAuth2PasswordRequ
     user_ok = hmac.compare_digest(form_data.username.encode("utf-8"), admin_user.encode("utf-8"))
     pwd_ok = hmac.compare_digest(form_data.password.encode("utf-8"), expected_password.encode("utf-8"))
     if not (user_ok and pwd_ok):
-        attempts.append(time.monotonic())
+        now_ts = time.monotonic()
+        user_attempts.append(now_ts)
+        ip_attempts.append(now_ts)
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Incorrect username or password",
             headers={"WWW-Authenticate": "Bearer"},
         )
 
-    _failed_logins.pop(client, None)
+    _failed_logins.pop(client_user, None)
+    _failed_logins.pop(client_ip, None)
     access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     jti = secrets.token_hex(16)
     access_token = create_access_token(

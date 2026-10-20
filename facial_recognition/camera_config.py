@@ -65,7 +65,7 @@ class CameraConfigManager:
     ):
         self.cache_path = Path(cache_path)
         self.api_url = (api_url or os.environ.get("API_URL", "http://localhost:8000")).rstrip('/')
-        self.api_key = api_key or os.environ.get("EDGE_API_KEY", "default-dev-key")
+        self.api_key = api_key or os.environ.get("EDGE_API_KEY", "")
         self.default_config = default_config or {}
 
         # In-memory configuration profiles: camera_id -> CameraConfigProfile

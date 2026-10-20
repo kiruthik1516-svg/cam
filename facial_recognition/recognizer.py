@@ -63,7 +63,7 @@ class Recognizer:
         
     def _fetch_gallery_from_api(self, fallback_path: str) -> bool:
         api_url = os.environ.get("API_URL", "http://localhost:1223").rstrip('/')
-        api_key = os.environ.get("EDGE_API_KEY", "default-dev-key")
+        api_key = (os.environ.get("EDGE_API_KEY") or "").strip()
         try:
             req = urllib.request.Request(f"{api_url}/api/internal/gallery", headers={"X-API-Key": api_key})
             with urllib.request.urlopen(req, timeout=5.0) as response:

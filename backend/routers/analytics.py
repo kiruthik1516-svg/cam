@@ -1,4 +1,5 @@
 
+import logging
 from fastapi import APIRouter, File, UploadFile, Form, Depends, Query, HTTPException
 from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import func, extract, text, case, select, or_
@@ -6,9 +7,11 @@ from datetime import datetime, timedelta, timezone
 from typing import Optional, List, Any
 import uuid
 
+logger = logging.getLogger(__name__)
+
 from database import get_db
 from models import (
-    Camera, Profile, Detection, CameraTransition, Alert, UnregisteredSubject,
+    Camera, Profile, Detection, CameraTransition, Alert, UnregisteredSubject, Embedding,
     ProfileRole as ProfileRoleEnum, DetectionStatus as DetectionStatusEnum
 )
 from schemas import (
@@ -56,22 +59,27 @@ def get_movement_network(hours: int = Query(24), db: Session = Depends(get_db)):
 
 def _get_duplicates_fallback(db: Session) -> list[DuplicateCandidateResponse]:
     """In-memory fallback for SQLite or non-PostgreSQL dialects where pgvector <=> is unavailable."""
+    import json
     import numpy as np
-    profiles = db.query(Profile).filter(Profile.embedding_count > 0).all()
+    embeddings = db.query(Embedding).join(Profile).options(joinedload(Embedding.profile)).all()
     candidates = []
     seen = set()
 
     profile_vecs = []
-    for p in profiles:
-        for emb in p.embeddings:
-            if emb.vector:
-                try:
-                    vec = np.array(emb.vector, dtype=np.float32).flatten()
-                    norm = np.linalg.norm(vec)
-                    if norm >= 1e-6:
-                        profile_vecs.append((p, vec / norm))
-                except Exception:
-                    continue
+    for emb in embeddings:
+        p = emb.profile
+        if not p or emb.vector is None:
+            continue
+        try:
+            raw_v = emb.vector
+            if isinstance(raw_v, str):
+                raw_v = json.loads(raw_v)
+            vec = np.asarray(raw_v, dtype=np.float32).flatten()
+            norm = np.linalg.norm(vec)
+            if norm >= 1e-6:
+                profile_vecs.append((p, vec / norm))
+        except Exception:
+            continue
 
     for i in range(len(profile_vecs)):
         p1, v1 = profile_vecs[i]
@@ -107,46 +115,63 @@ def _get_duplicates_fallback(db: Session) -> list[DuplicateCandidateResponse]:
 def get_duplicates(db: Session = Depends(get_db)):
     """Find duplicate profiles using pgvector (with in-memory SQLite fallback)."""
     bind = db.get_bind()
-    if bind.dialect.name != "postgresql":
+    if not bind or getattr(bind, "dialect", None) is None or bind.dialect.name != "postgresql":
         return _get_duplicates_fallback(db)
 
+    # Use LATERAL nearest-neighbor query to leverage the HNSW index on embeddings.vector
+    # instead of an O(N^2) all-pairs Cartesian join (solves R9).
     sql = text("""
-        SELECT e1.profile_id as p1_id, p1.name as p1_name, p1.role as p1_role, p1.created_at as p1_created,
-               e2.profile_id as p2_id, p2.name as p2_name, p2.role as p2_role, p2.created_at as p2_created,
-               1 - (e1.vector <=> e2.vector) as similarity
-        FROM embeddings e1
-        JOIN embeddings e2 ON e1.id < e2.id 
-                           AND e1.profile_id != e2.profile_id
-                           AND (e1.vector <=> e2.vector) < 0.1
+        SELECT
+            e1.profile_id as p1_id, p1.name as p1_name, p1.role as p1_role, p1.created_at as p1_created,
+            nearest.profile_id as p2_id, nearest.p2_name as p2_name, nearest.p2_role as p2_role, nearest.p2_created as p2_created,
+            1.0 - nearest.dist as similarity
+        FROM (
+            SELECT DISTINCT ON (profile_id) id, profile_id, vector
+            FROM embeddings
+            ORDER BY profile_id, created_at DESC
+            LIMIT 200
+        ) e1
         JOIN profiles p1 ON e1.profile_id = p1.id
-        JOIN profiles p2 ON e2.profile_id = p2.id
+        CROSS JOIN LATERAL (
+            SELECT e2.profile_id, p2.name as p2_name, p2.role as p2_role, p2.created_at as p2_created,
+                   (e2.vector <=> e1.vector) as dist
+            FROM embeddings e2
+            JOIN profiles p2 ON e2.profile_id = p2.id
+            WHERE e2.profile_id != e1.profile_id
+            ORDER BY e2.vector <=> e1.vector ASC
+            LIMIT 1
+        ) nearest
+        WHERE nearest.dist < 0.1
         ORDER BY similarity DESC
         LIMIT 20
     """)
-    result = db.execute(sql)
-    
-    candidates = []
-    seen = set()
-    for row in result:
-        pair = tuple(sorted([row.p1_id, row.p2_id]))
-        if pair in seen:
-            continue
-        seen.add(pair)
-        
-        candidates.append(DuplicateCandidateResponse(
-            id=f"{row.p1_id}:{row.p2_id}",
-            profileAId=row.p1_id,
-            profileAName=row.p1_name,
-            profileARole=row.p1_role.value if hasattr(row.p1_role, 'value') else str(row.p1_role),
-            profileAAvatarTone=snapshot_tone_for(row.p1_id),
-            profileBId=row.p2_id,
-            profileBName=row.p2_name,
-            profileBRole=row.p2_role.value if hasattr(row.p2_role, 'value') else str(row.p2_role),
-            profileBAvatarTone=snapshot_tone_for(row.p2_id),
-            cosineSimilarity=float(row.similarity),
-            sharedSightings=0,
-        ))
-    return candidates
+    try:
+        result = db.execute(sql)
+        candidates = []
+        seen = set()
+        for row in result:
+            pair = tuple(sorted([row.p1_id, row.p2_id]))
+            if pair in seen:
+                continue
+            seen.add(pair)
+            
+            candidates.append(DuplicateCandidateResponse(
+                id=f"{row.p1_id}:{row.p2_id}",
+                profileAId=row.p1_id,
+                profileAName=row.p1_name,
+                profileARole=row.p1_role.value if hasattr(row.p1_role, 'value') else str(row.p1_role),
+                profileAAvatarTone=snapshot_tone_for(row.p1_id),
+                profileBId=row.p2_id,
+                profileBName=row.p2_name,
+                profileBRole=row.p2_role.value if hasattr(row.p2_role, 'value') else str(row.p2_role),
+                profileBAvatarTone=snapshot_tone_for(row.p2_id),
+                cosineSimilarity=round(float(row.similarity), 4),
+                sharedSightings=0,
+            ))
+        return candidates
+    except Exception as exc:
+        logger.warning("PostgreSQL lateral pgvector query encountered error: %s. Falling back to in-memory.", exc)
+        return _get_duplicates_fallback(db)
 
 
 @router.get("/trajectory", response_model=SubjectTrajectoryResponse)

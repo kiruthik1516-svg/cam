@@ -187,7 +187,7 @@ class HierarchicalSearchEngine:
     ) -> None:
         self.gallery_path = Path(gallery_path) if gallery_path else None
         self.api_url = (api_url or os.environ.get("API_URL", "http://localhost:1223")).rstrip("/")
-        self.api_key = api_key or os.environ.get("EDGE_API_KEY", "default-dev-key")
+        self.api_key = api_key or os.environ.get("EDGE_API_KEY", "")
         
         self.local_high_threshold = float(local_high_confidence_threshold)
         self.local_uncertain_threshold = float(local_uncertain_threshold)
