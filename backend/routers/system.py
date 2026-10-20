@@ -218,7 +218,8 @@ def update_thresholds(
     db: Session = Depends(get_db)
 ):
     """Update model thresholds."""
-    for field, value in thresholds.dict().items():
+    dumped = thresholds.model_dump() if hasattr(thresholds, "model_dump") else thresholds.dict()
+    for field, value in dumped.items():
         if value is None:
             continue
         # The value column is numeric. PostgreSQL rejects a boolean in a numeric column (SQLite accepts it),
@@ -234,7 +235,7 @@ def update_thresholds(
     
     # Broadcast to all connected clients. This endpoint runs in a worker thread (no event loop),
     # so schedule the async broadcast as a background task instead of asyncio.create_task.
-    background_tasks.add_task(manager.broadcast, "kpis", {"thresholds": thresholds.dict()})
+    background_tasks.add_task(manager.broadcast, "kpis", {"thresholds": dumped})
 
     return thresholds
 

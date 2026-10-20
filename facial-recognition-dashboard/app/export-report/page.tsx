@@ -24,10 +24,10 @@ export default function ExportReportPage() {
   }
 
   const handleCopySummary = () => {
-    const summary = `SENTINEL v2.4 CCTV AUDIT & FACE RECOGNITION REPORT (DBGT POC)
-Report ID: SENTINEL-EVAL-DBGT-20261017-01
-Client: Dakshin Bharat Gateway Terminal (DBGT)
-Location: Camera-1 (Terminal Gate Ch4)
+    const summary = `SENTINEL v2.4 CCTV AUDIT & FACE RECOGNITION REPORT
+Report ID: SENTINEL-AUDIT-SUMMARY
+Client: Facility Surveillance & Security Operations
+Location: Primary Monitored Channels
 Date: 17 Oct 2026
 
 1. CCTV CONTINUITY & MISSING FOOTAGE FINDINGS:
@@ -65,7 +65,7 @@ Date: 17 Oct 2026
             </Link>
             <div className="h-4 w-px bg-slate-700" />
             <div className="flex items-center gap-2">
-              <span className="font-mono text-xs font-bold text-amber-400">DBGT POC Demo Report</span>
+              <span className="font-mono text-xs font-bold text-amber-400">CCTV Security Audit Report</span>
               <span className="rounded bg-emerald-500/20 px-2 py-0.5 text-[10px] font-semibold text-emerald-300 border border-emerald-500/30">
                 Client Ready (Plain English)
               </span>
@@ -85,7 +85,7 @@ Date: 17 Oct 2026
 
             <a
               href="/reports/DBGT_CCTV_Security_Audit_Report.pdf"
-              download="DBGT_CCTV_Security_Audit_Report.pdf"
+              download="CCTV_Security_Audit_Report.pdf"
               className="inline-flex items-center"
             >
               <Button
@@ -161,7 +161,7 @@ Date: 17 Oct 2026
                 </span>
               </div>
               <div className="font-mono text-[10px] text-slate-600 font-semibold">
-                CONFIDENTIAL // PREPARED FOR DBGT
+                CONFIDENTIAL // SECURITY AUDIT REPORT
               </div>
             </div>
             <h1 className="text-2xl font-bold tracking-tight text-slate-950 mt-1">
@@ -178,7 +178,7 @@ Date: 17 Oct 2026
               <tbody className="divide-y divide-slate-200">
                 <tr className="divide-x divide-slate-200">
                   <td className="w-1/4 p-1.5 font-bold text-slate-700 bg-slate-100">Client / Facility</td>
-                  <td className="w-1/4 p-1.5 font-semibold text-slate-900">Dakshin Bharat Gateway Terminal (DBGT)</td>
+                  <td className="w-1/4 p-1.5 font-semibold text-slate-900">Main Operations Facility</td>
                   <td className="w-1/4 p-1.5 font-bold text-slate-700 bg-slate-100">Report Date</td>
                   <td className="w-1/4 p-1.5 font-mono text-slate-900">17 October 2026</td>
                 </tr>
@@ -318,7 +318,7 @@ Date: 17 Oct 2026
                   <th className="p-1.5 border-r border-slate-300 w-1/4">Security Parameter</th>
                   <th className="p-1.5 border-r border-slate-300 w-1/4">Sentinel Automated Audit</th>
                   <th className="p-1.5 border-r border-slate-300 w-1/4">Standard CCTV / Manual Review</th>
-                  <th className="p-1.5 w-1/4">Value to DBGT Security</th>
+                  <th className="p-1.5 w-1/4">Value to Facility Security</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-200">
@@ -346,8 +346,8 @@ Date: 17 Oct 2026
 
           {/* Page 1 Footer */}
           <div className="pt-2 border-t border-slate-300 flex justify-between items-center text-[8.5px] font-mono text-slate-500">
-            <span>SENTINEL-EVAL-DBGT-20261017-01</span>
-            <span>CCTV SECURITY AUDIT — CONFIDENTIAL // FOR DBGT INTERNAL USE ONLY</span>
+            <span>SENTINEL-AUDIT-SUMMARY</span>
+            <span>CCTV SECURITY AUDIT — CONFIDENTIAL // FOR INTERNAL USE ONLY</span>
             <span>Page 1 of 2</span>
           </div>
         </section>
@@ -360,7 +360,7 @@ Date: 17 Oct 2026
           
           {/* Page 2 Top Header Strip */}
           <div className="border-b border-slate-300 pb-2 mb-3 flex justify-between items-center text-[9.5px] font-mono text-slate-600">
-            <span className="font-bold text-amber-700">SENTINEL v2.4 • DBGT PORT TERMINAL</span>
+            <span className="font-bold text-amber-700">SENTINEL v2.4 • SURVEILLANCE & AUDIT</span>
             <span>SECTION 2: GATE ATTENDANCE & PEOPLE RECOGNITION</span>
             <span className="font-semibold text-slate-900">Page 2 of 2</span>
           </div>
@@ -508,7 +508,7 @@ Date: 17 Oct 2026
             <div className="flex items-center gap-1.5 mb-1">
               <ShieldCheck className="size-4 text-emerald-700" />
               <h2 className="text-xs font-mono font-bold uppercase tracking-wider text-slate-950">
-                4. Conclusion & Executive Takeaways for DBGT Management
+                4. Conclusion & Executive Takeaways for Management
               </h2>
             </div>
             
@@ -526,7 +526,7 @@ Date: 17 Oct 2026
                   Sentinel AI Solutions Team
                 </div>
                 <div className="flex justify-between items-center text-slate-600 text-[8.5px] mt-1 font-mono">
-                  <span>Batch: DBGT POC Demo</span>
+                  <span>Batch: CCTV Footage Audit</span>
                   <span>Date: 17 Oct 2026</span>
                 </div>
               </div>
@@ -534,19 +534,19 @@ Date: 17 Oct 2026
               <div className="rounded border border-slate-300 p-2 bg-slate-50">
                 <span className="font-bold text-slate-700 uppercase tracking-wider text-[8.5px] block mb-0.5">Acknowledged By:</span>
                 <div className="h-7 border-b border-dashed border-slate-400 flex items-center justify-center text-slate-400 font-sans text-xs">
-                  (Authorized Signature / DBGT Terminal Operations)
+                  (Authorized Signature / Security Operations)
                 </div>
                 <div className="flex justify-between items-center text-slate-600 text-[8.5px] mt-1 font-mono">
-                  <span>Terminal: Dakshin Bharat Gateway Terminal</span>
-                  <span>Status: POC COMPLETED</span>
+                  <span>Facility: Surveillance Operations</span>
+                  <span>Status: AUDIT VERIFIED</span>
                 </div>
               </div>
             </div>
 
             {/* Page 2 Footer */}
             <div className="mt-3 pt-1.5 border-t border-slate-300 flex justify-between items-center text-[8.5px] font-mono text-slate-500">
-              <span>SENTINEL-EVAL-DBGT-20261017-01</span>
-              <span>END OF OFFICIAL POC REPORT — DAKSHIN BHARAT GATEWAY TERMINAL</span>
+              <span>SENTINEL-AUDIT-SUMMARY</span>
+              <span>END OF OFFICIAL SECURITY AUDIT REPORT</span>
               <span>Page 2 of 2</span>
             </div>
           </div>

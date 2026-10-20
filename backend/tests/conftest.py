@@ -8,8 +8,9 @@ import pytest
 # The backend has no built-in default secrets, so the tests supply their own (set before the app is imported).
 os.environ.setdefault("SECRET_KEY", "test-jwt-secret-for-unit-tests-only")
 os.environ.setdefault("EDGE_API_KEY", "test-edge-api-key")
-# Login has no built-in default password; without one it answers 503 ("not configured") instead of 401.
 os.environ.setdefault("ADMIN_PASSWORD", "test-admin-password-for-unit-tests")
+# Isolate tests to a local SQLite database so test fixtures never pollute production DB
+os.environ["DATABASE_URL"] = "sqlite:///./test_unit.db"
 # Always set (not setdefault): the CORS tests need this exact list, even when the environment defines its own.
 os.environ["CORS_ORIGINS"] = "http://localhost:3000,https://*.vercel.app"
 

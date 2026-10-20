@@ -59,8 +59,8 @@ import {
 export function CctvAuditPanel() {
   const queryClient = useQueryClient();
   const { selectedBatchId, setSelectedBatchId } = useDashboardMode();
-  const [directoryPath, setDirectoryPath] = useState<string>('D:\\DBGT POC');
-  const [batchName, setBatchName] = useState<string>('DBGT POC Demo');
+  const [directoryPath, setDirectoryPath] = useState<string>('');
+  const [batchName, setBatchName] = useState<string>('');
   const [sampleFps, setSampleFps] = useState<number>(2.0);
   const [tolerance, setTolerance] = useState<number>(5.0);
   const [motionGating, setMotionGating] = useState<boolean>(true);
@@ -303,23 +303,6 @@ export function CctvAuditPanel() {
               </Label>
               <div className="flex items-center gap-1.5">
                 <button
-                  id="btn-quick-dbgt-poc"
-                  type="button"
-                  onClick={() => {
-                    setDirectoryPath('D:\\DBGT POC');
-                    if (!batchName) setBatchName('DBGT POC Demo');
-                  }}
-                  className={cn(
-                    "px-1.5 py-0.5 rounded font-mono text-[10px] border transition-colors",
-                    directoryPath === 'D:\\DBGT POC'
-                      ? "bg-primary/20 border-primary text-primary font-semibold"
-                      : "bg-background/60 border-border/60 text-muted-foreground hover:text-foreground"
-                  )}
-                  title="Quick fill D:\DBGT POC"
-                >
-                  Quick: D:\DBGT POC
-                </button>
-                <button
                   type="button"
                   onClick={() => setShowFolderBrowser(!showFolderBrowser)}
                   className="text-[11px] font-mono text-primary hover:underline flex items-center gap-1"
@@ -333,7 +316,7 @@ export function CctvAuditPanel() {
             <div className="flex items-center gap-1.5 h-9">
               <Input
                 id="cctv-dir"
-                placeholder="e.g. D:\DBGT POC or D:\footage"
+                placeholder="e.g. D:\footage or /footage"
                 value={directoryPath}
                 onChange={(e) => setDirectoryPath(e.target.value)}
                 className="font-mono text-xs bg-card/60 flex-1 h-9"

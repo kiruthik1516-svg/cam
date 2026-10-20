@@ -841,14 +841,14 @@ export function AnalyticsTab() {
                 <div>
                   <div className="flex items-center gap-2">
                     <h3 className="text-sm font-bold text-foreground">
-                      {activeBatch?.name || 'DBGT Real CCTV Ingestion'}
+                      {activeBatch?.name || 'CCTV Footage Ingestion'}
                     </h3>
                     <Badge variant="outline" className="text-[10px] bg-amber-500/10 border-amber-500/40 text-amber-400 font-mono">
                       {activeBatch?.id ? activeBatch.id.slice(0, 20) : 'Archive Clip'}
                     </Badge>
                   </div>
                   <p className="text-xs text-muted-foreground mt-0.5">
-                    Historical analytics derived from imported footage stream · 12 Oct 2026 (09:06:16 – 09:59:36 IST)
+                    Historical analytics derived from imported footage stream
                   </p>
                 </div>
               </div>

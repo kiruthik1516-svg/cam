@@ -1,4 +1,4 @@
-﻿#!/usr/bin/env python
+#!/usr/bin/env python
 """End-to-end smoke test for a running Sentinel stack (standard library only).
 
 Usage (stack already running):
@@ -92,6 +92,11 @@ def main() -> int:
     status, body = call(f"{BASE}/api/cameras?source=live", headers=bearer)
     live = {c["id"]: c for c in json.loads(body)} if status == 200 else {}
     check("pushed camera is listed as live and online", live.get(camera_id, {}).get("status") == "online")
+
+    # Clean up throw-away smoke camera so the database stays 100% clean
+    del_status, _ = call(f"{BASE}/api/cameras/{camera_id}", "DELETE", headers=bearer)
+    check("temporary smoke camera cleaned up", del_status == 200, f"HTTP {del_status}")
+
 
     status, _ = call(f"{BASE}/api/video-audit/browse?path=/etc", headers=bearer)
     check("footage browser refuses folders outside the allowed roots", status in (403, 404), f"HTTP {status}")

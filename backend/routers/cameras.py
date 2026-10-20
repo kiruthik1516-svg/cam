@@ -95,6 +95,39 @@ def update_camera(
     return item
 
 
+@router.delete("/api/cameras/{camera_id}")
+def delete_camera(camera_id: str, db: Session = Depends(get_db)):
+    """Delete a camera row and clean up associated state frame slots (solves R6)."""
+    camera = db.query(Camera).filter(Camera.id == camera_id).first()
+    if not camera:
+        raise HTTPException(status_code=404, detail=f"Camera {camera_id} not found")
+
+    from state import _frame_store
+    if camera_id in _frame_store:
+        _frame_store.pop(camera_id, None)
+
+    from state import topology_graph
+    if topology_graph is not None:
+        try:
+            topology_graph.remove_node(camera_id)
+        except Exception:
+            pass
+
+    from models import CameraConfig, CameraTransition, CameraTopologyEdge
+    db.query(CameraConfig).filter(CameraConfig.camera_id == camera_id).delete(synchronize_session=False)
+    db.query(CameraTransition).filter(
+        (CameraTransition.from_camera_id == camera_id) | (CameraTransition.to_camera_id == camera_id)
+    ).delete(synchronize_session=False)
+    db.query(CameraTopologyEdge).filter(
+        (CameraTopologyEdge.from_camera_id == camera_id) | (CameraTopologyEdge.to_camera_id == camera_id)
+    ).delete(synchronize_session=False)
+
+    db.delete(camera)
+    db.commit()
+    return {"status": "success", "message": f"Camera {camera_id} deleted"}
+
+
+
 @router.get("/api/cameras/{camera_id}/config", response_model=CameraConfigResponse)
 def get_camera_config(camera_id: str, db: Session = Depends(get_db)):
     """Get active recognition configuration for a specific camera."""

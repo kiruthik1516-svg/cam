@@ -137,18 +137,10 @@ export function CctvPersonsTab({
     queryFn: fetchProfiles,
   })
 
-  // Sort profiles to highlight jenisha, selvi, pravin first
+  // Sort profiles alphabetically
   const knownProfiles = useMemo(() => {
-    const priority = ['selvi', 'pravin', 'jenisha']
     const sorted = [...enrolledProfiles]
-    sorted.sort((a, b) => {
-      const aPrio = priority.indexOf(a.name.toLowerCase())
-      const bPrio = priority.indexOf(b.name.toLowerCase())
-      if (aPrio !== -1 && bPrio !== -1) return aPrio - bPrio
-      if (aPrio !== -1) return -1
-      if (bPrio !== -1) return 1
-      return a.name.localeCompare(b.name)
-    })
+    sorted.sort((a, b) => a.name.localeCompare(b.name))
     return sorted
   }, [enrolledProfiles])
 
@@ -1096,7 +1088,7 @@ export function CctvPersonsTab({
                             size="xs"
                             variant="outline"
                             className="h-7 gap-1 font-mono text-[11px] border-emerald-500/30 text-emerald-400 hover:border-emerald-500 hover:bg-emerald-500/10"
-                            title="Change name or assign to enrolled profile (jenisha, selvi, pravin)"
+                            title="Change name or assign to enrolled profile"
                             onClick={() => {
                               setRenameTargetPerson(p)
                               setCustomNameInput(p.name)
