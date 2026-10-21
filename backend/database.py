@@ -30,9 +30,10 @@ try:
         engine = create_engine(
             db_url,
             echo=settings.debug,
-            pool_size=20,
-            max_overflow=20,
-            pool_timeout=30,
+            pool_size=settings.db_pool_size,
+            max_overflow=settings.db_max_overflow,
+            pool_timeout=settings.db_pool_timeout,
+            pool_recycle=settings.db_pool_recycle,
             pool_pre_ping=True,  # Help recover stale connections
             connect_args={"prepare_threshold": None},  # Disable prepared statements for pgBouncer transaction mode
         )
@@ -57,7 +58,7 @@ except Exception as e:
 
 @event.listens_for(engine, "connect")
 def on_db_connect(dbapi_conn, connection_record):
-    """Configure PostgreSQL session timezone and ensure vector extension."""
+    """Configure PostgreSQL session timezone/vector extension, or SQLite WAL concurrency pragmas."""
     if engine.dialect.name == "postgresql":
         cursor = dbapi_conn.cursor()
         try:
@@ -67,9 +68,30 @@ def on_db_connect(dbapi_conn, connection_record):
             logger.warning(f"PostgreSQL connection hook warning: {ex}")
         finally:
             cursor.close()
+    elif engine.dialect.name == "sqlite":
+        cursor = dbapi_conn.cursor()
+        try:
+            cursor.execute("PRAGMA journal_mode=WAL")
+            cursor.execute("PRAGMA synchronous=NORMAL")
+            cursor.execute("PRAGMA busy_timeout=15000")
+        except Exception as ex:
+            logger.warning(f"SQLite connection hook warning: {ex}")
+        finally:
+            cursor.close()
 
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
+
+
+def check_database_health() -> bool:
+    """Fast probe to verify database connectivity and readiness."""
+    try:
+        with engine.connect() as connection:
+            connection.execute(text("SELECT 1"))
+        return True
+    except Exception as e:
+        logger.error(f"Database health check failed: {e}")
+        return False
 
 
 def ensure_detection_event_id_column():

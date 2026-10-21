@@ -7,7 +7,7 @@ from typing import Optional, List, Dict, Any
 import uuid
 import json
 
-from database import get_db
+from database import get_db, check_database_health
 from models import *
 from models import ModelThreshold as DBModelThreshold
 from schemas import *
@@ -22,12 +22,44 @@ router = APIRouter(tags=['System'])
 
 
 
-# ==================== Health Check ====================
+# ==================== Health & Readiness Probes ====================
 
 @router.get("/health")
-def health_check():
-    """Simple health check endpoint."""
-    return {"status": "ok", "timestamp": datetime.now(IST).isoformat()}
+def health_check(
+    deep: bool = Query(False, description="Perform deep probe of database and Redis subsystems"),
+    response: Response = None,
+):
+    """Health check endpoint with optional deep readiness probe."""
+    now_iso = datetime.now(IST).isoformat()
+    if not deep:
+        return {"status": "ok", "timestamp": now_iso}
+
+    db_healthy = check_database_health()
+    redis_status = "disabled"
+    if settings.redis_url:
+        redis_status = "connected" if (manager.redis is not None) else "disconnected"
+
+    subsystems = {
+        "database": "healthy" if db_healthy else "unhealthy",
+        "redis": redis_status,
+        "websocket_active_channels": {k: len(v) for k, v in manager.active_connections.items()},
+    }
+
+    overall_status = "ok" if db_healthy else "degraded"
+    payload = {
+        "status": overall_status,
+        "subsystems": subsystems,
+        "timestamp": now_iso,
+    }
+    if not db_healthy and response is not None:
+        response.status_code = 503
+    return payload
+
+
+@router.get("/health/ready")
+def readiness_check(response: Response):
+    """Container / Cloud orchestrator readiness probe."""
+    return health_check(deep=True, response=response)
 
 
 

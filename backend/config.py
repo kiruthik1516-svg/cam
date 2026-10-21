@@ -184,6 +184,10 @@ class _Settings:
         return _get("REDIS_URL", "")
 
     @property
+    def edge_api_key(self) -> str:
+        return _get("EDGE_API_KEY", "")
+
+    @property
     def unregistered_similarity_threshold(self) -> float:
         return min(0.99, max(0.50, _parse_float(_get("UNREGISTERED_SIMILARITY_THRESHOLD", "0.75"), 0.75)))
 
@@ -207,6 +211,26 @@ class _Settings:
     def retention_worker_interval_seconds(self) -> int:
         """Interval in seconds between automated retention runs (default 86400s / 24h)."""
         return max(30, _parse_int(_get("RETENTION_WORKER_INTERVAL_SECONDS", "86400"), 86400))
+
+    @property
+    def db_pool_size(self) -> int:
+        """Maximum persistent database connection pool size."""
+        return max(1, min(100, _parse_int(_get("DB_POOL_SIZE", "20"), 20)))
+
+    @property
+    def db_max_overflow(self) -> int:
+        """Maximum extra connections allowed past pool_size during traffic spikes."""
+        return max(0, min(50, _parse_int(_get("DB_MAX_OVERFLOW", "20"), 20)))
+
+    @property
+    def db_pool_timeout(self) -> int:
+        """Seconds to wait before raising TimeoutError when pool is exhausted."""
+        return max(5, min(120, _parse_int(_get("DB_POOL_TIMEOUT", "30"), 30)))
+
+    @property
+    def db_pool_recycle(self) -> int:
+        """Seconds after which idle connections are recycled to prevent stale socket errors."""
+        return max(60, min(7200, _parse_int(_get("DB_POOL_RECYCLE", "1800"), 1800)))
 
 
 settings = _Settings()

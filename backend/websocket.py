@@ -101,8 +101,12 @@ class WebSocketConnectionManager:
         })
 
         if self.redis:
-            # Publish to Redis so all workers receive it
-            await self.redis.publish(channel, payload)
+            # Publish to Redis so all distributed workers receive it
+            try:
+                await self.redis.publish(channel, payload)
+            except Exception as e:
+                logger.warning(f"Failed to publish to Redis channel '{channel}': {e}. Falling back to local broadcast.")
+                await self._local_broadcast_raw(channel, payload)
         else:
             # Fall back to local broadcast
             await self._local_broadcast_raw(channel, payload)
