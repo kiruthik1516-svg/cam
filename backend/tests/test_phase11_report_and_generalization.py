@@ -27,7 +27,6 @@ from auth import create_access_token
 from database import SessionLocal
 from main import app
 from models import AuditLog
-from scripts.generate_security_report_pdf import build_pdf
 
 client = TestClient(app)
 
@@ -183,6 +182,9 @@ def test_analytics_dialect_aware_distributions():
 
 def test_pdf_report_customization_engine():
     """Verify that build_pdf accepts dynamic enterprise parameters and generates valid PDF."""
+    pytest.importorskip("reportlab")
+    from scripts.generate_security_report_pdf import build_pdf
+
     with tempfile.NamedTemporaryFile(suffix=".pdf", delete=False) as tf:
         temp_pdf_path = tf.name
 

@@ -18,4 +18,5 @@ sentry-sdk[fastapi]
 python-jose[cryptography]
 PyJWT>=2.8.0
 PyYAML>=6.0.1
+reportlab>=4.0.0
 
