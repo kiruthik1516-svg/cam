@@ -713,6 +713,8 @@ class BatchVideoIngestEngine:
                 confidence=trk["confidence"],
                 age=trk["age"],
                 gender=trk["gender"],
+                wearing_mask=bool(trk.get("wearing_mask", False)),
+                wearing_glasses=bool(trk.get("wearing_glasses", False)),
                 bbox=json.dumps(trk["best_bbox"]),
                 face_image=trk["best_thumb_b64"],
                 source=models_module.DataSource.archive,

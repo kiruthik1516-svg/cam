@@ -139,7 +139,7 @@ The system is a **distributed Edge-to-Cloud facial recognition platform** with t
 | **pending.py** | `PendingSaver` class; saves unknown face crops & embeddings to pending/*.npz with deduplication (60% cosine similarity threshold) |
 | **edge_stream.py** | `EdgeFramePublisher` class; uploads annotated JPEG frames to backend via HTTPS POST or legacy WebSocket |
 | **enroll.py** | CLI to enroll known faces into gallery.npz from known_faces/ directory |
-| **review_pending.py** | GUI to review pending/*.npz, name faces, and move to known_faces/ |
+| **remote_detector.py** | Client for remote GPU face detection offloading via backend /detect API |
 | **config.yaml** | Camera sources, inference sizes, thresholds, camera routes, gallery path |
 
 ### Backend (backend/)
@@ -347,8 +347,8 @@ timestamp,camera_id,bbox,identity,confidence
 - Else: assign new label ("Person 2").
 
 **Purpose:**
-- Allows offline review via `python review_pending.py`.
-- When enrolled, moves to `known_faces/{name}/` and updates gallery.npz.
+- Unknown faces sync to PostgreSQL as `UnregisteredSubject` records and are reviewed/named directly in the Next.js Sentinel Dashboard.
+- When enrolled, moves to enrolled `Profile` status and updates gallery vectors.
 
 ---
 

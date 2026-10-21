@@ -3,6 +3,7 @@ import logging
 import re
 import uuid
 from typing import Optional, Tuple, Any, Dict
+from fastapi import HTTPException
 from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
@@ -162,8 +163,84 @@ def build_face_log_payload(
         "face_image": detection.face_image,
     }
 
+MAX_IMAGE_UPLOAD_BYTES = 10 * 1024 * 1024  # 10 MB default limit
+ALLOWED_IMAGE_MIMES = {
+    "image/jpeg",
+    "image/jpg",
+    "image/png",
+    "image/webp",
+    "image/bmp",
+    "application/octet-stream",  # Permitted if binary magic bytes verify as image
+}
+
+
+def is_valid_image_bytes(data: bytes) -> bool:
+    """Check magic bytes for JPEG, PNG, WebP, or BMP."""
+    if len(data) < 4:
+        return False
+    # JPEG: starts with FF D8 FF
+    if data.startswith(b"\xff\xd8\xff"):
+        return True
+    # PNG: starts with 89 50 4E 47 0D 0A 1A 0A
+    if data.startswith(b"\x89PNG\r\n\x1a\n"):
+        return True
+    # WebP: starts with RIFF....WEBP
+    if data.startswith(b"RIFF") and len(data) >= 12 and data[8:12] == b"WEBP":
+        return True
+    # BMP: starts with BM
+    if data.startswith(b"BM"):
+        return True
+    return False
+
+
+async def validate_image_upload(
+    file: Any,
+    max_size: int = MAX_IMAGE_UPLOAD_BYTES
+) -> bytes:
+    """
+    Safely read and validate an uploaded image file.
+    - Ensures file is non-empty.
+    - Enforces maximum size bounds (raises 413 if exceeded).
+    - Checks MIME type and header magic bytes (raises 400 if invalid).
+    Returns raw byte contents.
+    """
+    if file is None:
+        raise HTTPException(status_code=400, detail="No file provided")
+
+    if isinstance(file, bytes):
+        data = file
+    elif hasattr(file, "read"):
+        chunk = await file.read(max_size + 1)
+        if len(chunk) > max_size:
+            raise HTTPException(
+                status_code=413,
+                detail=f"Uploaded file exceeds maximum allowed limit of {max_size // (1024 * 1024)}MB."
+            )
+        data = chunk
+    else:
+        raise HTTPException(status_code=400, detail="Invalid file object provided")
+
+    if not data or len(data) == 0:
+        raise HTTPException(status_code=400, detail="Uploaded file is empty.")
+
+    content_type = getattr(file, "content_type", None)
+    if content_type and content_type.lower() not in ALLOWED_IMAGE_MIMES:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Unsupported file type '{content_type}'. Allowed formats: JPEG, PNG, WebP, BMP."
+        )
+
+    if not is_valid_image_bytes(data):
+        raise HTTPException(
+            status_code=400,
+            detail="File content does not match a valid image format (JPEG, PNG, WebP, BMP)."
+        )
+
+    return data
+
+
 async def extract_face_embedding(file: Any) -> Optional[Any]:
-    """Helper to extract face embedding from uploaded file."""
+    """Helper to extract face embedding from uploaded file or validated image bytes."""
     try:
         from state import ai_models
         import cv2
@@ -175,7 +252,11 @@ async def extract_face_embedding(file: Any) -> Optional[Any]:
     if not detector:
         return None
     try:
-        contents = await file.read()
+        if isinstance(file, bytes):
+            contents = file
+        else:
+            contents = await validate_image_upload(file)
+
         nparr = np.frombuffer(contents, np.uint8)
         img = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
         if img is None:
@@ -191,8 +272,11 @@ async def extract_face_embedding(file: Any) -> Optional[Any]:
         face = faces[0]
         embedding = detector.extract_embedding(img, face)
         return embedding
+    except HTTPException:
+        raise
     except Exception as e:
         import logging
         logging.getLogger(__name__).error(f"Error extracting embedding: {e}")
         return None
+
 

@@ -11,17 +11,15 @@ The system consists of three main components:
    - Sends frames to remote detection service
    - Optionally shows local preview with detection results
 
-2. **Remote Detection Service** (Google Colab/Kaggle)
-   - `colab_detection_service.py`: FastAPI microservice for face detection/recognition
-   - `colab_detection_notebook.ipynb`: Complete Colab notebook for easy deployment
-   - Receives frames, runs InsightFace, returns detection results
-   - Optionally forwards results to cloud backend
+2. **Remote GPU Detection Service** (Cloud GPU Host: JarvisLabs, RunPod, Colab, or dedicated server)
+   - Exposes `POST /detect` on the FastAPI backend (with `EDGE_API_KEY` authentication)
+   - Receives video frames, runs GPU-accelerated InsightFace detection + embedding extraction, returns detections
+   - Allows low-power edge machines or laptops to offload ML inference seamlessly
 
-3. **Cloud Backend** (`backend/`)
-   - FastAPI server (deployed to Render)
-   - Receives detection events
-   - Stores in PostgreSQL with pgvector
-   - Provides API for dashboard
+3. **Backend API & Database Stack** (`backend/`)
+   - FastAPI server with WebSockets, alerts, and analytics
+   - Stores detection events, profiles, and embeddings in PostgreSQL with pgvector
+   - Serves the Next.js Sentinel Dashboard
 
 ## Setup Instructions
 
@@ -167,18 +165,16 @@ If you want to also send detections to your cloud backend:
 ```
 facial/
 ├── facial_recognition/
-│   ├── data/                 # Moved CSV detection logs
-│   ├── known_faces/          # Known faces gallery (organized by person)
-│   ├── pending/              # Temporary storage for unknown faces
-│   ├── pc_frame_sender.py    # PC → Remote frame sender
-│   ├── main.py               # Local processing (GPU)
-│   ├── main_cpu.py           # Local processing (CPU)
-│   └── ...                   # Other modules
-├── colab_detection_service.py   # Colab detection microservice
-├── colab_detection_notebook.ipynb # Colab notebook for remote detection
-├── backend/                  # Cloud API (FastAPI)
+│   ├── known_faces/          # Enrolled reference photos
+│   ├── pending/              # Local storage for unknown face crops
+│   ├── pc_frame_sender.py    # Standalone frame sender client
+│   ├── remote_detector.py    # Remote GPU offloading detector client
+│   ├── main_cpu.py           # CPU edge runner with frame skipping
+│   ├── run.py                # GPU edge runner
+│   └── ...                   # Supporting CV pipeline modules
+├── backend/                  # FastAPI REST + WebSocket backend
 ├── facial-recognition-dashboard/ # Next.js frontend
-└── scripts/                  # PowerShell helper scripts
+└── scripts/                  # Shell & automation scripts (smoke_test.py, run-cpu.ps1)
 ```
 
 ### Next Steps
@@ -189,8 +185,8 @@ facial/
    - Or upload new faces to Colab known_faces directory and recompute gallery
 
 2. **Review unknown faces**:
-   - Run `python facial_recognition/review_pending.py`
-   - Label unknown faces to add them to known gallery
+   - Open the **Unregistered People** tab in the Sentinel Dashboard
+   - Review automatically clustered face thumbnails, name them, or merge sightings into enrolled profiles
 
 3. **View analytics**:
    - Access your cloud dashboard at the frontend URL

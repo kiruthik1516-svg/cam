@@ -46,6 +46,7 @@ async def create_profile(
     if not name or not name.strip():
         raise HTTPException(status_code=422, detail="Profile name cannot be empty")
 
+    embeddings_to_add = []
     if photos:
         # Enrolling from photos needs the face model in this backend process. Fail clearly instead of
         # creating a profile that silently ends up with no embeddings.
@@ -56,6 +57,16 @@ async def create_profile(
                 detail="The face model is not loaded on this backend, so photos cannot be enrolled. "
                        "Set ENABLE_FORENSIC_SEARCH=true and restart the backend.",
             )
+
+        from utils import validate_image_upload, extract_face_embedding
+        validated_photos = []
+        for photo in photos:
+            validated_photos.append(await validate_image_upload(photo))
+
+        for photo_bytes in validated_photos:
+            embedding = await extract_face_embedding(photo_bytes)
+            if embedding is not None:
+                embeddings_to_add.append(embedding)
 
     try:
         profile_role = ProfileRoleEnum(role) if role else ProfileRoleEnum.visitor
@@ -68,32 +79,21 @@ async def create_profile(
         name=name.strip(),
         role=profile_role,
         department=department.strip() if department else None,
-        embedding_status=EmbeddingStatusEnum.pending,
-        embedding_count=0,
+        embedding_status=EmbeddingStatusEnum.indexed if embeddings_to_add else EmbeddingStatusEnum.missing,
+        embedding_count=len(embeddings_to_add),
         enrolled_at=datetime.now(IST)
     )
     db.add(profile)
-    db.commit()
 
-    if photos:
-        from utils import extract_face_embedding
-        for photo in photos:
-            embedding = await extract_face_embedding(photo)
-            if embedding is not None:
-                emb_id = str(uuid.uuid4())
-                # embedding is a 512-dim numpy array
-                db_emb = Embedding(
-                    id=emb_id,
-                    profile_id=new_id,
-                    vector=embedding.tolist()
-                )
-                db.add(db_emb)
-                profile.embedding_count += 1
-        
-    if profile.embedding_count > 0:
-        profile.embedding_status = EmbeddingStatusEnum.indexed
-    else:
-        profile.embedding_status = EmbeddingStatusEnum.missing
+    for emb in embeddings_to_add:
+        emb_id = str(uuid.uuid4())
+        db_emb = Embedding(
+            id=emb_id,
+            profile_id=new_id,
+            vector=emb.tolist()
+        )
+        db.add(db_emb)
+
     db.commit()
             
     db.refresh(profile)

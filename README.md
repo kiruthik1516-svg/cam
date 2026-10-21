@@ -15,94 +15,89 @@ This system processes live RTSP and webcam video feeds on local edge devices, ex
 - **Distributed Processing**: Offload heavy ML inference to GPU instances using the frame sender and detection service.
 
 ## Tech Stack
-- **Frontend**: Next.js 14, React 18, TailwindCSS, Shadcn UI, Lucide Icons, `@tanstack/react-query`
-- **Backend API**: Python, FastAPI, Uvicorn, WebSockets, SQLAlchemy (ORM)
+- **Frontend**: Next.js 16, React 19, TailwindCSS, Lucide Icons, `@tanstack/react-query`
+- **Backend API**: Python 3.11, FastAPI, Uvicorn, WebSockets, SQLAlchemy 2.0 (ORM)
 - **Computer Vision / AI**: InsightFace, ONNX Runtime, OpenCV, NumPy
-- **Database**: PostgreSQL (Supabase) with the `pgvector` extension
-- **Deployment**: Vercel (Frontend), Render (Backend), Local PC (Edge CV Pipeline), Google Colab/Kaggle (Remote Detection)
+- **Database**: PostgreSQL 16 with `pgvector` extension
+- **Deployment**: Docker Compose v2 (Production & Dev profiles)
 
 ## Architecture Options
 
-### Option 1: Local Processing (Original)
-The architecture utilizes a distributed Edge-to-Cloud pattern:
-1. **Edge CV Node (`facial_recognition/`)**: A local Python process captures live video frames. `InsightFace` detects faces, extracts the 512-dim embedding tensors, and identifies known profiles. It synchronously writes the event to a local CSV archive while async-POSTing the data to the Cloud API.
-2. **Cloud API (`backend/`)**: A FastAPI server running on Render ingests edge events and inserts them into Supabase via SQLAlchemy. It also securely houses the ONNX models in memory during its `lifespan` to process manual image uploads (Forensic Search) without taxing the edge nodes.
-3. **Cloud Database (`Supabase`)**: Stores relational metadata (Profiles, Cameras, Alerts) and uses `pgvector` to index the 512-dim embedding arrays, allowing for mathematical cosine distance queries.
-4. **Cloud Dashboard (`facial-recognition-dashboard/`)**: A Next.js application that fetches historical aggregated analytics via REST and listens to FastAPI WebSockets for live React Query invalidations, ensuring the UI is perpetually up-to-date.
+### Option 1: Local Edge Processing
+The standard edge-to-cloud architecture:
+1. **Edge CV Node (`facial_recognition/`)**: A local Python process captures live video frames from RTSP streams or webcams. `InsightFace` detects faces, extracts 512-dim embedding vectors, and identifies known profiles. It maintains a local SQLite ledger (`event_ledger.py`) for offline resilience and syncs detections to the backend API.
+2. **Backend API (`backend/`)**: A FastAPI server on port 1223 ingests edge events and persists them into PostgreSQL via SQLAlchemy. When `ENABLE_FORENSIC_SEARCH=true`, it loads the face model in memory to extract embeddings from photo uploads and run forensic vector similarity searches.
+3. **Database (`PostgreSQL + pgvector`)**: Stores relational models (Profiles, Cameras, Alerts, Detections) and uses `pgvector` HNSW index scans with cosine distance (`<=>`) for vector searches.
+4. **Dashboard (`facial-recognition-dashboard/`)**: A Next.js application that renders real-time feeds, telemetry, analytics, vector enrollment, and recorded footage audits.
 
-### Option 2: Distributed Processing (New)
-For users who want to offload heavy ML inference to cloud GPUs:
-1. **Local PC**: Runs `pc_frame_sender.py` to capture video and send frames to remote detection service
-2. **Remote Detection Service** (Google Colab/Kaggle): Runs `colab_detection_service.py` to perform face detection/recognition using InsightFace GPUs
-3. **Cloud API (`backend/`)**: Same as Option 1 - receives detection events (either from local edge or remote service) and inserts into Supabase
-4. **Cloud Database (`Supabase`)**: Same as Option 1
-5. **Cloud Dashboard (`facial-recognition-dashboard/`)**: Same as Option 1
+### Option 2: Remote GPU Offloaded Detection
+For edge machines without dedicated GPUs:
+1. **Local Edge**: Runs `facial_recognition/pc_frame_sender.py` or uses `RemoteInsightFaceDetector` in `main_cpu.py` / `main.py` with `REMOTE_DETECTION_URL`.
+2. **Remote Detection Backend**: A GPU-enabled FastAPI backend instance exposes `POST /detect` secured with `EDGE_API_KEY`, performing GPU-accelerated face detection and embedding extraction before returning results.
 
-See [GET_STARTED.md](GET_STARTED.md) for detailed setup instructions for the distributed processing option.
+See [GET_STARTED.md](GET_STARTED.md) and [docs/DEVELOPER_GUIDE.md](docs/DEVELOPER_GUIDE.md) for detailed configuration options.
 
 ## Design & Implementation Highlights
-- **Headless Server Compatibility**: Configured `opencv-python-headless` dependencies for headless Linux and containerized environments.
-- **WebSocket Push & Selective Sync**: Implemented a WebSocket pub/sub architecture in FastAPI (`/ws/alerts`), triggering client cache invalidations via `@tanstack/react-query` to eliminate polling overhead.
+- **Headless Server Compatibility**: Fully containerized and verified for headless Linux and Windows environments.
+- **WebSocket Push & Selective Sync**: Implemented WebSocket channels (`/ws/alerts`, `/ws/cameras`, `/ws/kpis`) with client invalidations via `@tanstack/react-query`.
 - **Vector Index Search & Deduplication**: Employs PostgreSQL `pgvector` HNSW index scans with cosine distance (`<=>`) for fast candidate retrieval, paired with nearest-neighbor duplicate identity detection.
-- **Hybrid Inference Flexibility**: Supports local edge inference with ONNX runtime as well as optional remote inference integration.
+- **Resilient Offline Ledger**: Edge events persist locally in SQLite with deterministic SHA-256 event IDs for idempotent multi-node sync.
 
 ## Setup
-Choose your preferred processing option:
 
-### Option A: Local Processing (Recommended for machines with GPU)
-1. **Database Setup**: Spin up a Supabase PostgreSQL instance and enable the `pgvector` extension.
-2. **Backend**: 
+### Option A: Full Docker Stack (Recommended)
+1. Copy the example environment file:
+   ```bash
+   cp .env.example .env
+   ```
+2. Generate required secrets (`POSTGRES_PASSWORD`, `REDIS_PASSWORD`, `SECRET_KEY`, `EDGE_API_KEY`, `ADMIN_PASSWORD`) as described in `docs/DEVELOPER_GUIDE.md`.
+3. Launch the container stack:
+   ```bash
+   docker compose up -d --build
+   ```
+4. Verify the stack:
+   ```bash
+   python scripts/smoke_test.py
+   ```
+   - Dashboard: http://localhost:3000
+   - Backend API: http://localhost:1223
+
+### Option B: Local Development
+1. **Backend**:
    ```bash
    cd backend
    pip install -r requirements.txt
-   uvicorn main:app --reload
+   uvicorn main:app --reload --port 1223
    ```
-3. **Frontend**:
+2. **Frontend**:
    ```bash
    cd facial-recognition-dashboard
    pnpm install
    pnpm dev
    ```
-4. **Edge CV**:
-   ```bash
-   cd facial_recognition
-   python run.py          # With GPU
-   # or
-   python main_cpu.py     # CPU optimized
+3. **Edge Pipeline (Windows PowerShell)**:
+   ```powershell
+   .\scripts\run-cpu.ps1 -Setup      # First-time setup
+   .\scripts\run-cpu.ps1             # Launch CPU edge runner
    ```
-
-### Option B: Distributed Processing (For GPU acceleration via Colab/Kaggle)
-See [GET_STARTED.md](GET_STARTED.md) for complete step-by-step instructions.
 
 ## Commands Cheat Sheet
 
-### 1. Naming Unknown Faces (Gallery Management)
-Run these from inside the `facial_recognition/` folder:
-- **`python review_pending.py`**: Reviews unknown faces saved in the `pending/` folder, prompts you for their name via a GUI, and adds them to the known gallery.
-- **`python enroll.py`**: Rebuilds the `gallery.npz` file from scratch using images placed inside `known_faces/`.
+### 1. Gallery & Unknown Faces Management
+- **Dashboard Unregistered People**: View, name, assign, or merge unknown faces directly in the Sentinel Dashboard UI (`/api/unregistered-subjects`).
+- **`python facial_recognition/enroll.py`**: Rebuilds the `gallery.npz` file from photos placed inside `facial_recognition/known_faces/`.
 
-### 2. Running the Edge Cameras (Local Processing)
-Run these from inside the `facial_recognition/` folder:
-- **`python main_cpu.py`**: Runs the highly-optimized camera script tuned for laptops/CPUs (skips frames, limits threads).
-- **`python run.py`**: The standard camera execution script, best used with a dedicated NVIDIA GPU.
+### 2. Edge Cameras & Detection
+- **`.\scripts\run-cpu.ps1`**: Runs the CPU-optimized camera runner with multi-camera RTSP support.
+- **`python facial_recognition/main_cpu.py --tier max`**: Runs CPU inference at 480x480 resolution for high-accuracy doorway capture.
+- **`python facial_recognition/run.py`**: GPU camera runner for systems with NVIDIA CUDA support.
 
-### 3. Running the Distributed System
-- **`python facial_recognition/pc_frame_sender.py`**: Sends frames from local PC to remote detection service (see GET_STARTED.md for setup)
+### 3. Verification & Auditing
+- **`python scripts/smoke_test.py`**: Runs the 12-check end-to-end integration smoke test against a running backend stack.
+- **`python scripts/generate_security_report_pdf.py`**: Generates the CCTV security compliance and gap audit report PDF.
+- **`pytest backend/tests`**: Runs the backend automated test suite.
 
-### 4. Running the FastAPI Backend
-- **`.\scripts\run-backend.ps1`** (from root): A PowerShell wrapper to launch the Python backend.
-- **`uvicorn main:app --reload`** (from `backend/`): Manually starts the FastAPI server on `localhost:1223`.
-
-### 5. Running the Next.js Dashboard
-- **`.\scripts\run-frontend.ps1`** (from root): A PowerShell wrapper to launch the web interface.
-- **`pnpm dev`** (from `facial-recognition-dashboard/`): Manually starts the Next.js UI on `localhost:3000`.
-
-### 6. Setup & Validation
-Run these from the root folder:
-- **`.\scripts\setup-all.ps1`**: Automatically creates Python virtual environments, installs requirements, and runs `pnpm install` for the frontend.
-- **`.\scripts\DEPLOYMENT_CHECKLIST.ps1`**: A helper script to quickly verify that all `.env` variables are correctly set before deployment.
-
-## Links
-- **GitHub Repository**: [Your Link Here]
-- **Live Demo**: [Your Link Here]
-- **Getting Started Guide**: [GET_STARTED.md](GET_STARTED.md)
+## Documentation
+- **[Developer Guide](docs/DEVELOPER_GUIDE.md)**: Architecture, daily workflows, configuration reference, and roadmap.
+- **[Getting Started](GET_STARTED.md)**: Setup guide for distributed and remote GPU deployments.
+- **[Integration Guide](docs/INTEGRATION_GUIDE.md)**: Camera NVR integration, RTSP streaming, and authentication reference.

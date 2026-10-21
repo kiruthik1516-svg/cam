@@ -295,10 +295,10 @@ def run_forensic_vector_query(
         detection_filters.append(Detection.age >= age_min)
     if age_max is not None:
         detection_filters.append(Detection.age <= age_max)
-    if wearing_mask is True:
-        detection_filters.append(Detection.wearing_mask.is_(True))
-    if wearing_glasses is True:
-        detection_filters.append(Detection.wearing_glasses.is_(True))
+    if wearing_mask is not None:
+        detection_filters.append(Detection.wearing_mask.is_(wearing_mask))
+    if wearing_glasses is not None:
+        detection_filters.append(Detection.wearing_glasses.is_(wearing_glasses))
 
     is_pgvector = hasattr(Embedding.vector, 'cosine_distance') and getattr(db.bind, 'dialect', None) and db.bind.dialect.name == "postgresql"
     if is_pgvector:

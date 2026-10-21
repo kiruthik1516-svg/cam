@@ -226,6 +226,8 @@ class DetectionCreateRequest(BaseModel):
     timestamp: datetime
     age: Optional[int] = None
     gender: Optional[str] = None
+    wearing_mask: Optional[bool] = False
+    wearing_glasses: Optional[bool] = False
     event_id: str  # Required idempotency key (deterministic SHA-256 hash from edge node)
     device_id: Optional[str] = None
     sequence_number: Optional[int] = None

@@ -15,8 +15,10 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 try:
     from config import IST
+    from utils import validate_image_upload
 except ModuleNotFoundError:
     from backend.config import IST
+    from backend.utils import validate_image_upload
 
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Depends, Query, Request, UploadFile, File, Form, HTTPException, Header
 from fastapi.middleware.cors import CORSMiddleware
@@ -456,13 +458,11 @@ async def detect_frame(
     Remote face detection endpoint for pc_frame_sender.py and RemoteInsightFaceDetector.
     Accepts multipart/form-data frame and runs GPU/CPU detection + embedding extraction.
     """
+    contents = await validate_image_upload(file)
+
     detector = ai_models.get("detector")
     if detector is None:
         raise HTTPException(status_code=503, detail="AI detector not loaded on this backend instance")
-
-    contents = await file.read()
-    if not contents:
-        raise HTTPException(status_code=400, detail="Empty frame payload")
 
     nparr = np.frombuffer(contents, np.uint8)
     img = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
