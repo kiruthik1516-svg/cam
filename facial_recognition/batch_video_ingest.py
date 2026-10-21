@@ -721,6 +721,14 @@ class BatchVideoIngestEngine:
                 batch_id=batch_id,
                 device_id=clip.file_name,
                 sequence_number=int(round(trk["start_sec"])),
+                quality_score=round(
+                    float(np.clip(
+                        (float(trk.get("best_quality", 0.5)) * 0.7 + float(trk.get("best_score", 0.5)) * 0.3) * 100.0,
+                        0.0,
+                        100.0,
+                    )),
+                    1,
+                ),
                 embedding_vector=(
                     trk["embedding"].tolist()
                     if (trk["embedding"] is not None and getattr(trk["embedding"], "size", 0) == 512)
@@ -946,6 +954,10 @@ class BatchVideoIngestEngine:
                                 matched_trk["is_flagged"] = is_flagged
                                 matched_trk["role"] = role
                     else:
+                        # Drop/filter steep-angle or low-quality faces from seeding new clusters (Phase 9 R3)
+                        if is_steep_scalp or pose_quality < 0.30 or det_score < 0.45 or effective_quality < 0.25:
+                            continue
+
                         # New track initiation
                         active_tracks.append({
                             "start_sec": frame_time_sec,
@@ -1153,7 +1165,13 @@ class BatchVideoIngestEngine:
             if len(dets) == 1:
                 labels = np.array([0])
             else:
-                # Calibrated CCTV Average Linkage (distance 0.62 allows multiple head poses while preventing cross-identity merges)
+                # Configurable CCTV Linkage Clustering threshold (Phase 9 R3)
+                try:
+                    cluster_thresh_env = float(os.getenv("CLUSTER_DISTANCE_THRESHOLD", "0.72"))
+                    cluster_dist_thresh = min(0.95, max(0.20, cluster_thresh_env))
+                except Exception:
+                    cluster_dist_thresh = 0.72
+
                 labels = None
                 try:
                     from scipy.spatial.distance import pdist
@@ -1161,7 +1179,7 @@ class BatchVideoIngestEngine:
                     dists = pdist(embs, metric='cosine')
                     dists = np.nan_to_num(dists, nan=1.0, posinf=1.0, neginf=0.0)
                     Z = linkage(dists, method='average')
-                    labels = fcluster(Z, t=0.62, criterion='distance') - 1
+                    labels = fcluster(Z, t=cluster_dist_thresh, criterion='distance') - 1
                 except Exception:
                     pass
 
@@ -1170,7 +1188,7 @@ class BatchVideoIngestEngine:
                         from sklearn.cluster import AgglomerativeClustering
                         clusterer = AgglomerativeClustering(
                             n_clusters=None,
-                            distance_threshold=0.62,
+                            distance_threshold=cluster_dist_thresh,
                             metric='cosine',
                             linkage='average'
                         )
@@ -1190,28 +1208,77 @@ class BatchVideoIngestEngine:
                         for j in range(i + 1, n_e):
                             if labels[j] == -1:
                                 cos_dist = 1.0 - float(np.dot(embs[i], embs[j]))
-                                if cos_dist <= 0.62:
+                                if cos_dist <= cluster_dist_thresh:
                                     labels[j] = cur_lbl
                         cur_lbl += 1
 
-            # Merge overlapping cluster centroids (post-pass to link sub-clusters)
+            # Multi-Factor Quality-Weighted Centroid Merging (Phase 9 R3)
+            # Reconciles fragmented sub-clusters from high-ceiling / turned-head overhead CCTV
             unique_labels = sorted(list(set(labels)))
             cluster_reps: Dict[int, np.ndarray] = {}
+            cluster_cams: Dict[int, set] = {}
+            cluster_ts_min: Dict[int, datetime] = {}
+            cluster_ts_max: Dict[int, datetime] = {}
+            cluster_steep: Dict[int, bool] = {}
+
             for c in unique_labels:
                 m_indices = np.where(labels == c)[0]
-                cluster_reps[c] = np.mean(embs[m_indices], axis=0)
-                cluster_reps[c] = cluster_reps[c] / (np.linalg.norm(cluster_reps[c]) + 1e-8)
+                m_dets = [dets[idx] for idx in m_indices]
+                confidences = np.array([float(d.confidence or 30.0) for d in m_dets], dtype=np.float32)
+                conf_weights = confidences / (np.sum(confidences) + 1e-6)
+                m_embs = embs[m_indices]
+                rep = np.sum(m_embs * conf_weights[:, np.newaxis], axis=0)
+                cluster_reps[c] = rep / (np.linalg.norm(rep) + 1e-8)
+                cluster_cams[c] = {d.camera_id for d in m_dets if d.camera_id}
+                ts_list = [d.timestamp for d in m_dets]
+                cluster_ts_min[c] = min(ts_list)
+                cluster_ts_max[c] = max(ts_list)
+                cluster_steep[c] = any(float(d.confidence or 0.0) < 50.0 for d in m_dets)
 
-            # Check if any cluster centroids are close (cosine distance <= 0.52 / sim >= 0.48)
+            # Check if any cluster centroids should merge
             label_map = {c: c for c in unique_labels}
+            def find_root(lbl: int) -> int:
+                curr = lbl
+                while curr != label_map[curr]:
+                    label_map[curr] = label_map[label_map[curr]]
+                    curr = label_map[curr]
+                return curr
+
             for i, c1 in enumerate(unique_labels):
                 for c2 in unique_labels[i + 1:]:
                     sim = float(np.dot(cluster_reps[c1], cluster_reps[c2]))
-                    if sim >= 0.48:
-                        root_c1 = label_map[c1]
-                        while root_c1 != label_map[root_c1]:
-                            root_c1 = label_map[root_c1]
-                        label_map[c2] = root_c1
+
+                    # Temporal gap between clusters
+                    if cluster_ts_max[c1] < cluster_ts_min[c2]:
+                        dt = (cluster_ts_min[c2] - cluster_ts_max[c1]).total_seconds()
+                    elif cluster_ts_max[c2] < cluster_ts_min[c1]:
+                        dt = (cluster_ts_min[c1] - cluster_ts_max[c2]).total_seconds()
+                    else:
+                        dt = 0.0
+
+                    shared_cam = bool(cluster_cams[c1] & cluster_cams[c2])
+                    is_steep = cluster_steep[c1] or cluster_steep[c2]
+
+                    should_merge = False
+                    if sim >= 0.45:
+                        # 1. Unconditional merge
+                        should_merge = True
+                    elif shared_cam and dt <= 120.0 and sim >= 0.35:
+                        # 2. Camera + temporal proximity
+                        should_merge = True
+                    elif shared_cam and dt <= 60.0 and (sim >= 0.32 or (is_steep and sim >= 0.30)):
+                        # 3. Steep angle compensation
+                        should_merge = True
+
+                    if should_merge:
+                        r1 = find_root(c1)
+                        r2 = find_root(c2)
+                        if r1 != r2:
+                            label_map[r2] = r1
+                            logger.info(
+                                "Multi-factor centroid merge: cluster %d -> %d (sim=%.3f, dt=%.1fs, same_cam=%s, steep=%s)",
+                                c2, c1, sim, dt, shared_cam, is_steep
+                            )
 
             merged_labels = np.array([label_map[l] for l in labels])
             merged_unique = sorted(list(set(merged_labels)))
@@ -1281,12 +1348,26 @@ class BatchVideoIngestEngine:
                     subject_status = "active" if size >= 2 else "transient"
                     person_name = f"Person {unregistered_rank}" if size >= 2 else f"Transient {unregistered_rank}"
                     subject_id = f"subj_{batch_id}_{unregistered_rank}_{uuid.uuid4().hex[:6]}"
+
+                    # Quality score from detections or confidence (Phase 9 R3)
+                    c_qualities = [
+                        float(d.quality_score)
+                        for d in c_dets
+                        if getattr(d, 'quality_score', None) is not None
+                    ]
+                    avg_qual = (
+                        round(float(np.mean(c_qualities)), 1)
+                        if c_qualities
+                        else round(best_conf, 1)
+                    )
+
                     subject = models_module.UnregisteredSubject(
                         id=subject_id,
                         display_name=person_name,
                         representative_embedding=rep_vector.tolist(),
                         similarity_threshold=0.42,
                         thumbnail=best_d.face_image,
+                        quality_score=avg_qual,
                         status=subject_status,
                         created_at=c_dets[0].timestamp,
                         updated_at=c_dets[-1].timestamp,

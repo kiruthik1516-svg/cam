@@ -161,6 +161,7 @@ def build_face_log_payload(
         "wearing_glasses": detection.wearing_glasses,
         "snapshot_tone": snapshot_tone_for(detection.id),
         "face_image": detection.face_image,
+        "quality_score": getattr(detection, "quality_score", None),
     }
 
 MAX_IMAGE_UPLOAD_BYTES = 10 * 1024 * 1024  # 10 MB default limit

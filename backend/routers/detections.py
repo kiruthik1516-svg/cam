@@ -18,6 +18,7 @@ from dependencies import verify_edge_node, verify_camera_access
 from state import continuity_tracker
 from websocket import manager
 from facial_recognition.version_bundle import ModelConfigVersionBundle
+from liveness import verify_server_liveness_and_image, compute_server_face_quality
 from utils import (
     resolve_detection_identity,
     parse_gender,
@@ -193,6 +194,25 @@ async def create_detection(
     if profile is not None:
         profile.last_seen = req_timestamp_ist
 
+    # Phase 9 R11: Multi-domain Server-Side Anti-Spoofing & Liveness Verification
+    face_img_data = req.thumbnail or req.face_image
+    edge_liveness = float(getattr(req, 'liveness_score', 0.0) or 0.0)
+    final_liveness, is_spoof, spoof_reason, bgr_decoded = verify_server_liveness_and_image(
+        face_img_data, edge_liveness
+    )
+
+    # Status update: if spoof suspected, flag detection
+    if is_spoof:
+        status = DetectionStatus.flagged
+
+    # Quality score resolution (Phase 9 R3): use provided, compute from image, or fallback to confidence
+    resolved_quality = getattr(req, 'quality_score', None)
+    if resolved_quality is None:
+        if bgr_decoded is not None:
+            resolved_quality = compute_server_face_quality(bgr_decoded, req.confidence)
+        else:
+            resolved_quality = round(float(req.confidence or 50.0), 1)
+
     detection = Detection(
         id=str(uuid.uuid4()),
         event_id=req.event_id,  # Required Idempotency key
@@ -205,8 +225,9 @@ async def create_detection(
         status=status,
         confidence=req.confidence,
         bbox=f"[{int(req.bbox[0])}, {int(req.bbox[1])}, {int(req.bbox[2])}, {int(req.bbox[3])}]",
-        face_image=req.thumbnail or req.face_image,
-        liveness_score=float(getattr(req, 'liveness_score', 0.0) or 0.0),
+        face_image=face_img_data,
+        liveness_score=final_liveness,
+        quality_score=resolved_quality,
         age=req.age,
         gender=parse_gender(req.gender),
         wearing_mask=bool(getattr(req, 'wearing_mask', False)),
@@ -292,25 +313,25 @@ async def create_detection(
         logger.exception(f"Error saving detection {req.event_id}: {e}")
         raise
 
-    # 1. Standard role-based alert evaluation
-    should_alert, severity, reason = alert_meta_for_detection(status, profile, req.identity)
-    if should_alert and severity and reason:
-        alert = Alert(
-            id=str(uuid.uuid4()),
-            detection_id=detection.id,
-            camera_id=req.camera_id,
-            profile_id=profile_id,
-            timestamp=req_timestamp_ist,
-            severity=severity,
-            reason=reason,
-            acknowledged=False,
-        )
-        db.add(alert)
-        db.commit()
+    # 1. Standard role-based alert evaluation (skip if presentation attack spoof is detected)
+    if not is_spoof:
+        should_alert, severity, reason = alert_meta_for_detection(status, profile, req.identity)
+        if should_alert and severity and reason:
+            alert = Alert(
+                id=str(uuid.uuid4()),
+                detection_id=detection.id,
+                camera_id=req.camera_id,
+                profile_id=profile_id,
+                timestamp=req_timestamp_ist,
+                severity=severity,
+                reason=reason,
+                acknowledged=False,
+            )
+            db.add(alert)
+            db.commit()
 
-    # 2. Anti-Spoofing / Presentation Attack Alert Guard
-    live_score = detection.liveness_score or 0.0
-    if 0.0 < live_score < settings.liveness_alert_threshold:
+    # 2. Anti-Spoofing / Presentation Attack Alert & Audit Guard (Phase 9 R11)
+    if is_spoof:
         spoof_alert = Alert(
             id=str(uuid.uuid4()),
             detection_id=detection.id,
@@ -318,7 +339,43 @@ async def create_detection(
             profile_id=profile_id,
             timestamp=req_timestamp_ist,
             severity="critical",
-            reason=f"Suspected Presentation Attack / Fake Clone on camera '{req.camera_id}' (Liveness: {live_score:.2f} < {settings.liveness_alert_threshold:.2f})",
+            reason=f"Suspected Presentation Attack on camera '{req.camera_id}': {spoof_reason} (Liveness: {final_liveness:.2f})",
+            acknowledged=False,
+        )
+        db.add(spoof_alert)
+
+        # Record Security Audit Log warning for SOC / Forensic Review
+        audit_entry = AuditLog(
+            id=str(uuid.uuid4()),
+            timestamp=req_timestamp_ist,
+            user_id=None,
+            username=f"edge_node:{req.device_id or req.camera_id}",
+            role="system",
+            action="security.spoof_suspected",
+            resource_type="detection",
+            resource_id=detection.id,
+            client_ip=None,
+            details=json.dumps({
+                "event_id": req.event_id,
+                "camera_id": req.camera_id,
+                "edge_liveness": edge_liveness,
+                "server_liveness": final_liveness,
+                "reason": spoof_reason,
+                "status": "flagged",
+            }),
+        )
+        db.add(audit_entry)
+        db.commit()
+    elif 0.0 < (detection.liveness_score or 0.0) < settings.liveness_alert_threshold:
+        live_val = detection.liveness_score or 0.0
+        spoof_alert = Alert(
+            id=str(uuid.uuid4()),
+            detection_id=detection.id,
+            camera_id=req.camera_id,
+            profile_id=profile_id,
+            timestamp=req_timestamp_ist,
+            severity="critical",
+            reason=f"Suspected Presentation Attack / Fake Clone on camera '{req.camera_id}' (Liveness: {live_val:.2f} < {settings.liveness_alert_threshold:.2f})",
             acknowledged=False,
         )
         db.add(spoof_alert)

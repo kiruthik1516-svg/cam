@@ -50,6 +50,15 @@ def _subject_response(subject: UnregisteredSubject, db: Session) -> Unregistered
                 thumb = d.face_image
                 break
 
+    # Quality score resolution (Phase 9 R3)
+    q_score = getattr(subject, 'quality_score', None)
+    if q_score is None and detections:
+        valid_qs = [d.quality_score for d in detections if getattr(d, 'quality_score', None) is not None]
+        if valid_qs:
+            q_score = round(float(np.mean(valid_qs)), 1)
+        else:
+            q_score = round(best_conf, 1)
+
     return UnregisteredSubjectResponse(
         id=subject.id,
         display_name=subject.display_name,
@@ -63,6 +72,7 @@ def _subject_response(subject: UnregisteredSubject, db: Session) -> Unregistered
         event_ids=event_ids[:100],
         status=subject.status,
         thumbnail=thumb,
+        quality_score=q_score,
     )
 
 def _subject_vector(value: Any) -> Optional[np.ndarray]:

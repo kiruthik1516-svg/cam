@@ -206,6 +206,7 @@ class Detection(Base):
     confidence = Column(Float, default=0.0)
     embedding_vector = Column(Vector(512), nullable=True)
     liveness_score = Column(Float, default=0.0)
+    quality_score = Column(Float, nullable=True, default=None)
     age = Column(Integer)
     gender = Column(SQLEnum(Gender), default=Gender.unknown)
     wearing_mask = Column(Boolean, default=False)
@@ -242,6 +243,7 @@ class UnregisteredSubject(Base):
     representative_embedding = Column(Vector(512), nullable=False)
     similarity_threshold = Column(Float, nullable=False, default=0.35)
     thumbnail = Column(Text, nullable=True)  # Base64 encoded JPEG face crop thumbnail
+    quality_score = Column(Float, nullable=True, default=None)
     status = Column(String, nullable=False, default="active")
     created_at = Column(DateTime, default=ist_now)
     updated_at = Column(DateTime, default=ist_now, onupdate=ist_now)

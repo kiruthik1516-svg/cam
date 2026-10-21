@@ -135,6 +135,7 @@ class UnregisteredSubjectResponse(BaseModel):
     event_ids: List[str]
     status: str
     thumbnail: Optional[str] = None
+    quality_score: Optional[float] = None
 
     @field_serializer('first_seen', 'last_seen', when_used='always')
     def serialize_ist_unreg_dates(self, v: Optional[datetime]):
@@ -200,6 +201,7 @@ class DetectionBase(BaseModel):
     status: str = DetectionStatus.unknown
     confidence: float = 0.0
     liveness_score: float = 0.0
+    quality_score: Optional[float] = None
     age: Optional[int] = None
     gender: Optional[Gender] = Gender.unknown
     wearing_mask: Optional[bool] = False
@@ -253,6 +255,7 @@ class DetectionCreateRequest(BaseModel):
     embedding: Optional[List[float]] = None
     provenance: Optional[Dict[str, Any]] = None
     liveness_score: Optional[float] = 0.0
+    quality_score: Optional[float] = None
     camera_name: Optional[str] = None
     zone: Optional[str] = None
     clock_source: Optional[str] = "edge_pc"

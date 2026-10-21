@@ -78,6 +78,7 @@ export interface UniquePerson {
   lastElapsedSec: number | null
   maxConfidence: number
   avgConfidence: number
+  avgQualityScore?: number | null
   status: DetectionStatus
 }
 
@@ -178,6 +179,9 @@ export function CctvPersonsTab({
       const maxConfidence = Math.max(...confidences)
       const avgConfidence = Math.round(confidences.reduce((a, b) => a + b, 0) / confidences.length)
 
+      const qualityScores = logs.map((l) => l.qualityScore).filter((s): s is number => s != null)
+      const avgQualityScore = qualityScores.length > 0 ? Math.round(qualityScores.reduce((a, b) => a + b, 0) / qualityScores.length) : null
+
       const hasFlagged = logs.some((l) => l.status === 'flagged')
       const hasRecognized = logs.some((l) => l.status === 'recognized')
       const status: DetectionStatus = hasFlagged ? 'flagged' : hasRecognized ? 'recognized' : 'unknown'
@@ -197,6 +201,7 @@ export function CctvPersonsTab({
         lastElapsedSec,
         maxConfidence,
         avgConfidence,
+        avgQualityScore,
         status,
       })
     })
@@ -1058,9 +1063,20 @@ export function CctvPersonsTab({
                       <TableCell>
                         <div className="space-y-0.5">
                           <ConfidenceMeter value={p.maxConfidence} />
-                          <p className="text-[10px] text-muted-foreground font-mono">
-                            Avg: {p.avgConfidence}%
-                          </p>
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            <span className="text-[10px] text-muted-foreground font-mono">
+                              Avg: {p.avgConfidence}%
+                            </span>
+                            {p.avgQualityScore != null && (
+                              <Badge
+                                variant="outline"
+                                className="text-[9px] px-1 py-0 border-cyan-500/30 text-cyan-400 bg-cyan-500/10 font-mono"
+                                title="Forensic Face Quality Score (0-100)"
+                              >
+                                Q: {p.avgQualityScore}%
+                              </Badge>
+                            )}
+                          </div>
                         </div>
                       </TableCell>
 
@@ -1237,7 +1253,18 @@ export function CctvPersonsTab({
                     </TableCell>
 
                     <TableCell>
-                      <ConfidenceMeter value={l.confidence} />
+                      <div className="space-y-0.5">
+                        <ConfidenceMeter value={l.confidence} />
+                        {l.qualityScore != null && (
+                          <Badge
+                            variant="outline"
+                            className="text-[9px] px-1 py-0 border-cyan-500/30 text-cyan-400 bg-cyan-500/10 font-mono"
+                            title="Face Quality Score (0-100)"
+                          >
+                            Q: {Math.round(l.qualityScore)}%
+                          </Badge>
+                        )}
+                      </div>
                     </TableCell>
 
                     <TableCell>

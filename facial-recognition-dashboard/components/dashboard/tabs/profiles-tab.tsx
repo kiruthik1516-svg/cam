@@ -445,7 +445,7 @@ function UnregisteredVectorsPanel({ profiles }: { profiles: Profile[] }) {
                   </div>
 
                   <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 flex-wrap">
                       <p className="text-sm font-semibold">{subject.displayName}</p>
                       {subject.thumbnail ? (
                         <Badge variant="outline" className="text-[10px] bg-emerald-500/10 text-emerald-400 border-emerald-500/30">
@@ -454,6 +454,11 @@ function UnregisteredVectorsPanel({ profiles }: { profiles: Profile[] }) {
                       ) : (
                         <Badge variant="outline" className="text-[10px] text-muted-foreground">
                           Vector Only
+                        </Badge>
+                      )}
+                      {subject.qualityScore != null && (
+                        <Badge variant="outline" className="text-[10px] bg-cyan-500/10 text-cyan-400 border-cyan-500/30 font-mono">
+                          Quality {Math.round(subject.qualityScore)}%
                         </Badge>
                       )}
                     </div>

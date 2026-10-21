@@ -94,6 +94,10 @@ def ensure_detection_event_id_column():
                 "version_bundle_hash": "VARCHAR",
                 "source": "VARCHAR DEFAULT 'live'",
                 "batch_id": "VARCHAR",
+                "quality_score": "FLOAT",
+            },
+            "unregistered_subjects": {
+                "quality_score": "FLOAT",
             },
             "alerts": {
                 "source": "VARCHAR DEFAULT 'live'",

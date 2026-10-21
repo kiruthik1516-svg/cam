@@ -49,6 +49,8 @@ export interface FaceLog {
   confidence: number
   /** Liveness / anti-spoofing score 0-100. */
   livenessScore: number
+  /** Forensic face quality score 0-100. */
+  qualityScore?: number | null
   profileId: string | null
   profileName: string | null
   role: ProfileRole | null
@@ -152,6 +154,7 @@ export interface UnregisteredSubject {
   eventIds: string[]
   status: string
   thumbnail?: string | null
+  qualityScore?: number | null
 }
 
 export interface Profile {

@@ -72,6 +72,8 @@ export const FaceLogSchema = z.object({
   confidence: confidenceTransform,
   liveness_score: z.number().nullish(),
   livenessScore: z.number().nullish(),
+  quality_score: z.number().nullish(),
+  qualityScore: z.number().nullish(),
   profile_id: z.string().nullable().optional(),
   profileId: z.string().nullable().optional(),
   profile_name: z.string().nullable().optional(),
@@ -102,6 +104,7 @@ export const FaceLogSchema = z.object({
   status: raw.status,
   confidence: raw.confidence,
   livenessScore: Math.max(raw.liveness_score ?? raw.livenessScore ?? 0, 0),
+  qualityScore: raw.quality_score ?? raw.qualityScore ?? null,
   profileId: raw.profile_id ?? raw.profileId ?? null,
   profileName: raw.profile_name ?? raw.profileName ?? null,
   role: raw.role ? normalizeRole(raw.role, null as unknown as ProfileRole) : null,
@@ -214,7 +217,9 @@ export const UnregisteredSubjectSchema = z.object({
   eventIds: z.array(z.string()).optional(),
   status: strOrEmpty,
   thumbnail: z.string().nullable().optional(),
-  face_image: z.string().nullable().optional()
+  face_image: z.string().nullable().optional(),
+  quality_score: z.number().nullable().optional(),
+  qualityScore: z.number().nullable().optional()
 }).transform(raw => ({
   id: raw.id,
   displayName: raw.display_name ?? raw.displayName ?? '',
@@ -227,7 +232,8 @@ export const UnregisteredSubjectSchema = z.object({
   vectorDimension: raw.vector_dimension ?? raw.vectorDimension ?? 0,
   eventIds: raw.event_ids ?? raw.eventIds ?? [],
   status: raw.status,
-  thumbnail: raw.thumbnail ?? raw.face_image ?? null
+  thumbnail: raw.thumbnail ?? raw.face_image ?? null,
+  qualityScore: raw.quality_score ?? raw.qualityScore ?? null
 }));
 
 export const DuplicateCandidateSchema = z.object({
