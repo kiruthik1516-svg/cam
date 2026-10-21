@@ -23,6 +23,12 @@ class ProfileRole(str, Enum):
     watchlist = "watchlist"
 
 
+class UserRole(str, Enum):
+    viewer = "viewer"
+    operator = "operator"
+    admin = "admin"
+
+
 class EmbeddingStatus(str, Enum):
     indexed = "indexed"
     pending = "pending"
@@ -885,3 +891,96 @@ class ProfileCreateRequest(BaseModel):
     age: Optional[int] = None
     gender: Optional[str] = "unknown"
     notes: Optional[str] = None
+
+
+# ==================== User Management (RBAC) ====================
+
+class UserResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: str
+    username: str
+    full_name: Optional[str] = None
+    role: str
+    is_active: bool
+    created_at: Optional[datetime] = None
+    last_login: Optional[datetime] = None
+
+    @field_serializer("created_at", "last_login", when_used="always")
+    def serialize_dates(self, v: Optional[datetime]):
+        return to_ist_iso(v) if v is not None else None
+
+
+class UserCreateRequest(BaseModel):
+    username: str
+    password: str
+    full_name: Optional[str] = None
+    role: Optional[str] = "viewer"
+    is_active: Optional[bool] = True
+
+
+class UserUpdateRequest(BaseModel):
+    full_name: Optional[str] = None
+    password: Optional[str] = None
+    role: Optional[str] = None
+    is_active: Optional[bool] = None
+
+
+# ==================== Audit Ledger ====================
+
+class AuditLogResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: str
+    timestamp: datetime
+    user_id: Optional[str] = None
+    username: str
+    role: Optional[str] = None
+    action: str
+    resource_type: Optional[str] = None
+    resource_id: Optional[str] = None
+    client_ip: Optional[str] = None
+    details: Optional[str] = None
+
+    @field_serializer("timestamp", when_used="always")
+    def serialize_timestamp(self, v: Optional[datetime]):
+        return to_ist_iso(v) if v is not None else None
+
+
+# ==================== Edge Device Scoped Keys ====================
+
+class DeviceApiKeyResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: str
+    name: str
+    key_prefix: str
+    allowed_cameras: Optional[str] = None
+    is_active: bool
+    created_at: Optional[datetime] = None
+    last_used_at: Optional[datetime] = None
+
+    @field_serializer("created_at", "last_used_at", when_used="always")
+    def serialize_dates(self, v: Optional[datetime]):
+        return to_ist_iso(v) if v is not None else None
+
+
+class DeviceApiKeyCreateRequest(BaseModel):
+    name: str
+    allowed_cameras: Optional[List[str]] = None
+
+
+class DeviceApiKeyCreatedResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: str
+    name: str
+    key: str  # Plaintext key - returned ONLY once
+    key_prefix: str
+    allowed_cameras: Optional[str] = None
+    is_active: bool
+    created_at: Optional[datetime] = None
+
+    @field_serializer("created_at", when_used="always")
+    def serialize_dates(self, v: Optional[datetime]):
+        return to_ist_iso(v) if v is not None else None

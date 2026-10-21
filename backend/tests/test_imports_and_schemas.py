@@ -27,7 +27,14 @@ def test_imports():
         profiles,
         system,
         unregistered,
+        users,
+        audit,
+        edge_keys,
     )
+    
+    assert users.router is not None
+    assert audit.router is not None
+    assert edge_keys.router is not None
     
     assert config is not None
     assert models is not None

@@ -106,9 +106,8 @@ def _get_duplicates_fallback(db: Session) -> list[DuplicateCandidateResponse]:
                     cosineSimilarity=round(sim, 4),
                     sharedSightings=0,
                 ))
-                if len(candidates) >= 20:
-                    return candidates
-    return candidates
+    candidates.sort(key=lambda c: c.cosineSimilarity, reverse=True)
+    return candidates[:50]
 
 
 @router.get("/duplicates", response_model=list[DuplicateCandidateResponse])

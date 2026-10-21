@@ -14,7 +14,7 @@ from database import get_db
 from models import *
 from schemas import *
 from config import settings, IST
-from dependencies import verify_edge_node
+from dependencies import verify_edge_node, verify_camera_access
 from state import continuity_tracker
 from websocket import manager
 from facial_recognition.version_bundle import ModelConfigVersionBundle
@@ -43,6 +43,8 @@ async def create_detection(
     Idempotency: If event_id is provided, uses it as an idempotency key.
     Retransmitting the same detection with the same event_id returns existing record.
     """
+    verify_camera_access(api_key, req.camera_id)
+
     import asyncio
 
     # Ensure timestamp is explicitly strictly IST 

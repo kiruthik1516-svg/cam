@@ -69,6 +69,13 @@ class ProfileRole(str, enum.Enum):
     watchlist = "watchlist"
 
 
+class UserRole(str, enum.Enum):
+    """User access control role."""
+    viewer = "viewer"
+    operator = "operator"
+    admin = "admin"
+
+
 class EmbeddingStatus(str, enum.Enum):
     """Face embedding index status."""
     indexed = "indexed"
@@ -398,4 +405,48 @@ class ImportBatch(Base):
     sample_fps = Column(Float, default=2.0)
     status = Column(String, default="completed")  # processing, completed, purged
     created_at = Column(DateTime, default=ist_now)
+
+
+class User(Base):
+    """System user for role-based dashboard access."""
+    __tablename__ = "users"
+
+    id = Column(String, primary_key=True, index=True)
+    username = Column(String, unique=True, index=True, nullable=False)
+    hashed_password = Column(String, nullable=False)
+    full_name = Column(String, nullable=True)
+    role = Column(SQLEnum(UserRole), default=UserRole.viewer, nullable=False)
+    is_active = Column(Boolean, default=True, nullable=False)
+    created_at = Column(DateTime, default=ist_now)
+    last_login = Column(DateTime, nullable=True)
+
+
+class AuditLog(Base):
+    """Tamper-resistant audit ledger for security-relevant operations."""
+    __tablename__ = "audit_logs"
+
+    id = Column(String, primary_key=True, index=True)
+    timestamp = Column(DateTime, default=ist_now, index=True, nullable=False)
+    user_id = Column(String, nullable=True, index=True)
+    username = Column(String, nullable=False, index=True)
+    role = Column(String, nullable=True)
+    action = Column(String, nullable=False, index=True)
+    resource_type = Column(String, nullable=True, index=True)
+    resource_id = Column(String, nullable=True, index=True)
+    client_ip = Column(String, nullable=True)
+    details = Column(Text, nullable=True)
+
+
+class DeviceApiKey(Base):
+    """Scoped credentials for edge devices (cameras / ingestion nodes)."""
+    __tablename__ = "device_api_keys"
+
+    id = Column(String, primary_key=True, index=True)
+    name = Column(String, nullable=False)
+    key_hash = Column(String, unique=True, index=True, nullable=False)
+    key_prefix = Column(String, nullable=False)
+    allowed_cameras = Column(Text, nullable=True)  # Comma-separated camera IDs, or null/empty for all
+    is_active = Column(Boolean, default=True, nullable=False)
+    created_at = Column(DateTime, default=ist_now)
+    last_used_at = Column(DateTime, nullable=True)
 

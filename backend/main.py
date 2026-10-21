@@ -422,6 +422,15 @@ app.include_router(profiles_router)
 from routers.video_audit import router as video_audit_router
 app.include_router(video_audit_router)
 
+from routers.users import router as users_router
+app.include_router(users_router)
+
+from routers.audit import router as audit_router
+app.include_router(audit_router)
+
+from routers.edge_keys import router as edge_keys_router
+app.include_router(edge_keys_router)
+
 class SecurityHeadersMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
         response = await call_next(request)

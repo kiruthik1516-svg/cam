@@ -271,7 +271,7 @@ backend/                    FastAPI app (entry: main.py)
   main.py                   app setup, CORS, WebSockets, MJPEG stream, topology and tracking routes, /detect
   auth.py  middleware.py  dependencies.py   login, JWT middleware, edge-key check
   config.py  database.py  models.py  schemas.py  state.py  utils.py  websocket.py
-  routers/                  analytics, cameras, detections, forensic, logs, profiles, system, unregistered, video_audit
+  routers/                  analytics, audit, cameras, detections, edge_keys, forensic, logs, profiles, system, unregistered, users, video_audit
   migrations/               Alembic (initial schema + idempotency columns)
   tests/                    92 tests (see 3.7)
 facial_recognition/         Edge package (also imported by the backend for model code)
@@ -423,13 +423,13 @@ Sizes: S under a day, M a few days, L a week or more. File paths point at where 
 | ID | Item | Where | Size |
 |---|---|---|---|
 | S1 | **Login handling in the browser.** The JWT is in `localStorage`, there is no logout, and tokens travel in stream and WebSocket URLs (so they appear in access logs). Use an HttpOnly cookie (or short-lived one-time stream tickets), add `POST /api/auth/logout`, add server-side route protection in Next.js middleware | `lib/api/config.ts`, `lib/api/websockets.ts`, `components/providers.tsx`, `backend/auth.py`, `middleware.py`, `main.py` (`authenticate_ws`) | M |
-| S2 | **Real users, roles and an audit log.** One shared admin today. Add users, roles (viewer/operator/admin), enforce them on delete/purge/merge/forensic search, and record who did what | `backend/models.py`, routers | L |
+| S2 | **Real users, roles and an audit log [Implemented in Phase 6].** RBAC (`viewer`, `operator`, `admin`), enforced on user management (`/api/users`), profile mutations, biometric purges, and edge keys. All sensitive events recorded in tamper-resistant `audit_logs` ledger (`/api/audit-logs`) | `backend/models.py`, `backend/auth.py`, `routers/users.py`, `routers/audit.py`, `routers/profiles.py`, `routers/system.py` | L |
 | S3 | **Remove `default-dev-key` from the edge modules.** The server rejects it, but it should not exist | `facial_recognition/camera_config.py`, `hierarchical_search.py`, `logger.py`, `recognizer.py` | S |
-| S4 | **Biometric retention and protection.** No scheduled purge for detections; face crops are base64 in the `detections` table, unencrypted. Add a retention job, move crops to encrypted object storage | `models.py` (`face_image`), `routers/forensic.py` (`/api/provenance/retention` only covers lineage) | L |
+| S4 | **Biometric retention and protection [Implemented in Phase 5].** Configurable retention window (`DETECTION_IMAGE_RETENTION_DAYS`, default 30 days) and automated purge worker pruning historical crops while preserving alert thumbnails, vectors, and permanent profile enrollment references | `backend/retention.py`, `backend/routers/system.py`, `models.py` (`face_image`) | L |
 | S5 | **Stop logging tokens.** `uvicorn` access logs print `?token=`. Falls away with S1; until then disable or filter the access log | `backend/Dockerfile` | S |
-| S6 | **Upload and request limits.** No size, type or rate limit on photo uploads and `/detect`; `extract_face_embedding` reads the whole file | `backend/utils.py`, `routers/profiles.py`, `routers/forensic.py`, `main.py` | S |
+| S6 | **Upload and request limits [Implemented in Phase 4].** Enforced 10MB bounds, magic-number MIME validation, and corrupt-image protection on photo enrollment and `/detect` | `backend/utils.py`, `routers/profiles.py`, `routers/forensic.py`, `main.py` | S |
 | S7 | **Login lockout keys on client address.** Behind Docker's bridge every client can share one address, so one attacker could lock out everyone. Set `FORWARDED_ALLOW_IPS` behind a proxy and/or lock per user name too | `backend/auth.py` | S |
-| S8 | **Per-device edge keys** with scopes and rotation (one shared key today) | `backend/dependencies.py`, `models.py` | M |
+| S8 | **Per-device edge keys [Implemented in Phase 6].** Scoped credentials with camera-level authorization scopes and instant revocation (`/api/edge-keys`, `DeviceApiKey` in DB, fallback to root `EDGE_API_KEY`) | `backend/dependencies.py`, `backend/models.py`, `routers/edge_keys.py`, `routers/detections.py` | M |
 | S9 | **Tidy `.env.example`**: remove unused `EDGE_FORENSIC_*` (one default is `CORS_ORIGINS=*`) and `NEXT_PUBLIC_EDGE_API_URL` if nothing uses them | `.env.example`, `next.config.mjs` | S |
 | S10 | Pin base images by digest, add an image scan (Trivy) to CI | Dockerfiles, `ci.yml` | S |
 | S11 | **Check the secret-scan job.** It runs on pull requests and non-default-branch pushes only, so it has never executed. It reports unverified findings too, so expect noise from test fixtures on the first PR and tune it | `.github/workflows/ci.yml` | S |

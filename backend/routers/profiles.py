@@ -12,6 +12,7 @@ from models import (
 )
 from schemas import ProfileResponse, ProfileUpdateRequest, ProfileMergeRequest
 from config import IST
+from auth import CurrentUser, require_operator, require_admin, log_audit
 
 router = APIRouter(prefix="/api/profiles", tags=["Profiles"])
 
@@ -40,9 +41,10 @@ async def create_profile(
     gender: Optional[str] = Form("unknown"),
     notes: Optional[str] = Form(None),
     photos: List[UploadFile] = File(None),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: CurrentUser = Depends(require_operator),
 ):
-    """Enroll a new profile and extract face embeddings."""
+    """Enroll a new profile and extract face embeddings (Operator or Admin)."""
     if not name or not name.strip():
         raise HTTPException(status_code=422, detail="Profile name cannot be empty")
 
@@ -95,14 +97,30 @@ async def create_profile(
         db.add(db_emb)
 
     db.commit()
-            
     db.refresh(profile)
+
+    log_audit(
+        db=db,
+        action="profile.create",
+        username=current_user.username,
+        role=current_user.role,
+        user_id=current_user.id,
+        resource_type="profile",
+        resource_id=new_id,
+        details=f"Enrolled profile '{profile.name}' with role '{profile.role.value}'",
+    )
+
     return ProfileResponse.model_validate(profile)
 
 
 @router.put("/{profile_id}", response_model=ProfileResponse)
-def update_profile(profile_id: str, req: ProfileUpdateRequest, db: Session = Depends(get_db)):
-    """Update editable profile metadata without changing stored embeddings."""
+def update_profile(
+    profile_id: str,
+    req: ProfileUpdateRequest,
+    db: Session = Depends(get_db),
+    current_user: CurrentUser = Depends(require_operator),
+):
+    """Update editable profile metadata without changing stored embeddings (Operator or Admin)."""
     profile = db.query(Profile).filter(Profile.id == profile_id).first()
     if not profile:
         raise HTTPException(status_code=404, detail="Profile not found")
@@ -119,6 +137,18 @@ def update_profile(profile_id: str, req: ProfileUpdateRequest, db: Session = Dep
         profile.department = req.department.strip() or None
     db.commit()
     db.refresh(profile)
+
+    log_audit(
+        db=db,
+        action="profile.update",
+        username=current_user.username,
+        role=current_user.role,
+        user_id=current_user.id,
+        resource_type="profile",
+        resource_id=profile_id,
+        details=f"Updated profile '{profile.name}'",
+    )
+
     return ProfileResponse.model_validate(profile)
 
 
@@ -127,11 +157,13 @@ def delete_profile(
     profile_id: str,
     erase_biometrics: bool = Query(False, description="Also remove the face images and vectors stored in this person's past detections"),
     db: Session = Depends(get_db),
+    current_user: CurrentUser = Depends(require_admin),
 ):
-    """Delete a profile and its vectors. Historical detections are kept (unlinked), unless erase_biometrics=true."""
+    """Delete a profile and its vectors. Historical detections are kept (unlinked), unless erase_biometrics=true (Admin only)."""
     profile = db.query(Profile).filter(Profile.id == profile_id).first()
     if not profile:
         raise HTTPException(status_code=404, detail="Profile not found")
+    profile_name = profile.name
     if erase_biometrics:
         db.query(Detection).filter(Detection.profile_id == profile_id).update(
             {"face_image": None, "embedding_vector": None}, synchronize_session=False
@@ -142,12 +174,29 @@ def delete_profile(
     db.query(Embedding).filter(Embedding.profile_id == profile_id).delete(synchronize_session=False)
     db.delete(profile)
     db.commit()
+
+    log_audit(
+        db=db,
+        action="profile.delete",
+        username=current_user.username,
+        role=current_user.role,
+        user_id=current_user.id,
+        resource_type="profile",
+        resource_id=profile_id,
+        details=f"Deleted profile '{profile_name}' (erase_biometrics={erase_biometrics})",
+    )
+
     return {"deleted": True, "profile_id": profile_id}
 
 
 @router.delete("/{profile_id}/embeddings/{embedding_id}")
-def delete_profile_embedding(profile_id: str, embedding_id: str, db: Session = Depends(get_db)):
-    """Delete one stored vector and keep the profile count/status consistent."""
+def delete_profile_embedding(
+    profile_id: str,
+    embedding_id: str,
+    db: Session = Depends(get_db),
+    current_user: CurrentUser = Depends(require_admin),
+):
+    """Delete one stored vector and keep the profile count/status consistent (Admin only)."""
     embedding = db.query(Embedding).filter(
         Embedding.id == embedding_id,
         Embedding.profile_id == profile_id,
@@ -161,28 +210,58 @@ def delete_profile_embedding(profile_id: str, embedding_id: str, db: Session = D
         if profile.embedding_count == 0:
             profile.embedding_status = EmbeddingStatusEnum.missing
     db.commit()
+
+    log_audit(
+        db=db,
+        action="embedding.delete",
+        username=current_user.username,
+        role=current_user.role,
+        user_id=current_user.id,
+        resource_type="embedding",
+        resource_id=embedding_id,
+        details=f"Deleted vector embedding from profile '{profile_id}'",
+    )
+
     return {"deleted": True, "embedding_id": embedding_id, "profile_id": profile_id}
 
 
 @router.delete("/{profile_id}/embeddings")
-def delete_profile_embeddings(profile_id: str, db: Session = Depends(get_db)):
-    """Remove all vectors for a profile without deleting the profile."""
+def delete_profile_embeddings(
+    profile_id: str,
+    db: Session = Depends(get_db),
+    current_user: CurrentUser = Depends(require_admin),
+):
+    """Remove all vectors for a profile without deleting the profile (Admin only)."""
     profile = db.query(Profile).filter(Profile.id == profile_id).first()
     if not profile:
         raise HTTPException(status_code=404, detail="Profile not found")
+    profile_name = profile.name
     deleted_count = db.query(Embedding).filter(Embedding.profile_id == profile_id).delete(synchronize_session=False)
     profile.embedding_count = 0
     profile.embedding_status = EmbeddingStatusEnum.missing
     db.commit()
+
+    log_audit(
+        db=db,
+        action="embedding.delete_all",
+        username=current_user.username,
+        role=current_user.role,
+        user_id=current_user.id,
+        resource_type="profile",
+        resource_id=profile_id,
+        details=f"Deleted {deleted_count} embeddings from profile '{profile_name}'",
+    )
+
     return {"deleted": True, "profile_id": profile_id, "deleted_count": deleted_count}
 
 
 @router.post("/merge")
 def merge_profiles(
     req: ProfileMergeRequest,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: CurrentUser = Depends(require_operator),
 ):
-    """Merge two profiles."""
+    """Merge two profiles (Operator or Admin)."""
     keep_id = req.keepProfile or req.keepProfileId or req.profileAId
     delete_id = req.profileBId if keep_id == req.profileAId else req.profileAId
     
@@ -214,6 +293,17 @@ def merge_profiles(
     
     db.delete(delete_profile)
     db.commit()
+
+    log_audit(
+        db=db,
+        action="profile.merge",
+        username=current_user.username,
+        role=current_user.role,
+        user_id=current_user.id,
+        resource_type="profile",
+        resource_id=keep_id,
+        details=f"Merged profile '{delete_id}' into profile '{keep_id}'",
+    )
     
     return {
         "merged": True,

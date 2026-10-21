@@ -13,6 +13,7 @@ from models import ModelThreshold as DBModelThreshold
 from schemas import *
 from config import settings, IST
 from dependencies import verify_edge_node
+from auth import CurrentUser, require_admin, log_audit
 from state import active_version_bundle, node_health_store, streaming_camera_ids
 from utils import live_camera_ids, archive_camera_ids
 from websocket import manager
@@ -253,10 +254,11 @@ def get_system_retention_status(db: Session = Depends(get_db)):
 @router.post("/api/system/retention/purge", response_model=BiometricRetentionResponse)
 def trigger_system_retention_purge(
     req: Optional[BiometricRetentionRequest] = None,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: CurrentUser = Depends(require_admin),
 ):
     """
-    Manually trigger biometric retention pruning.
+    Manually trigger biometric retention pruning (Administrator only).
     Purges raw face crop thumbnails older than retention_days while preserving full event audit records.
     Profile reference enrollment photos are never touched.
     """
@@ -267,6 +269,22 @@ def trigger_system_retention_purge(
         retention_days=req.retention_days,
         preserve_flagged_alerts=req.preserve_flagged_alerts,
     )
+
+    log_audit(
+        db=db,
+        action="retention.purge",
+        username=current_user.username,
+        role=current_user.role,
+        user_id=current_user.id,
+        resource_type="system",
+        resource_id="biometrics",
+        details=(
+            f"Purged {result.get('purged_face_crops_count', 0)} face crops "
+            f"(retention_days={result.get('retention_days')}, "
+            f"preserve_flagged_alerts={result.get('preserve_flagged_alerts')})"
+        ),
+    )
+
     return BiometricRetentionResponse(**result)
 
 
