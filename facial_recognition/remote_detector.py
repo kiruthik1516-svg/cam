@@ -35,7 +35,7 @@ class RemoteInsightFaceDetector:
         self.model_name = model_name
         self.timeout = float(timeout)
         self.fallback_to_local = bool(fallback_to_local)
-        self.api_key = api_key
+        self.api_key = api_key or os.environ.get("EDGE_API_KEY", "")
 
         self._session = requests.Session()
         adapter = requests.adapters.HTTPAdapter(pool_connections=10, pool_maxsize=20)

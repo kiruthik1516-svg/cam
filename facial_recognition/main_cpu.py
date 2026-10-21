@@ -682,7 +682,8 @@ def main():
             det_size=tuple(remote_cfg.get('det_size', [det_w, det_h])),
             model_name=detector_model,
             timeout=remote_cfg.get('timeout', 5.0),
-            fallback_to_local=remote_cfg.get('fallback_to_local', True)
+            fallback_to_local=remote_cfg.get('fallback_to_local', True),
+            api_key=os.environ.get("EDGE_API_KEY", ""),
         )
         logger.info(f"Using remote detector at {remote_cfg.get('endpoint')}")
     else:
