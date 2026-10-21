@@ -770,6 +770,32 @@ class ProvenanceRetentionResponse(BaseModel):
     cutoff_timestamp: datetime
 
 
+class BiometricRetentionRequest(BaseModel):
+    retention_days: Optional[int] = None
+    preserve_flagged_alerts: bool = True
+
+
+class BiometricRetentionResponse(BaseModel):
+    purged_face_crops_count: int
+    retained_face_crops_count: int
+    purged_provenance_count: int
+    cutoff_timestamp: Optional[datetime] = None
+    retention_days: int
+    preserve_flagged_alerts: bool
+
+
+class BiometricRetentionStatusResponse(BaseModel):
+    retention_days: int
+    is_enabled: bool
+    worker_interval_seconds: int
+    cutoff_timestamp: Optional[datetime] = None
+    total_detections: int
+    detections_with_face_crops: int
+    face_crops_eligible_for_purge: int
+    preserved_alert_face_crops: int
+    enrolled_profiles_protected: int
+
+
 
 
 class MovementNetworkResponse(BaseModel):

@@ -344,10 +344,25 @@ async def lifespan(app: FastAPI):
         
     from websocket import manager
     await manager.startup()
+
+    retention_task = None
+    if settings.detection_image_retention_days > 0:
+        try:
+            from retention import retention_background_worker
+            retention_task = asyncio.create_task(retention_background_worker())
+        except Exception as exc:
+            logger.warning("Could not launch retention background worker: %s", exc)
         
     yield
     # Shutdown
     logger.info("Shutting down")
+    if retention_task:
+        retention_task.cancel()
+        try:
+            await retention_task
+        except asyncio.CancelledError:
+            pass
+
     await manager.shutdown()
     for pipeline in camera_pipelines.values():
         try:

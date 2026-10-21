@@ -195,5 +195,19 @@ class _Settings:
     def max_stream_latency_seconds(self) -> int:
         return max(60, _parse_int(_get("MAX_STREAM_LATENCY_SECONDS", "900"), 900))
 
+    @property
+    def detection_image_retention_days(self) -> int:
+        """
+        Retention window in days for raw detection face crops.
+        0 or negative disables automated pruning (keeps indefinitely).
+        """
+        return _parse_int(_get("DETECTION_IMAGE_RETENTION_DAYS", "30"), 30)
+
+    @property
+    def retention_worker_interval_seconds(self) -> int:
+        """Interval in seconds between automated retention runs (default 86400s / 24h)."""
+        return max(30, _parse_int(_get("RETENTION_WORKER_INTERVAL_SECONDS", "86400"), 86400))
+
 
 settings = _Settings()
+

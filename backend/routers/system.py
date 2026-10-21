@@ -240,3 +240,34 @@ def update_thresholds(
     return thresholds
 
 
+# ==================== Biometric Retention Endpoints ====================
+
+@router.get("/api/system/retention/status", response_model=BiometricRetentionStatusResponse)
+def get_system_retention_status(db: Session = Depends(get_db)):
+    """Retrieve current biometric retention policy status and metric counters."""
+    from retention import get_retention_status
+    status = get_retention_status(db)
+    return BiometricRetentionStatusResponse(**status)
+
+
+@router.post("/api/system/retention/purge", response_model=BiometricRetentionResponse)
+def trigger_system_retention_purge(
+    req: Optional[BiometricRetentionRequest] = None,
+    db: Session = Depends(get_db)
+):
+    """
+    Manually trigger biometric retention pruning.
+    Purges raw face crop thumbnails older than retention_days while preserving full event audit records.
+    Profile reference enrollment photos are never touched.
+    """
+    from retention import purge_expired_biometrics
+    req = req or BiometricRetentionRequest()
+    result = purge_expired_biometrics(
+        db=db,
+        retention_days=req.retention_days,
+        preserve_flagged_alerts=req.preserve_flagged_alerts,
+    )
+    return BiometricRetentionResponse(**result)
+
+
+
