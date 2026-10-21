@@ -313,3 +313,75 @@ def test_scoped_device_api_key_lifecycle_and_camera_scoping():
         headers={"X-API-Key": secret_key},
     )
     assert rejected_res.status_code in (401, 403)
+
+
+def test_access_control_dashboard_integration():
+    """Verify that all endpoints consumed by the Sentinel Access Control UI work seamlessly together."""
+    admin_h = _admin_headers()
+    viewer_h = _viewer_headers()
+
+    # 1. Admin lists accounts
+    users_res = client.get("/api/users", headers=admin_h)
+    assert users_res.status_code == 200
+    assert isinstance(users_res.json(), list)
+
+    # 2. Viewer cannot list accounts (admin only)
+    viewer_forbidden = client.get("/api/users", headers=viewer_h)
+    assert viewer_forbidden.status_code == 403
+
+    # 3. Admin creates an operator and a viewer
+    op_username = f"test_op_{uuid.uuid4().hex[:6]}"
+    create_op_res = client.post(
+        "/api/users",
+        json={"username": op_username, "password": "password123", "role": "operator", "full_name": "Test Op"},
+        headers=admin_h,
+    )
+    assert create_op_res.status_code == 201
+    op_id = create_op_res.json()["id"]
+    assert create_op_res.json()["role"] == "operator"
+
+    # 4. Admin updates operator role to admin
+    update_res = client.put(
+        f"/api/users/{op_id}",
+        json={"role": "admin", "is_active": True},
+        headers=admin_h,
+    )
+    assert update_res.status_code == 200
+    assert update_res.json()["role"] == "admin"
+
+    # 5. Admin lists & generates scoped edge key
+    keys_res = client.get("/api/edge-keys", headers=admin_h)
+    assert keys_res.status_code == 200
+
+    create_key_res = client.post(
+        "/api/edge-keys",
+        json={"name": "Test Jetson Edge Gateway", "allowed_cameras": ["CAM-EAST-01", "CAM-WEST-02"]},
+        headers=admin_h,
+    )
+    assert create_key_res.status_code == 201
+    created_key_data = create_key_res.json()
+    assert "sk_edge_" in created_key_data["key"]
+    assert "CAM-EAST-01,CAM-WEST-02" == created_key_data["allowed_cameras"]
+
+    # 6. Biometric retention status query & manual purge
+    ret_res = client.get("/api/system/retention/status", headers=admin_h)
+    assert ret_res.status_code == 200
+    ret_data = ret_res.json()
+    assert "retention_days" in ret_data
+    assert "total_detections" in ret_data
+
+    purge_res = client.post("/api/system/retention/purge", json={"retention_days": 30}, headers=admin_h)
+    assert purge_res.status_code == 200
+    assert "purged_face_crops_count" in purge_res.json()
+
+    # 7. Audit log contains records for all above operations
+    audit_res = client.get("/api/audit-logs?limit=50", headers=admin_h)
+    assert audit_res.status_code == 200
+    actions = [a["action"] for a in audit_res.json()]
+    assert "user.create" in actions
+    assert "edge_key.create" in actions
+    assert "retention.purge" in actions
+
+    # 8. Clean up created user and edge key
+    client.delete(f"/api/edge-keys/{created_key_data['id']}", headers=admin_h)
+    client.delete(f"/api/users/{op_id}", headers=admin_h)

@@ -15,7 +15,10 @@ import {
   WifiOff,
   Activity,
   HardDrive,
+  Shield,
 } from 'lucide-react'
+import { useCurrentUser } from '@/lib/auth-context'
+import { AccessControlPanel } from '@/components/dashboard/access-control-panel'
 
 const statusMeta: Record<
   CameraStatus,
@@ -47,6 +50,7 @@ function CameraCard({
   camera: Camera
   onConfigure: (camera: Camera) => void
 }) {
+  const { canEdit } = useCurrentUser()
   const meta = statusMeta[camera.status]
   const offline = camera.status === 'offline'
   const latencyTone =
@@ -96,8 +100,10 @@ function CameraCard({
             <Button
               size="xs"
               variant="outline"
-              className="h-7 gap-1 px-2 font-mono text-[11px] hover:bg-muted"
-              onClick={() => onConfigure(camera)}
+              disabled={!canEdit}
+              title={!canEdit ? "Requires Operator or Admin role" : `Configure ${camera.name}`}
+              className={cn("h-7 gap-1 px-2 font-mono text-[11px] hover:bg-muted", !canEdit && "opacity-50 cursor-not-allowed")}
+              onClick={() => canEdit && onConfigure(camera)}
             >
               <Sliders className="size-3 text-primary" />
               <span>Config</span>
@@ -292,19 +298,56 @@ function NodeHealthPanel() {
 }
 
 export function SystemTab() {
+  const [activeSection, setActiveSection] = useState<'infrastructure' | 'security'>('infrastructure')
   const [configuredCamera, setConfiguredCamera] = useState<Camera | null>(null)
 
   return (
-    <div className="grid grid-cols-1 gap-4 xl:grid-cols-[1fr_380px]">
-      <CameraConfigDialog
-          camera={configuredCamera}
-          onClose={() => setConfiguredCamera(null)}
-        />
+    <div className="space-y-4">
+      {/* Infrastructure / Security Sub-Tab Navigation Switcher */}
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between border-b border-border/50 pb-3">
+        <div className="flex items-center rounded-lg border border-border/80 bg-muted/60 p-1 shadow-inner">
+          <button
+            type="button"
+            onClick={() => setActiveSection('infrastructure')}
+            className={cn(
+              "flex items-center gap-2 rounded-md px-3.5 py-1.5 text-xs font-semibold transition-all",
+              activeSection === 'infrastructure'
+                ? "bg-background text-foreground shadow-sm ring-1 ring-border"
+                : "text-muted-foreground hover:text-foreground"
+            )}
+          >
+            <Cctv className="size-3.5" />
+            <span>Cameras & Edge Nodes</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setActiveSection('security')}
+            className={cn(
+              "flex items-center gap-2 rounded-md px-3.5 py-1.5 text-xs font-semibold transition-all",
+              activeSection === 'security'
+                ? "bg-background text-foreground shadow-sm ring-1 ring-border"
+                : "text-muted-foreground hover:text-foreground"
+            )}
+          >
+            <Shield className="size-3.5 text-primary" />
+            <span>Security & Access Control (RBAC)</span>
+          </button>
+        </div>
+      </div>
 
+      <CameraConfigDialog
+        camera={configuredCamera}
+        onClose={() => setConfiguredCamera(null)}
+      />
+
+      {activeSection === 'infrastructure' ? (
         <div className="flex flex-col gap-4">
           <CameraGrid onConfigure={(cam) => setConfiguredCamera(cam)} />
           <NodeHealthPanel />
         </div>
+      ) : (
+        <AccessControlPanel />
+      )}
     </div>
   )
 }

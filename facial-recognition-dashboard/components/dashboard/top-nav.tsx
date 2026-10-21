@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
-import { fetchKpis, fetchVersionBundle, logout } from '@/lib/api'
+import { fetchKpis, fetchVersionBundle } from '@/lib/api'
 import { formatNumber, healthLabel } from '@/lib/format'
 import { cn } from '@/lib/utils'
 import {
@@ -11,9 +11,13 @@ import {
   CheckCircle2,
   HardDrive,
   LogOut,
+  Shield,
+  UserCog,
+  Eye,
 } from 'lucide-react'
 import type { SystemHealth } from '@/lib/types'
 import { useDashboardMode } from '@/lib/mode-context'
+import { useCurrentUser } from '@/lib/auth-context'
 
 function VersionBundleBadge() {
   const { data: bundle, isLoading, isError } = useQuery({
@@ -145,6 +149,43 @@ function Kpi({
   )
 }
 
+function UserBadge() {
+  const { username, role, logout } = useCurrentUser()
+
+  const roleStyles = {
+    admin: 'border-primary/40 bg-primary/10 text-primary',
+    operator: 'border-info/40 bg-info/10 text-info',
+    viewer: 'border-emerald-500/40 bg-emerald-500/10 text-emerald-400',
+  }[role] || 'border-border bg-muted text-muted-foreground'
+
+  const RoleIcon = role === 'admin' ? Shield : role === 'operator' ? UserCog : Eye
+
+  return (
+    <div className="flex items-center gap-2.5 rounded-lg border border-border/80 bg-card/70 px-3 py-1.5 shadow-sm backdrop-blur-sm">
+      <div className="flex size-7 items-center justify-center rounded-full bg-primary/15 font-mono text-xs font-bold text-primary ring-1 ring-primary/30">
+        {username.slice(0, 2).toUpperCase()}
+      </div>
+      <div className="flex flex-col text-left leading-none">
+        <span className="font-semibold text-xs text-foreground tracking-tight max-w-[120px] truncate" title={username}>
+          {username}
+        </span>
+        <span className={cn('mt-0.5 inline-flex items-center gap-1 rounded border px-1 py-0.5 font-mono text-[9px] font-bold uppercase tracking-wider', roleStyles)}>
+          <RoleIcon className="size-2.5" />
+          {role}
+        </span>
+      </div>
+      <button
+        type="button"
+        onClick={() => logout()}
+        title={`Log out (${username})`}
+        className="ml-1 flex size-7 items-center justify-center rounded-md text-muted-foreground hover:bg-destructive/15 hover:text-destructive transition-colors"
+      >
+        <LogOut className="size-3.5" />
+      </button>
+    </div>
+  )
+}
+
 export function TopNav() {
   const { mode, setMode, selectedBatchId } = useDashboardMode()
   const { data: kpis } = useQuery({
@@ -252,15 +293,7 @@ export function TopNav() {
             </div>
           </div>
 
-          <button
-            type="button"
-            onClick={() => logout()}
-            title="Log out of Sentinel Console"
-            className="flex items-center gap-1.5 rounded-lg border border-border/80 bg-muted/60 px-3 py-2 text-xs font-semibold text-muted-foreground transition-all hover:border-destructive/40 hover:bg-destructive/10 hover:text-destructive"
-          >
-            <LogOut className="size-3.5" />
-            <span className="hidden sm:inline">Logout</span>
-          </button>
+          <UserBadge />
         </div>
       </div>
     </header>

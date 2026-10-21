@@ -8,3 +8,4 @@ export * from './forensic';
 export * from './system';
 export * from './websockets';
 export * from './video-audit';
+export * from './access-control';

@@ -25,6 +25,7 @@ import {
 import { formatTime } from '@/lib/format'
 import { cn } from '@/lib/utils'
 import type { EmbeddingStatus, Profile, ProfileRole, UnregisteredSubject } from '@/lib/types'
+import { useCurrentUser } from '@/lib/auth-context'
 import {
   CircleCheck,
   CircleDashed,
@@ -78,6 +79,7 @@ const ROLE_FILTERS: Array<'all' | ProfileRole> = [
 ]
 
 function ProfileCard({ profile, onSave, onClearVectors, onDelete }: { profile: Profile; onSave: (changes: { name: string; role: ProfileRole; department: string }) => void; onClearVectors: () => void; onDelete: () => void }) {
+  const { canEdit, canAdmin } = useCurrentUser()
   const meta = embeddingMeta[profile.embeddingStatus]
   const Icon = meta.icon
   const [editing, setEditing] = useState(false)
@@ -129,26 +131,32 @@ function ProfileCard({ profile, onSave, onClearVectors, onDelete }: { profile: P
               <Button size="xs" className="flex-1" onClick={confirmEditing} disabled={!name.trim()}><Check /> Confirm</Button>
               <Button size="xs" variant="outline" onClick={cancelEditing}><X /></Button>
             </div>
-            <Button size="xs" variant="ghost" className="w-full text-muted-foreground" disabled={profile.embeddingCount === 0} onClick={onClearVectors}>
-              Clear {profile.embeddingCount} vectors
-            </Button>
+            {canAdmin && (
+              <Button size="xs" variant="ghost" className="w-full text-muted-foreground" disabled={profile.embeddingCount === 0} onClick={onClearVectors}>
+                Clear {profile.embeddingCount} vectors
+              </Button>
+            )}
           </div>
         ) : (
           <div className="flex w-full items-center justify-between gap-2">
             <RoleBadge role={profile.role} />
-            <div className="flex items-center gap-1.5">
-              <Button size="xs" variant="outline" onClick={startEditing}><Pencil /> Edit</Button>
-              <Button
-                size="icon"
-                variant="ghost"
-                title={`Delete ${profile.name}`}
-                aria-label={`Delete ${profile.name}`}
-                className="text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
-                onClick={onDelete}
-              >
-                <Trash2 className="size-3.5" />
-              </Button>
-            </div>
+            {canEdit && (
+              <div className="flex items-center gap-1.5">
+                <Button size="xs" variant="outline" onClick={startEditing}><Pencil /> Edit</Button>
+                {canAdmin && (
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    title={`Delete ${profile.name}`}
+                    aria-label={`Delete ${profile.name}`}
+                    className="text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+                    onClick={onDelete}
+                  >
+                    <Trash2 className="size-3.5" />
+                  </Button>
+                )}
+              </div>
+            )}
           </div>
         )}
         <div className="w-full space-y-1.5 border-t border-border pt-3 text-left">
@@ -180,8 +188,14 @@ function ProfileCard({ profile, onSave, onClearVectors, onDelete }: { profile: P
 }
 
 function EnrolmentModal() {
+  const { canEdit } = useCurrentUser()
   const [role, setRole] = useState<ProfileRole>('employee')
   const [open, setOpen] = useState(false)
+
+  if (!canEdit) {
+    return null
+  }
+
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger
@@ -261,6 +275,7 @@ function EnrolmentModal() {
 }
 
 function DedupPanel() {
+  const { canEdit } = useCurrentUser()
   const { data: dupes = [] } = useQuery({
     queryKey: ['duplicates'],
     queryFn: () => fetchDuplicates(),
@@ -311,7 +326,8 @@ function DedupPanel() {
                 size="xs"
                 variant={isMerged ? 'ghost' : 'outline'}
                 className="mt-2.5 w-full"
-                disabled={isMerged}
+                disabled={isMerged || !canEdit}
+                title={!canEdit ? 'Requires Operator or Admin role' : undefined}
                 onClick={() => setMerged((prev) => [...prev, d.id])}
               >
                 <GitMerge /> {isMerged ? 'Profiles merged' : 'Merge Profiles'}
@@ -325,6 +341,7 @@ function DedupPanel() {
 }
 
 function UnregisteredVectorsPanel({ profiles }: { profiles: Profile[] }) {
+  const { canEdit, canAdmin } = useCurrentUser()
   const queryClient = useQueryClient()
   const { data: subjects = [], isLoading } = useQuery({
     queryKey: ['unregistered-vectors'],
@@ -451,61 +468,69 @@ function UnregisteredVectorsPanel({ profiles }: { profiles: Profile[] }) {
                     </p>
                   </div>
 
-                  <Button
-                    size="icon"
-                    variant="ghost"
-                    title="Delete subject group"
-                    aria-label={`Delete ${subject.displayName}`}
-                    className="text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
-                    onClick={() => {
-                      if (window.confirm(`Delete ${subject.displayName} and all ${subject.captureCount} events?`)) {
-                        deleteSubjectMutation.mutate(subject.id)
-                      }
-                    }}
-                  >
-                    <Trash2 className="size-3.5" />
-                  </Button>
+                  {canAdmin && (
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      title="Delete subject group"
+                      aria-label={`Delete ${subject.displayName}`}
+                      className="text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+                      onClick={() => {
+                        if (window.confirm(`Delete ${subject.displayName} and all ${subject.captureCount} events?`)) {
+                          deleteSubjectMutation.mutate(subject.id)
+                        }
+                      }}
+                    >
+                      <Trash2 className="size-3.5" />
+                    </Button>
+                  )}
                 </div>
 
-                <div className="mt-3 flex flex-wrap items-center gap-2">
-                  <Button size="xs" onClick={() => openActionModal(subject, 'register')}>
-                    <UserRoundPlus className="size-3.5 mr-1" /> Register Profile
-                  </Button>
-                  <Button size="xs" variant="outline" onClick={() => openActionModal(subject, 'assign')}>
-                    <UsersRound className="size-3.5 mr-1" /> Assign to Existing
-                  </Button>
-                  <Button
-                    size="xs"
-                    variant="ghost"
-                    onClick={() => {
-                      const name = window.prompt('Rename subject', subject.displayName)
-                      if (name?.trim()) renameMutation.mutate({ id: subject.id, name })
-                    }}
-                  >
-                    <Pencil className="size-3 mr-1" /> Rename
-                  </Button>
+                {canEdit ? (
+                  <div className="mt-3 flex flex-wrap items-center gap-2">
+                    <Button size="xs" onClick={() => openActionModal(subject, 'register')}>
+                      <UserRoundPlus className="size-3.5 mr-1" /> Register Profile
+                    </Button>
+                    <Button size="xs" variant="outline" onClick={() => openActionModal(subject, 'assign')}>
+                      <UsersRound className="size-3.5 mr-1" /> Assign to Existing
+                    </Button>
+                    <Button
+                      size="xs"
+                      variant="ghost"
+                      onClick={() => {
+                        const name = window.prompt('Rename subject', subject.displayName)
+                        if (name?.trim()) renameMutation.mutate({ id: subject.id, name })
+                      }}
+                    >
+                      <Pencil className="size-3 mr-1" /> Rename
+                    </Button>
 
-                  <select
-                    aria-label={`Merge ${subject.displayName}`}
-                    className="h-6 rounded-md border border-border bg-background px-2 text-xs text-muted-foreground hover:text-foreground"
-                    defaultValue=""
-                    onChange={(event) => {
-                      if (event.target.value) {
-                        mergeMutation.mutate({ id: subject.id, sourceId: event.target.value })
-                        event.target.value = ''
-                      }
-                    }}
-                  >
-                    <option value="">Merge into group...</option>
-                    {subjects
-                      .filter((candidate) => candidate.id !== subject.id)
-                      .map((candidate) => (
-                        <option key={candidate.id} value={candidate.id}>
-                          {candidate.displayName}
-                        </option>
-                      ))}
-                  </select>
-                </div>
+                    <select
+                      aria-label={`Merge ${subject.displayName}`}
+                      className="h-6 rounded-md border border-border bg-background px-2 text-xs text-muted-foreground hover:text-foreground"
+                      defaultValue=""
+                      onChange={(event) => {
+                        if (event.target.value) {
+                          mergeMutation.mutate({ id: subject.id, sourceId: event.target.value })
+                          event.target.value = ''
+                        }
+                      }}
+                    >
+                      <option value="">Merge into group...</option>
+                      {subjects
+                        .filter((candidate) => candidate.id !== subject.id)
+                        .map((candidate) => (
+                          <option key={candidate.id} value={candidate.id}>
+                            {candidate.displayName}
+                          </option>
+                        ))}
+                    </select>
+                  </div>
+                ) : (
+                  <div className="mt-2 text-[10px] text-muted-foreground italic">
+                    Read-only surveillance capture (Registration requires Operator or Admin role)
+                  </div>
+                )}
 
                 <div className="mt-2 flex flex-wrap gap-1.5">
                   {subject.eventIds.slice(0, 8).map((eventId) => (

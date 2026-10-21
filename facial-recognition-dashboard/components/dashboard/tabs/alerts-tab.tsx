@@ -34,6 +34,7 @@ import { formatTime, formatDateTime, statusLabel } from '@/lib/format'
 import { cn } from '@/lib/utils'
 import type { Alert, DetectionStatus, CameraEpisode } from '@/lib/types'
 import { useDashboardMode } from '@/lib/mode-context'
+import { useCurrentUser } from '@/lib/auth-context'
 import {
   BellRing,
   Check,
@@ -74,6 +75,7 @@ function AlertCard({
   alert: Alert
   onAck: (id: string) => void
 }) {
+  const { canEdit } = useCurrentUser()
   const severityRing =
     alert.severity === 'critical'
       ? 'ring-destructive/40'
@@ -125,8 +127,9 @@ function AlertCard({
           size="xs"
           variant={alert.acknowledged ? 'ghost' : 'outline'}
           className="ml-auto"
-          disabled={alert.acknowledged}
-          onClick={() => onAck(alert.id)}
+          disabled={alert.acknowledged || !canEdit}
+          title={!canEdit ? 'Requires Operator or Admin role to acknowledge alerts' : undefined}
+          onClick={() => canEdit && onAck(alert.id)}
         >
           <Check /> {alert.acknowledged ? 'Acknowledged' : 'Acknowledge'}
         </Button>

@@ -343,3 +343,71 @@ export interface CameraConfigProfile {
   updatedAt?: string
 }
 
+// ==================== User Management & RBAC ====================
+
+export type UserRole = 'admin' | 'operator' | 'viewer'
+
+export interface UserAccount {
+  id: string
+  username: string
+  fullName?: string | null
+  role: UserRole
+  isActive: boolean
+  createdAt?: string | null
+  lastLogin?: string | null
+}
+
+export interface SecurityAuditLog {
+  id: string
+  timestamp: string
+  userId?: string | null
+  username: string
+  role?: string | null
+  action: string
+  resourceType?: string | null
+  resourceId?: string | null
+  clientIp?: string | null
+  details?: string | null
+}
+
+export interface DeviceApiKeyItem {
+  id: string
+  name: string
+  keyPrefix: string
+  allowedCameras?: string | null
+  isActive: boolean
+  createdAt?: string | null
+  lastUsedAt?: string | null
+}
+
+export interface DeviceApiKeyCreated {
+  id: string
+  name: string
+  key: string
+  keyPrefix: string
+  allowedCameras?: string | null
+  isActive: boolean
+  createdAt?: string | null
+}
+
+export interface BiometricRetentionStatus {
+  retentionDays: number
+  isEnabled: boolean
+  workerIntervalSeconds: number
+  cutoffTimestamp?: string | null
+  totalDetections: number
+  detectionsWithFaceCrops: number
+  faceCropsEligibleForPurge: number
+  preservedAlertFaceCrops: number
+  enrolledProfilesProtected: number
+}
+
+export interface BiometricPurgeResult {
+  purgedFaceCropsCount: number
+  retainedFaceCropsCount: number
+  purgedProvenanceCount: number
+  cutoffTimestamp?: string | null
+  retentionDays: number
+  preserveFlaggedAlerts: boolean
+}
+
