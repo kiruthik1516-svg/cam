@@ -96,7 +96,16 @@ def create_workflow_drawing():
     
     return d
 
-def build_pdf(output_pdf_path):
+def build_pdf(
+    output_pdf_path: str,
+    organization: str = "Facility Surveillance & Security Operations",
+    location: str = "Camera-1 (Terminal Gate Ch4)",
+    report_title: str = "CCTV Video Verification & Security Audit Report",
+    auditor: str = "Sentinel AI Solutions Team",
+    report_id: str = "SENTINEL-AUDIT-SUMMARY",
+    report_date: str = "17 October 2026",
+    assets_dir: str = None,
+):
     # Setup document with exact A4 portrait dimensions
     # A4 = 595.27 x 841.89 points. Margins = 28 points (~10mm)
     doc = SimpleDocTemplate(
@@ -177,11 +186,14 @@ def build_pdf(output_pdf_path):
         textColor=colors.HexColor('#64748b')
     )
 
-    reports_dir = os.path.join(os.path.dirname(output_pdf_path))
-    if not os.path.exists(reports_dir):
+    reports_dir = os.path.dirname(os.path.abspath(output_pdf_path))
+    if reports_dir and not os.path.exists(reports_dir):
         os.makedirs(reports_dir, exist_ok=True)
 
-    img_dir = r"d:\facial\facial-recognition-dashboard\public\reports"
+    if not assets_dir:
+        from pathlib import Path
+        assets_dir = str(Path(__file__).resolve().parent.parent / "facial-recognition-dashboard" / "public" / "reports")
+    img_dir = assets_dir
 
     story = []
 
@@ -192,11 +204,11 @@ def build_pdf(output_pdf_path):
     # 1. Header Banner
     header_data = [
         [
-            Paragraph("<b>SENTINEL v2.4 CCTV INTELLIGENCE</b> &nbsp;•&nbsp; <font color='#047857'><b>CLIENT POC DEMO REPORT</b></font>", body_bold),
-            Paragraph("<font color='#64748b'>FACILITY: <b>DBGT PORT TERMINAL</b></font>", footer_text)
+            Paragraph("<b>SENTINEL v2.4 CCTV INTELLIGENCE</b> &nbsp;•&nbsp; <font color='#047857'><b>SECURITY AUDIT REPORT</b></font>", body_bold),
+            Paragraph(f"<font color='#64748b'>FACILITY: <b>{organization}</b></font>", footer_text)
         ]
     ]
-    t_header = Table(header_data, colWidths=[380, 150])
+    t_header = Table(header_data, colWidths=[350, 180])
     t_header.setStyle(TableStyle([
         ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
         ('ALIGN', (1, 0), (1, 0), 'RIGHT'),
@@ -206,7 +218,7 @@ def build_pdf(output_pdf_path):
     story.append(t_header)
     story.append(Spacer(1, 4))
 
-    story.append(Paragraph("CCTV Video Verification & Security Audit Report", title_style))
+    story.append(Paragraph(report_title, title_style))
     story.append(Paragraph("Automated Missing Footage Detection, Video Tamper Verification & Staff Attendance Summary", subtitle_style))
     story.append(Spacer(1, 6))
 
@@ -242,7 +254,7 @@ def build_pdf(output_pdf_path):
     story.append(Paragraph("1. WHAT DID WE TEST? (PURPOSE OF THIS EVALUATION)", sec_title))
     story.append(Spacer(1, 2))
     story.append(Paragraph(
-        "We connected Sentinel to raw CCTV recordings from <b>Terminal Gate Camera 4</b>. In normal operations, if a camera stops recording or someone deletes overnight footage, standard CCTV players play video files one after another without warning you. Sentinel solves this by auditing every second of the timeline and scanning for people automatically.",
+        f"We connected Sentinel to raw CCTV recordings from <b>{location}</b>. In normal operations, if a camera stops recording or someone deletes overnight footage, standard CCTV players play video files one after another without warning you. Sentinel solves this by auditing every second of the timeline and scanning for people automatically.",
         body_style
     ))
     story.append(Spacer(1, 6))
@@ -493,8 +505,8 @@ def build_pdf(output_pdf_path):
     story.append(t_speed)
     story.append(Spacer(1, 6))
 
-    # 4. Conclusion & Takeaways for DBGT
-    story.append(Paragraph("4. CONCLUSION & EXECUTIVE TAKEAWAYS FOR DBGT MANAGEMENT", sec_title))
+    # 4. Conclusion & Takeaways
+    story.append(Paragraph(f"4. CONCLUSION & EXECUTIVE TAKEAWAYS FOR {organization.upper()}", sec_title))
     story.append(Spacer(1, 2))
     story.append(Paragraph(
         "<b>1. Zero Blind Spots:</b> Immediately proves if cameras went offline, lost power, or if video was deleted.<br/>"
@@ -511,8 +523,8 @@ def build_pdf(output_pdf_path):
             Paragraph("<b>ACKNOWLEDGED BY:</b>", footer_text),
         ],
         [
-            Paragraph("<i>Sentinel AI Systems Team</i><br/><font size='6.5' color='#64748b'>Batch: DBGT POC Demo • Date: 17 Oct 2026</font>", body_style),
-            Paragraph("(Authorized Signature / Terminal Security Operations)<br/><font size='6.5' color='#64748b'>Organization: DBGT Security • Status: ACCEPTED</font>", body_style),
+            Paragraph(f"<i>{auditor}</i><br/><font size='6.5' color='#64748b'>Batch: Security Audit • Date: {report_date}</font>", body_style),
+            Paragraph(f"(Authorized Signature / Security Operations)<br/><font size='6.5' color='#64748b'>Organization: {organization} • Status: ACCEPTED</font>", body_style),
         ]
     ]
     t_signoff = Table(signoff_data, colWidths=[264, 264])
@@ -531,8 +543,8 @@ def build_pdf(output_pdf_path):
     # Page 2 Footer
     p2_footer = [
         [
-            Paragraph("SENTINEL-EVAL-DBGT-20261017-01", footer_text),
-            Paragraph("END OF OFFICIAL POC REPORT — DAKSHIN BHARAT GATEWAY TERMINAL", footer_text),
+            Paragraph(report_id, footer_text),
+            Paragraph(f"END OF OFFICIAL AUDIT REPORT — {organization.upper()}", footer_text),
             Paragraph("Page 2 of 2", footer_text),
         ]
     ]
@@ -548,10 +560,35 @@ def build_pdf(output_pdf_path):
     print(f"Successfully generated PDF at: {output_pdf_path}")
 
 if __name__ == '__main__':
-    pdf_path = r"d:\facial\facial-recognition-dashboard\public\reports\DBGT_CCTV_Security_Audit_Report.pdf"
-    build_pdf(pdf_path)
-    # Also save a copy to d:\facial
-    root_pdf_path = r"d:\facial\DBGT_CCTV_Security_Audit_Report.pdf"
+    import argparse
     import shutil
-    shutil.copyfile(pdf_path, root_pdf_path)
-    print(f"Copied PDF to: {root_pdf_path}")
+
+    parser = argparse.ArgumentParser(description="Generate CCTV Security Audit PDF Report")
+    parser.add_argument("--output", "-o", default=None, help="Output PDF file path")
+    parser.add_argument("--organization", default="DBGT Security Operations", help="Client / Organization name")
+    parser.add_argument("--location", default="Camera-1 (Terminal Gate Ch4)", help="Monitoring Location / Camera")
+    parser.add_argument("--title", default="CCTV Video Verification & Security Audit Report", help="Report Title")
+    parser.add_argument("--auditor", default="Sentinel AI Solutions Team", help="Auditor / Prepared By")
+    parser.add_argument("--report-id", default="SENTINEL-AUDIT-SUMMARY", help="Report Reference ID")
+    parser.add_argument("--date", default="17 October 2026", help="Report Date")
+    args = parser.parse_args()
+
+    default_report_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "facial-recognition-dashboard", "public", "reports")
+    os.makedirs(default_report_dir, exist_ok=True)
+    out_pdf = args.output or os.path.join(default_report_dir, "DBGT_CCTV_Security_Audit_Report.pdf")
+
+    build_pdf(
+        output_pdf_path=out_pdf,
+        organization=args.organization,
+        location=args.location,
+        report_title=args.title,
+        auditor=args.auditor,
+        report_id=args.report_id,
+        report_date=args.date,
+    )
+    # Also save a copy to root directory if default path
+    if not args.output:
+        root_pdf_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "DBGT_CCTV_Security_Audit_Report.pdf")
+        shutil.copyfile(out_pdf, root_pdf_path)
+        print(f"Copied PDF to: {root_pdf_path}")
+

@@ -358,22 +358,29 @@ def get_age_distribution(
         subq = subq.filter(Detection.timestamp <= norm_to)
     if source:
         subq = subq.filter(Detection.source == source)
-    if batch_id:
-        subq = subq.filter(Detection.batch_id == batch_id)
-    
-    subq = subq.distinct(subject_id_col).subquery()
+    dialect_name = getattr(getattr(db.bind, 'dialect', None), 'name', '') if db.bind else ''
+    if dialect_name == "postgresql":
+        subq = subq.distinct(subject_id_col).subquery()
+    else:
+        subq = subq.group_by(subject_id_col, Detection.age).subquery()
 
     results = db.query(subq.c.age, func.count(subq.c.subject_id)).group_by(subq.c.age).all()
     
     buckets = {"18-24": 0, "25-34": 0, "35-44": 0, "45-54": 0, "55+": 0}
     for age, count in results:
-        if age < 18: continue
-        elif age <= 24: buckets["18-24"] += count
-        elif age <= 34: buckets["25-34"] += count
-        elif age <= 44: buckets["35-44"] += count
-        elif age <= 54: buckets["45-54"] += count
-        else: buckets["55+"] += count
-        
+        if age < 18:
+            continue
+        elif age <= 24:
+            buckets["18-24"] += count
+        elif age <= 34:
+            buckets["25-34"] += count
+        elif age <= 44:
+            buckets["35-44"] += count
+        elif age <= 54:
+            buckets["45-54"] += count
+        else:
+            buckets["55+"] += count
+
     return [DemographicSliceResponse(label=k, value=v) for k, v in buckets.items()]
 
 
@@ -395,7 +402,7 @@ def get_gender_distribution(
     ).label("subject_id")
 
     subq = db.query(subject_id_col, Detection.gender).filter(
-        Detection.gender != None
+        Detection.gender.isnot(None)
     )
     if norm_from:
         subq = subq.filter(Detection.timestamp >= norm_from)
@@ -403,10 +410,11 @@ def get_gender_distribution(
         subq = subq.filter(Detection.timestamp <= norm_to)
     if source:
         subq = subq.filter(Detection.source == source)
-    if batch_id:
-        subq = subq.filter(Detection.batch_id == batch_id)
-    
-    subq = subq.distinct(subject_id_col).subquery()
+    dialect_name = getattr(getattr(db.bind, 'dialect', None), 'name', '') if db.bind else ''
+    if dialect_name == "postgresql":
+        subq = subq.distinct(subject_id_col).subquery()
+    else:
+        subq = subq.group_by(subject_id_col, Detection.gender).subquery()
 
     results = db.query(subq.c.gender, func.count(subq.c.subject_id)).group_by(subq.c.gender).all()
     slices = []

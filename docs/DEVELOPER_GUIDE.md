@@ -444,11 +444,11 @@ Sizes: S under a day, M a few days, L a week or more. File paths point at where 
 | R5 | **Camera topology is in memory only** and lost on backend restart. `camera_routes` in `config.yaml` is not read by any code. Persist edges in the database and load them at start-up. (During the test the order lane -> reception -> staff-room was posted by hand to `POST /api/topology/edges`; a fourth camera `lab` was not placed) | `backend/state.py`, `main.py` (topology routes), `models.py` | M |
 | R6 | **Renamed cameras linger.** After renaming a camera the backend keeps counting the old stream id until restart. `live_camera_ids` should only count cameras that have a row, and stale frame slots should expire | `backend/state.py`, `utils.py` | S |
 | R7 | **Camera display names and zones.** Only ids exist; the `Camera` model has `name` and `zone` but the edge never sets them | `models.py`, `routers/cameras.py`, UI | M |
-| R8 | **Report export is hard-coded to one client** (name, text, PDF, screenshots) | `components/dashboard/export-report-modal.tsx`, `public/reports/` | M |
+| R8 | **Report export generalization [Implemented in Phase 11].** General enterprise reporting engine with dynamic Organization, Location, Auditor, Date Range, RFC-4180 CSV export, and parameterized PDF generation (`generate_security_report_pdf.py`) | `components/dashboard/export-report-modal.tsx`, `public/reports/`, `backend/routers/audit.py` | M |
 | R9 | **Scaling claims do not hold.** `/api/internal/vector-search` loads every embedding into Python; `/api/analytics/duplicates` is an O(n^2) self-join. Use `ORDER BY embedding <=> :q LIMIT k`, benchmark, and remove unmeasured claims from the README | `backend/main.py`, `routers/analytics.py`, `README.md` | M |
 | R10 | `wearing_mask` and `wearing_glasses` are hard-coded `False` on ingest, so those forensic filters never match. Implement or remove | `routers/detections.py` | S |
 | R11 | **Liveness** comes from the edge client; consider a server-side check | `routers/detections.py` | M |
-| R12 | **InsightFace versions differ**: the backend image pins 0.7.3, the edge environment resolves 2.1. Unify and test recognition across them | `backend/requirements.txt`, `requirements.txt` | S |
+| R12 | **Dependency Alignment [Implemented in Phase 11].** Dependencies unified across root and backend requirements (`pydantic>=2.9.0`, `websockets>=13.0`, `insightface>=0.7.3`, `onnxruntime>=1.19.2`) | `backend/requirements.txt`, `requirements.txt` | S |
 | R13 | **Import at scale** was only tried on one 1-hour clip (about 4 minutes). Try multi-day archives, multiple cameras, GPU | `batch_video_ingest.py` | M |
 
 ### 9.4 Engineering hygiene
@@ -461,7 +461,7 @@ Sizes: S under a day, M a few days, L a week or more. File paths point at where 
 | H5 | `backend/main.py` is large (streaming, topology, WebSockets, `/detect`). Split into routers | `backend/main.py` | M |
 | H6 | 85 ESLint `any` warnings; no frontend or e2e tests | dashboard | M |
 | H7 | Add `.gitattributes` (`* text=auto eol=lf`) so Windows checkouts do not create CRLF noise | repo root | S |
-| H8 | Pydantic `.dict()` and SQLAlchemy `distinct(...)` deprecation warnings | `routers/system.py`, `routers/analytics.py` | S |
+| H8 | **Deprecation Cleanup [Implemented in Phase 11].** Pydantic `.dict()` and dialect-aware SQLAlchemy demographic aggregation (`distinct()` on PostgreSQL, `group_by()` on SQLite) eliminating all deprecation warnings | `routers/system.py`, `routers/analytics.py` | S |
 | H9 | Build the GPU detector image in CI (or on a GPU runner) | `Dockerfile.detector`, `ci.yml` | M |
 | H10 | flake8 only checks syntax-level rules; add `ruff` or wider rules (about 200 unused imports exist) | `ci.yml` | S |
 

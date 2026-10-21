@@ -13,22 +13,63 @@ import {
   Fingerprint,
   Clock,
   Zap,
+  SlidersHorizontal,
+  FileSpreadsheet,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
 
 export default function ExportReportPage() {
   const [copied, setCopied] = useState(false)
+  const [isEditing, setIsEditing] = useState(false)
+  const [clientName, setClientName] = useState('Main Operations Facility')
+  const [location, setLocation] = useState('Camera-1 (Terminal Gate Ch4)')
+  const [auditor, setAuditor] = useState('Sentinel AI Solutions Team')
+  const [reportDate, setReportDate] = useState('17 October 2026')
 
   const handlePrint = () => {
     window.print()
   }
 
+  const handleExportCSV = () => {
+    const csvRows = [
+      ['SECTION', 'KEY_METRIC', 'VALUE', 'DETAILS'],
+      ['METADATA', 'Report ID', 'SENTINEL-AUDIT-SUMMARY', ''],
+      ['METADATA', 'Client / Facility', clientName, ''],
+      ['METADATA', 'Camera Location', location, ''],
+      ['METADATA', 'Report Date', reportDate, ''],
+      ['METADATA', 'Auditor / Prepared By', auditor, ''],
+      ['CCTV_CONTINUITY', 'Overnight Blackout Gap', '7h 02m 25s', '01:58:35 to 08:59:00 IST (Critical Blackout)'],
+      ['CCTV_CONTINUITY', 'Morning Clip Cut', '101 seconds', '09:34:25 to 09:36:06 IST (Spliced/Cut Video)'],
+      ['CCTV_CONTINUITY', 'Clip 1 Integrity', 'SHA-256 Verified', '00:58:35 to 01:58:35 IST (1.00 hr)'],
+      ['CCTV_CONTINUITY', 'Clip 2 Integrity', 'SHA-256 Verified', '08:59:00 to 09:59:00 IST (0.97 hr)'],
+      ['STAFF_ATTENDANCE', 'Person 1', 'Jenisha (Management / VIP)', 'Sightings: 28 | 09:09 AM - 09:43 AM (33m stay) | 82.1% Match'],
+      ['STAFF_ATTENDANCE', 'Person 2', 'Selvi (Staff Member)', 'Sightings: 16 | 09:10 AM - 09:58 AM (48m stay) | 91.1% Match'],
+      ['STAFF_ATTENDANCE', 'Person 3', 'Pravin (Staff Member)', 'Sightings: 15 | 09:08 AM - 09:49 AM (40m stay) | 88.5% Match'],
+      ['PERFORMANCE', 'Processing Speed', '11.2 FPS (~15x real-time)', 'Audit completed in under 5 minutes'],
+      ['PERFORMANCE', 'Motion Filter Ratio', '89.6% Empty Skipped', '712 of 799 frames bypassed'],
+    ]
+    const csvContent = csvRows
+      .map(row => row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(','))
+      .join('\r\n')
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.setAttribute('download', `Security_Audit_Report_${reportDate.replace(/\s+/g, '_')}.csv`)
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    URL.revokeObjectURL(url)
+  }
+
   const handleCopySummary = () => {
     const summary = `SENTINEL v2.4 CCTV AUDIT & FACE RECOGNITION REPORT
 Report ID: SENTINEL-AUDIT-SUMMARY
-Client: Facility Surveillance & Security Operations
-Location: Primary Monitored Channels
-Date: 17 Oct 2026
+Client: ${clientName}
+Location: ${location}
+Date: ${reportDate}
+Auditor: ${auditor}
 
 1. CCTV CONTINUITY & MISSING FOOTAGE FINDINGS:
    - 🔴 7-Hour Overnight Blackout: 7h 02m 25s missing (01:58 AM - 08:59 AM).
@@ -67,7 +108,7 @@ Date: 17 Oct 2026
             <div className="flex items-center gap-2">
               <span className="font-mono text-xs font-bold text-amber-400">CCTV Security Audit Report</span>
               <span className="rounded bg-emerald-500/20 px-2 py-0.5 text-[10px] font-semibold text-emerald-300 border border-emerald-500/30">
-                Client Ready (Plain English)
+                Multi-Format Engine
               </span>
             </div>
           </div>
@@ -76,11 +117,31 @@ Date: 17 Oct 2026
             <Button
               variant="outline"
               size="sm"
+              onClick={() => setIsEditing(!isEditing)}
+              className={`h-8 gap-1.5 text-xs border-slate-700 ${isEditing ? 'bg-amber-500/20 border-amber-500/40 text-amber-300' : 'text-slate-200 hover:bg-slate-800'}`}
+            >
+              <SlidersHorizontal className="size-3.5" />
+              <span>{isEditing ? 'Done Editing' : 'Customize'}</span>
+            </Button>
+
+            <Button
+              variant="outline"
+              size="sm"
               onClick={handleCopySummary}
               className="h-8 gap-1.5 text-xs border-slate-700 text-slate-200 hover:bg-slate-800"
             >
               {copied ? <Check className="size-3.5 text-emerald-400" /> : <Copy className="size-3.5" />}
-              <span>{copied ? 'Copied' : 'Copy Summary'}</span>
+              <span>{copied ? 'Copied' : 'Copy'}</span>
+            </Button>
+
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleExportCSV}
+              className="h-8 gap-1.5 text-xs border-blue-500/40 bg-blue-500/10 text-blue-300 hover:bg-blue-500/20 hover:text-blue-200"
+            >
+              <FileSpreadsheet className="size-3.5" />
+              <span>Export CSV</span>
             </Button>
 
             <a
@@ -108,6 +169,48 @@ Date: 17 Oct 2026
             </Button>
           </div>
         </div>
+
+        {/* Customization Drawer (Hidden when printing) */}
+        {isEditing && (
+          <div className="mx-auto max-w-5xl mt-3 pt-3 border-t border-slate-800 grid grid-cols-1 sm:grid-cols-4 gap-3 text-xs">
+            <div>
+              <label className="text-[11px] font-medium text-slate-400 block mb-1">Organization / Facility</label>
+              <Input
+                value={clientName}
+                onChange={(e) => setClientName(e.target.value)}
+                className="h-7 text-xs bg-slate-800 border-slate-700 text-white"
+                placeholder="Client / Organization"
+              />
+            </div>
+            <div>
+              <label className="text-[11px] font-medium text-slate-400 block mb-1">Camera Location</label>
+              <Input
+                value={location}
+                onChange={(e) => setLocation(e.target.value)}
+                className="h-7 text-xs bg-slate-800 border-slate-700 text-white"
+                placeholder="Location / Channel"
+              />
+            </div>
+            <div>
+              <label className="text-[11px] font-medium text-slate-400 block mb-1">Auditor / Prepared By</label>
+              <Input
+                value={auditor}
+                onChange={(e) => setAuditor(e.target.value)}
+                className="h-7 text-xs bg-slate-800 border-slate-700 text-white"
+                placeholder="Auditor Team"
+              />
+            </div>
+            <div>
+              <label className="text-[11px] font-medium text-slate-400 block mb-1">Report Date</label>
+              <Input
+                value={reportDate}
+                onChange={(e) => setReportDate(e.target.value)}
+                className="h-7 text-xs bg-slate-800 border-slate-700 text-white"
+                placeholder="Report Date"
+              />
+            </div>
+          </div>
+        )}
       </nav>
 
       {/* Embedded Print Styling */}
@@ -178,13 +281,13 @@ Date: 17 Oct 2026
               <tbody className="divide-y divide-slate-200">
                 <tr className="divide-x divide-slate-200">
                   <td className="w-1/4 p-1.5 font-bold text-slate-700 bg-slate-100">Client / Facility</td>
-                  <td className="w-1/4 p-1.5 font-semibold text-slate-900">Main Operations Facility</td>
+                  <td className="w-1/4 p-1.5 font-semibold text-slate-900">{clientName}</td>
                   <td className="w-1/4 p-1.5 font-bold text-slate-700 bg-slate-100">Report Date</td>
-                  <td className="w-1/4 p-1.5 font-mono text-slate-900">17 October 2026</td>
+                  <td className="w-1/4 p-1.5 font-mono text-slate-900">{reportDate}</td>
                 </tr>
                 <tr className="divide-x divide-slate-200">
                   <td className="p-1.5 font-bold text-slate-700 bg-slate-100">Camera Location</td>
-                  <td className="p-1.5 text-slate-900">Camera-1 (Terminal Gate Ch4)</td>
+                  <td className="p-1.5 text-slate-900">{location}</td>
                   <td className="p-1.5 font-bold text-slate-700 bg-slate-100">Audit Scope</td>
                   <td className="p-1.5 text-emerald-800 font-semibold">Footage Continuity & Gate Attendance POC</td>
                 </tr>
@@ -503,12 +606,12 @@ Date: 17 Oct 2026
             </div>
           </div>
 
-          {/* 4. Conclusion & Takeaways for DBGT Management */}
+          {/* 4. Conclusion & Takeaways */}
           <div className="pt-2 border-t-2 border-slate-900 avoid-break">
             <div className="flex items-center gap-1.5 mb-1">
               <ShieldCheck className="size-4 text-emerald-700" />
               <h2 className="text-xs font-mono font-bold uppercase tracking-wider text-slate-950">
-                4. Conclusion & Executive Takeaways for Management
+                4. Conclusion & Executive Takeaways for {clientName}
               </h2>
             </div>
             
@@ -523,11 +626,11 @@ Date: 17 Oct 2026
               <div className="rounded border border-slate-300 p-2 bg-slate-50">
                 <span className="font-bold text-slate-700 uppercase tracking-wider text-[8.5px] block mb-0.5">Prepared By:</span>
                 <div className="h-7 border-b border-dashed border-slate-400 flex items-center justify-center font-serif italic text-amber-900 text-xs">
-                  Sentinel AI Solutions Team
+                  {auditor}
                 </div>
                 <div className="flex justify-between items-center text-slate-600 text-[8.5px] mt-1 font-mono">
                   <span>Batch: CCTV Footage Audit</span>
-                  <span>Date: 17 Oct 2026</span>
+                  <span>Date: {reportDate}</span>
                 </div>
               </div>
 
@@ -537,7 +640,7 @@ Date: 17 Oct 2026
                   (Authorized Signature / Security Operations)
                 </div>
                 <div className="flex justify-between items-center text-slate-600 text-[8.5px] mt-1 font-mono">
-                  <span>Facility: Surveillance Operations</span>
+                  <span>Facility: {clientName}</span>
                   <span>Status: AUDIT VERIFIED</span>
                 </div>
               </div>

@@ -41,3 +41,61 @@ def get_audit_logs(
 
     records = query.order_by(AuditLog.timestamp.desc()).offset(offset).limit(limit).all()
     return [AuditLogResponse.model_validate(r) for r in records]
+
+
+@router.get("/export/csv")
+def export_audit_logs_csv(
+    action: Optional[str] = Query(None, description="Filter by event action"),
+    username: Optional[str] = Query(None, description="Filter by executing username"),
+    resource_type: Optional[str] = Query(None, description="Filter by resource type"),
+    start_time: Optional[datetime] = Query(None, description="Earliest event timestamp (inclusive)"),
+    end_time: Optional[datetime] = Query(None, description="Latest event timestamp (inclusive)"),
+    limit: int = Query(1000, ge=1, le=10000, description="Max records to export"),
+    db: Session = Depends(get_db),
+    current_user: CurrentUser = Depends(require_admin),
+):
+    """Export security audit ledger events as downloadable RFC-4180 CSV (Administrator only)."""
+    import csv
+    import io
+    from fastapi.responses import Response
+
+    query = db.query(AuditLog)
+    if action:
+        query = query.filter(AuditLog.action == action)
+    if username:
+        query = query.filter(AuditLog.username == username)
+    if resource_type:
+        query = query.filter(AuditLog.resource_type == resource_type)
+    if start_time:
+        query = query.filter(AuditLog.timestamp >= start_time)
+    if end_time:
+        query = query.filter(AuditLog.timestamp <= end_time)
+
+    records = query.order_by(AuditLog.timestamp.desc()).limit(limit).all()
+
+    output = io.StringIO()
+    writer = csv.writer(output)
+    writer.writerow([
+        "ID", "Timestamp (IST)", "Username", "Role", "Action", "Resource Type", "Resource ID", "Client IP", "Details"
+    ])
+    for r in records:
+        ts_str = r.timestamp.isoformat() if r.timestamp else ""
+        writer.writerow([
+            r.id,
+            ts_str,
+            r.username,
+            r.role,
+            r.action,
+            r.resource_type,
+            r.resource_id,
+            r.client_ip or "",
+            r.details or "",
+        ])
+
+    csv_data = output.getvalue()
+    filename = f"audit_ledger_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv"
+    return Response(
+        content=csv_data,
+        media_type="text/csv",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
