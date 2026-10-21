@@ -119,6 +119,11 @@ class CpuCameraPipeline:
         quality_assessor: Any = None,
         track_fusion_cfg: Optional[Dict[str, Any]] = None,
         camera_config_manager: Any = None,
+        camera_tiers: Optional[Dict[str, str]] = None,
+        camera_name: Optional[str] = None,
+        zone: Optional[str] = None,
+        stream_type: Optional[str] = None,
+        clock_source: Optional[str] = "edge_pc",
     ) -> None:
         self.camera_id = camera_id
         self.source = source
@@ -126,6 +131,31 @@ class CpuCameraPipeline:
         self.recognizer = recognizer
         self.logger = logger
         self.pending_saver = pending_saver
+        self.camera_name = camera_name or getattr(source, 'name', None) or camera_id
+        self.zone = zone or getattr(source, 'zone', None)
+        self.stream_type = stream_type or getattr(source, 'stream_type', None)
+        self.clock_source = clock_source or "edge_pc"
+
+        # R1 & R2: Dynamic inference frame resolution & per-camera tier scoping
+        # Priority:
+        # 1. Explicit per-camera tier in camera_tiers mapping (e.g. {'reception': 'max', 'entrance': 'max', 'lane': 'fast'})
+        # 2. If camera stream is main stream (stream_type == 'main'), elevate to 'max' (480x480, skip 2)
+        # 3. Explicit CLI/global cpu_tier if specified and not 'auto'
+        # 4. Fallback to passed frame_size & frame_skip
+        effective_tier = None
+        if camera_tiers and camera_id in camera_tiers:
+            effective_tier = str(camera_tiers[camera_id]).lower()
+        elif self.stream_type == "main" and not lock_resolution and cpu_tier in ("auto", "mid", "slow"):
+            effective_tier = "max"
+        elif cpu_tier != 'auto' and cpu_tier in TIERS:
+            effective_tier = cpu_tier
+
+        if effective_tier and effective_tier in TIERS and not lock_resolution:
+            tier_info = TIERS[effective_tier]
+            frame_size = tier_info['det_size']
+            frame_skip = tier_info['frame_skip']
+            cpu_tier = effective_tier
+
         self.frame_size = frame_size
         self.frame_skip = max(1, int(frame_skip))
         self.recognition_interval = float(recognition_interval)
@@ -485,6 +515,9 @@ class CpuCameraPipeline:
                             config_version=cfg_ver,
                             liveness_score=obs.liveness_score,
                             thumbnail=thumb,
+                            camera_name=self.camera_name,
+                            zone=self.zone,
+                            clock_source=self.clock_source,
                         )
                         track.has_been_logged = True
                 elif track.valid_embeddings_count >= self.track_manager.min_obs and not getattr(track, 'has_been_saved', False):
@@ -512,6 +545,9 @@ class CpuCameraPipeline:
                             embedding=obs.embedding,
                             config_version=cfg_ver,
                             thumbnail=thumb,
+                            camera_name=self.camera_name,
+                            zone=self.zone,
+                            clock_source=self.clock_source,
                         )
                         track.has_been_logged = True
                     track.has_been_saved = True
@@ -625,11 +661,12 @@ def build_sources(cfg: Dict[str, Any], webcam_index: Optional[int] = None, webca
         or os.environ.get("NO_WEBCAM", "").strip().lower() in ("true", "1", "yes")
         or int(effective_index) < 0
     )
+    from facial_recognition.sources import CameraSource
     if not disable_webcam:
-        sources.append(('webcam', int(effective_index)))
+        sources.append(CameraSource('webcam', int(effective_index), name='Webcam', zone='Local', stream_type='main'))
     if not webcam_only:
         for idx, url in enumerate(cfg.get('rtsp_urls', []) or []):
-            sources.append((f'rtsp-{idx+1}', str(url)))
+            sources.append(CameraSource(f'rtsp-{idx+1}', str(url), name=f'RTSP {idx+1}', stream_type='sub'))
         sources.extend(dvr_sources_from_env())
     return sources
 
@@ -725,7 +762,9 @@ def main():
     from facial_recognition.quality import FaceQualityAssessor
     quality_assessor = FaceQualityAssessor(cfg.get('quality_thresholds', {}))
 
-    for cam_id, src in build_sources(cfg, options.webcam_index, options.webcam_only):
+    camera_tiers_cfg = cfg.get('camera_tiers', {})
+    for item in build_sources(cfg, options.webcam_index, options.webcam_only):
+        cam_id, src = item
         p = CpuCameraPipeline(
             cam_id,
             src,
@@ -743,6 +782,10 @@ def main():
             model_name=detector_model,
             quality_assessor=quality_assessor,
             track_fusion_cfg=cfg.get('track_fusion', {}),
+            camera_tiers=camera_tiers_cfg,
+            camera_name=getattr(item, 'name', None) or cam_id,
+            zone=getattr(item, 'zone', None),
+            stream_type=getattr(item, 'stream_type', None),
         )
         pipelines.append(p)
 

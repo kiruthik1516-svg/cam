@@ -268,6 +268,8 @@ class EventProvenance(Base):
     decision_timestamp = Column(DateTime, nullable=False)
     sync_event_id = Column(String, nullable=True)
     provenance_chain_hash = Column(String, nullable=False)
+    clock_source = Column(String, nullable=True, default="edge_pc")
+    clock_skew_seconds = Column(Float, nullable=True, default=0.0)
     created_at = Column(DateTime, default=ist_now)
 
     # Relationships

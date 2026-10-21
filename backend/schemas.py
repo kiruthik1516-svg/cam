@@ -253,6 +253,9 @@ class DetectionCreateRequest(BaseModel):
     embedding: Optional[List[float]] = None
     provenance: Optional[Dict[str, Any]] = None
     liveness_score: Optional[float] = 0.0
+    camera_name: Optional[str] = None
+    zone: Optional[str] = None
+    clock_source: Optional[str] = "edge_pc"
 
 class DetectionBatchRequest(BaseModel):
     detections: List[DetectionCreateRequest]
@@ -763,6 +766,8 @@ class ProvenanceResponse(BaseModel):
     sync_event_id: Optional[str] = None
     cloud_record_id: Optional[str] = None
     provenance_chain_hash: str
+    clock_source: Optional[str] = "edge_pc"
+    clock_skew_seconds: Optional[float] = 0.0
     stages: List[ProvenanceStageResponse]
 
 

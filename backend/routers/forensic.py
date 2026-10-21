@@ -57,7 +57,16 @@ def get_detection_provenance(
         chain_hash = hashlib.sha256(f"chain_{det.event_id}".encode()).hexdigest()
         
         stages = [
-            ProvenanceStageResponse(stage_name="1. Camera Ingestion", stage_id=f"cam_{det.camera_id}", timestamp=det.timestamp.timestamp(), metadata={"camera_id": det.camera_id}),
+            ProvenanceStageResponse(
+                stage_name="1. Camera Ingestion",
+                stage_id=f"cam_{det.camera_id}",
+                timestamp=det.timestamp.timestamp(),
+                metadata={
+                    "camera_id": det.camera_id,
+                    "clock_source": "edge_pc",
+                    "clock_skew_seconds": 0.0,
+                }
+            ),
             ProvenanceStageResponse(stage_name="2. Frame Acquisition", stage_id=frame_ref, timestamp=det.timestamp.timestamp(), metadata={"frame_reference": frame_ref}),
             ProvenanceStageResponse(stage_name="3. Face Tracking", stage_id="track_untracked", timestamp=det.timestamp.timestamp(), metadata={"track_id": None}),
             ProvenanceStageResponse(stage_name="4. Embedding Extraction", stage_id=f"emb_{emb_fp[:12]}", timestamp=det.timestamp.timestamp(), metadata={"embedding_fingerprint": emb_fp}),
@@ -85,6 +94,8 @@ def get_detection_provenance(
             sync_event_id=f"sync_{det.event_id}",
             cloud_record_id=det.id,
             provenance_chain_hash=chain_hash,
+            clock_source="edge_pc",
+            clock_skew_seconds=0.0,
             stages=stages,
         )
 
@@ -93,8 +104,20 @@ def get_detection_provenance(
     cand_list = json.loads(prov.candidate_matches) if prov.candidate_matches else []
     det = db.query(Detection).filter(Detection.event_id == prov.event_id).first()
     
+    clock_src = getattr(prov, "clock_source", None) or "edge_pc"
+    clock_skew = float(getattr(prov, "clock_skew_seconds", 0.0) or 0.0)
+
     stages = [
-        ProvenanceStageResponse(stage_name="1. Camera Ingestion", stage_id=f"cam_{prov.camera_id}", timestamp=prov.decision_timestamp.timestamp(), metadata={"camera_id": prov.camera_id}),
+        ProvenanceStageResponse(
+            stage_name="1. Camera Ingestion",
+            stage_id=f"cam_{prov.camera_id}",
+            timestamp=prov.decision_timestamp.timestamp(),
+            metadata={
+                "camera_id": prov.camera_id,
+                "clock_source": clock_src,
+                "clock_skew_seconds": clock_skew,
+            }
+        ),
         ProvenanceStageResponse(stage_name="2. Frame Acquisition", stage_id=prov.frame_reference, timestamp=prov.decision_timestamp.timestamp(), metadata={"frame_reference": prov.frame_reference, "obs_count": len(obs_list)}),
         ProvenanceStageResponse(stage_name="3. Face Tracking", stage_id=prov.track_id or "untracked", timestamp=prov.decision_timestamp.timestamp(), metadata={"track_id": prov.track_id, "observations": obs_list}),
         ProvenanceStageResponse(stage_name="4. Embedding Extraction", stage_id=f"emb_{prov.embedding_fingerprint[:12]}", timestamp=prov.decision_timestamp.timestamp(), metadata={"embedding_fingerprint": prov.embedding_fingerprint, "model": prov.embedding_model_version}),
@@ -122,6 +145,8 @@ def get_detection_provenance(
         sync_event_id=prov.sync_event_id,
         cloud_record_id=det.id if det else None,
         provenance_chain_hash=prov.provenance_chain_hash,
+        clock_source=clock_src,
+        clock_skew_seconds=clock_skew,
         stages=stages,
     )
 

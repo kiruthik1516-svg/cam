@@ -77,7 +77,48 @@ def _channel_path(path: str, channel: str, subtype: Optional[str] = None) -> str
     return res
 
 
-def dvr_sources_from_env(env: Optional[Mapping[str, str]] = None) -> List[Tuple[str, str]]:
+class CameraSource(tuple):
+    """Camera source tuple ``(camera_id, url)`` with optional rich metadata.
+
+    Inherits from tuple so that existing tuple unpacking ``camera_id, url = source``,
+    positional indexing ``source[0]``, and tuple equality ``source == (camera_id, url)``
+    continue to work seamlessly without regressions.
+    """
+    camera_id: str
+    url: str
+    name: str
+    zone: Optional[str]
+    stream_type: str  # 'main' or 'sub'
+
+    def __new__(
+        cls,
+        camera_id: str,
+        url: str,
+        name: Optional[str] = None,
+        zone: Optional[str] = None,
+        stream_type: Optional[str] = None,
+    ) -> CameraSource:
+        inst = super().__new__(cls, (camera_id, url))
+        inst.camera_id = camera_id
+        inst.url = url
+        inst.name = name or camera_id
+        inst.zone = zone
+        if stream_type:
+            inst.stream_type = stream_type
+        elif "subtype=0" in url or re.search(r"Streaming/Channels/\d+01", url):
+            inst.stream_type = "main"
+        else:
+            inst.stream_type = "sub"
+        return inst
+
+    def __repr__(self) -> str:
+        return (
+            f"CameraSource(camera_id={self.camera_id!r}, url={self.url!r}, "
+            f"name={self.name!r}, zone={self.zone!r}, stream_type={self.stream_type!r})"
+        )
+
+
+def dvr_sources_from_env(env: Optional[Mapping[str, str]] = None) -> List[CameraSource]:
     """Build ``(camera_id, rtsp_url)`` pairs for an NVR/DVR from environment variables.
 
     Variables:
@@ -86,6 +127,8 @@ def dvr_sources_from_env(env: Optional[Mapping[str, str]] = None) -> List[Tuple[
       DVR_RTSP_PATH                        default Streaming/Channels/101
       DVR_CHANNELS                         optional, e.g. "4,1,5" or "4:0,1:1" (channel:stream)
       DVR_CAMERA_NAMES                     optional, e.g. "reception,lane,entrance", aligned with DVR_CHANNELS
+      DVR_CAMERA_DISPLAY_NAMES             optional, e.g. "Reception Desk, Gate Lane, Main Entrance"
+      DVR_CAMERA_ZONES                     optional, e.g. "Lobby, Perimeter, Main Lobby"
 
     Without DVR_CHANNELS the legacy behaviour is kept: a single camera named ``dvr-1`` using DVR_RTSP_PATH as is.
     With DVR_CHANNELS, DVR_RTSP_PATH is used as a template: its ``channel=<n>`` (or a ``{channel}`` placeholder)
@@ -105,10 +148,17 @@ def dvr_sources_from_env(env: Optional[Mapping[str, str]] = None) -> List[Tuple[
 
     raw_channels = [c.strip() for c in env.get("DVR_CHANNELS", "").split(",") if c.strip()]
     if not raw_channels:
-        return [("dvr-1", base + path)]
+        disp_name = env.get("DVR_CAMERA_DISPLAY_NAMES", "").split(",")[0].strip()
+        raw_name = env.get("DVR_CAMERA_NAMES", "").split(",")[0].strip()
+        zone = env.get("DVR_CAMERA_ZONES", "").split(",")[0].strip() or None
+        name = disp_name or raw_name or "dvr-1"
+        stream_type = "main" if "subtype=0" in path or re.search(r"Streaming/Channels/\d+01", path) else "sub"
+        return [CameraSource("dvr-1", base + path, name=name, zone=zone, stream_type=stream_type)]
 
     names = [n.strip() for n in env.get("DVR_CAMERA_NAMES", "").split(",")]
-    sources: List[Tuple[str, str]] = []
+    display_names = [n.strip() for n in env.get("DVR_CAMERA_DISPLAY_NAMES", "").split(",")]
+    zones = [z.strip() for z in env.get("DVR_CAMERA_ZONES", "").split(",")]
+    sources: List[CameraSource] = []
     seen = set()
     for index, raw_channel in enumerate(raw_channels):
         channel, subtype = _parse_channel_entry(raw_channel)
@@ -117,5 +167,19 @@ def dvr_sources_from_env(env: Optional[Mapping[str, str]] = None) -> List[Tuple[
         if camera_id in seen:
             raise ValueError(f"Duplicate camera id {camera_id!r} from DVR_CHANNELS / DVR_CAMERA_NAMES")
         seen.add(camera_id)
-        sources.append((camera_id, base + _channel_path(path, channel, subtype)))
+
+        display_name = ""
+        if index < len(display_names) and display_names[index]:
+            display_name = display_names[index]
+        elif index < len(names) and names[index]:
+            display_name = names[index]
+        else:
+            display_name = camera_id.replace("-", " ").title()
+
+        zone = zones[index] if index < len(zones) and zones[index] else None
+
+        stream_type = "main" if subtype in ("0", "main", "01") else ("sub" if subtype in ("1", "sub", "02") else None)
+        resolved_url = base + _channel_path(path, channel, subtype)
+
+        sources.append(CameraSource(camera_id, resolved_url, name=display_name, zone=zone, stream_type=stream_type))
     return sources

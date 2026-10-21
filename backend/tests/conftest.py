@@ -27,7 +27,8 @@ import models  # Ensure all ORM models are registered with Base.metadata
 
 @pytest.fixture(scope="session", autouse=True)
 def setup_test_database():
-    """Ensure all SQLAlchemy tables are created for the test session."""
+    """Ensure all SQLAlchemy tables are created cleanly for the test session."""
+    Base.metadata.drop_all(bind=engine)
     Base.metadata.create_all(bind=engine)
     try:
         ensure_detection_event_id_column()

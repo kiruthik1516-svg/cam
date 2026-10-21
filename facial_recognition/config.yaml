@@ -61,6 +61,14 @@ cpu_use_fast_detector: false
 cpu_detector_model: buffalo_s
 cpu_tier: auto
 
+# Per-camera inference tier overrides (max: 480x480 skip 2, fast: 384x384 skip 3, mid: 256x256 skip 4, slow: 192x192 skip 6)
+# Entrance and reception cameras default to max or fast to guarantee >80px face resolution for reliable matching
+camera_tiers:
+  reception: max
+  entrance: max
+  main-entrance: max
+  lane: fast
+
 # Webcam capture size (override with --cam-res on CLI)
 camera_width: 640
 camera_height: 480

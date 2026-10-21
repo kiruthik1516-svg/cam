@@ -102,6 +102,10 @@ def ensure_detection_event_id_column():
             "embeddings": {
                 "model_version": "VARCHAR",
             },
+            "event_provenances": {
+                "clock_source": "VARCHAR DEFAULT 'edge_pc'",
+                "clock_skew_seconds": "FLOAT DEFAULT 0.0",
+            },
         }
         for table_name, missing_columns in table_columns.items():
             if not inspector.has_table(table_name):

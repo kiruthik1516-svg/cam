@@ -172,6 +172,9 @@ class DetectionLogger:
         provenance: Optional[Any] = None,
         liveness_score: Optional[float] = None,
         thumbnail: Optional[str] = None,
+        camera_name: Optional[str] = None,
+        zone: Optional[str] = None,
+        clock_source: Optional[str] = "edge_pc",
     ) -> Optional[str]:
         """
         Log a detection event (main entry point).
@@ -192,6 +195,9 @@ class DetectionLogger:
             version_bundle: ModelConfigVersionBundle snapshot
             provenance: RecognitionProvenance or lineage dictionary
             thumbnail: Optional base64 JPEG thumbnail of face crop
+            camera_name: Optional human-readable camera display name
+            zone: Optional facility / spatial zone
+            clock_source: Clock source (e.g. 'edge_pc', 'nvr_clock', 'archive_footage')
 
         Returns:
             event_id: Unique event identifier, or None if deduplicated
@@ -219,6 +225,9 @@ class DetectionLogger:
             "version_bundle": bundle_dict,
             "embedding": embedding.tolist() if hasattr(embedding, "tolist") else embedding,
             "thumbnail": thumbnail,
+            "camera_name": camera_name,
+            "zone": zone,
+            "clock_source": clock_source or "edge_pc",
         }
 
         is_unknown = not identity or identity.strip().lower() in ["unknown", "unregistered"] or identity.startswith("Person ")
@@ -422,6 +431,12 @@ class DetectionLogger:
                     api_payload["embedding"] = payload["embedding"]
                 if payload.get("thumbnail") is not None:
                     api_payload["thumbnail"] = payload["thumbnail"]
+                if payload.get("camera_name"):
+                    api_payload["camera_name"] = payload["camera_name"]
+                if payload.get("zone"):
+                    api_payload["zone"] = payload["zone"]
+                if payload.get("clock_source"):
+                    api_payload["clock_source"] = payload["clock_source"]
                 
                 if event.get('age') is not None:
                     api_payload["age"] = int(event['age'])

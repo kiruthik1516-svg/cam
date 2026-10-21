@@ -73,6 +73,8 @@ class RecognitionProvenance:
     decision_timestamp: float = field(default_factory=time.time)
     sync_event_id: Optional[str] = None
     cloud_detection_id: Optional[str] = None
+    clock_source: Optional[str] = "edge_pc"
+    clock_skew_seconds: Optional[float] = 0.0
 
     @property
     def provenance_chain_hash(self) -> str:
@@ -91,6 +93,7 @@ class RecognitionProvenance:
             "selected_identity": self.selected_identity,
             "confidence": round(self.confidence, 6),
             "decision_timestamp": round(self.decision_timestamp, 3),
+            "clock_source": self.clock_source or "edge_pc",
         }
         serialized = json.dumps(payload, sort_keys=True, separators=(",", ":"))
         return hashlib.sha256(serialized.encode("utf-8")).hexdigest()
@@ -102,7 +105,11 @@ class RecognitionProvenance:
                 stage_name="1. Camera Ingestion",
                 stage_id=f"cam_{self.camera_id}",
                 timestamp=self.decision_timestamp,
-                metadata={"camera_id": self.camera_id},
+                metadata={
+                    "camera_id": self.camera_id,
+                    "clock_source": self.clock_source or "edge_pc",
+                    "clock_skew_seconds": self.clock_skew_seconds or 0.0,
+                },
             ),
             ProcessingStage(
                 stage_name="2. Frame Acquisition",
@@ -171,6 +178,8 @@ class RecognitionProvenance:
             "decision_timestamp": self.decision_timestamp,
             "sync_event_id": self.sync_event_id,
             "cloud_detection_id": self.cloud_detection_id,
+            "clock_source": self.clock_source or "edge_pc",
+            "clock_skew_seconds": self.clock_skew_seconds or 0.0,
             "provenance_chain_hash": self.provenance_chain_hash,
             "stages": [s.to_dict() for s in self.get_lineage_stages()],
         }

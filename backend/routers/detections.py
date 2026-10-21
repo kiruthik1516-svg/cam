@@ -101,15 +101,42 @@ async def create_detection(
             is_gap_detected=is_gap_detected
         )
 
+    # Clock skew detection between edge node and server (R4)
+    server_now = datetime.now(IST)
+    clock_skew_seconds = round(abs((server_now - req_timestamp_ist).total_seconds()), 3)
+    clock_source = req.clock_source or "edge_pc"
+    if clock_skew_seconds > 120.0:
+        logger.warning(
+            f"[CLOCK SKEW WARNING] Camera {req.camera_id} reported timestamp {req_timestamp_ist.isoformat()} "
+            f"skewed from server time {server_now.isoformat()} by {clock_skew_seconds:.1f}s "
+            f"(drift exceeds 120s threshold; clock_source={clock_source})"
+        )
+
     # Removed python-level memory check to prevent race condition.
     # Duplicates are now handled atomically at the database level via IntegrityError.
 
     camera = db.query(Camera).filter(Camera.id == req.camera_id).first()
     if not camera:
-        camera = Camera(id=req.camera_id, name=req.camera_id, status=CameraStatus.online)
+        camera = Camera(
+            id=req.camera_id,
+            name=req.camera_name or req.camera_id,
+            zone=req.zone,
+            status=CameraStatus.online
+        )
         db.add(camera)
         db.commit()
         db.refresh(camera)
+    else:
+        updated_cam = False
+        if req.camera_name and (camera.name == camera.id or not camera.name):
+            camera.name = req.camera_name
+            updated_cam = True
+        if req.zone and not camera.zone:
+            camera.zone = req.zone
+            updated_cam = True
+        if updated_cam:
+            db.commit()
+            db.refresh(camera)
         
     profile_id = None
     profile = None
@@ -245,6 +272,8 @@ async def create_detection(
             decision_timestamp=req_timestamp_ist,
             sync_event_id=prov_dict.get("sync_event_id", f"sync_{req.event_id}"),
             provenance_chain_hash=chain_hash,
+            clock_source=clock_source,
+            clock_skew_seconds=clock_skew_seconds,
         )
         db.add(prov_record)
         db.commit()
