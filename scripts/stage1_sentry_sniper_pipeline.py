@@ -282,6 +282,19 @@ def process_day(
 
     clips = sorted(list(day_dir.glob("*.mp4")))
     total_clips = len(clips)
+
+    manifest_path = out_day_dir / "manifest.json"
+    if start_clip == 1 and end_clip >= total_clips and manifest_path.exists():
+        try:
+            with open(manifest_path, "r", encoding="utf-8") as f:
+                existing_manifest = json.load(f)
+            if existing_manifest.get("total_clips") == total_clips:
+                frames_cnt = existing_manifest.get("total_extracted_frames", 0)
+                logger.info(f"DAY {day_num:02d} ALREADY COMPLETED ({frames_cnt} frames in manifest) - SKIPPING")
+                return existing_manifest
+        except Exception:
+            pass
+
     logger.info(f"======================================================================")
     logger.info(f"PROCESSING DAY {day_num:02d}: {total_clips} CLIPS (720P/3K SURVEILLANCE)")
     logger.info(f"Input: {day_dir} | Output: {out_day_dir} | Range: Clips #{start_clip} to #{end_clip}")
