@@ -62,7 +62,7 @@ def get_clip_duration(clip_path: Path) -> float:
 def run_hardware_sentry(
     clip_path: Path,
     door_box: tuple[int, int, int, int] = DEFAULT_DOOR_BOX,
-    min_motion_px: int = 1000,
+    min_motion_px: int = 3000,
     motion_thr: int = 25
 ) -> tuple[list[float], int, float]:
     """Scans keyframes at door choke-point using Intel Iris Xe hardware acceleration."""
@@ -124,8 +124,8 @@ def make_surveillance_windows(
     events: list[float],
     clip_duration: float,
     carry_in_sec: float = 0.0,
-    pre_window: float = 15.0,
-    post_window: float = 300.0
+    pre_window: float = 5.0,
+    post_window: float = 25.0
 ) -> tuple[list[tuple[float, float]], float]:
     """Generates continuous active surveillance windows and calculates carry-out margin."""
     raw_wins = []
@@ -211,9 +211,9 @@ def process_single_clip(
     out_dir: Path,
     day_num: int,
     carry_in_sec: float,
-    min_motion_px: int = 1000,
-    pre_win: float = 15.0,
-    post_win: float = 300.0,
+    min_motion_px: int = 3000,
+    pre_win: float = 5.0,
+    post_win: float = 25.0,
     sniper_fps: int = 1
 ) -> dict:
     """Complete Sentry + Sniper execution for a single 45-min clip."""
@@ -264,10 +264,12 @@ def process_day(
     day_num: int,
     input_base: Path,
     output_base: Path,
-    min_motion_px: int = 1000,
-    pre_win: float = 15.0,
-    post_win: float = 300.0,
-    sniper_fps: int = 1
+    min_motion_px: int = 3000,
+    pre_win: float = 5.0,
+    post_win: float = 25.0,
+    sniper_fps: int = 1,
+    start_clip: int = 1,
+    end_clip: int = 33
 ) -> dict:
     """Processes all 33 clips of a single surveillance day."""
     day_dir = input_base / str(day_num)
@@ -282,7 +284,8 @@ def process_day(
     total_clips = len(clips)
     logger.info(f"======================================================================")
     logger.info(f"PROCESSING DAY {day_num:02d}: {total_clips} CLIPS (720P/3K SURVEILLANCE)")
-    logger.info(f"Input: {day_dir} | Output: {out_day_dir}")
+    logger.info(f"Input: {day_dir} | Output: {out_day_dir} | Range: Clips #{start_clip} to #{end_clip}")
+    logger.info(f"Settings: min_motion={min_motion_px}px, pre_win={pre_win}s, post_win={post_win}s")
     logger.info(f"======================================================================")
 
     day_t0 = time.time()
@@ -293,6 +296,44 @@ def process_day(
     total_extracted = 0
 
     for i, clip in enumerate(clips):
+        clip_num = i + 1
+        clip_stem = clip.stem
+
+        if clip_num > end_clip:
+            break
+
+        if clip_num < start_clip:
+            # Check previously extracted frames
+            existing = list(out_day_dir.glob(f"day{day_num:02d}_{clip_stem}_*.jpg"))
+            clip_dur = get_clip_duration(clip)
+            ext_cnt = len(existing)
+            status = f"ALREADY_PROCESSED ({ext_cnt} frames)" if ext_cnt > 0 else "NOMINAL (Skipped)"
+            logger.info(f"[{clip_num:02d}/{total_clips}] {clip.name[:25]}... -> [PREVIOUS RUN] {status}")
+            clip_summaries.append({
+                "clip": clip.name,
+                "duration_sec": round(clip_dur, 2),
+                "keyframes": 0,
+                "sentry_time_sec": 0.0,
+                "events_count": 0,
+                "windows": [],
+                "active_window_sec": ext_cnt,
+                "skip_pct": round(((clip_dur - ext_cnt) / max(1.0, clip_dur)) * 100.0, 1),
+                "sniper_time_sec": 0.0,
+                "extracted_frames": ext_cnt,
+                "total_time_sec": 0.0,
+                "carry_out_sec": 0.0
+            })
+            total_active_sec += ext_cnt
+            total_extracted += ext_cnt
+            continue
+
+        # Clean any partial frames from previous interrupted run of this clip
+        for partial_file in out_day_dir.glob(f"day{day_num:02d}_{clip_stem}_*.jpg"):
+            try:
+                partial_file.unlink()
+            except Exception:
+                pass
+
         c_t0 = time.time()
         res = process_single_clip(
             clip, out_day_dir, day_num, carry_sec,
@@ -308,7 +349,7 @@ def process_day(
 
         status = f"ACTIVE ({res['extracted_frames']} frames, {res['active_window_sec']:.0f}s)" if res['extracted_frames'] > 0 else "NOMINAL (Skipped)"
         logger.info(
-            f"[{i+1:02d}/{total_clips}] {clip.name[:25]}... -> {status} "
+            f"[{clip_num:02d}/{total_clips}] {clip.name[:25]}... -> {status} "
             f"in {res['total_time_sec']:.1f}s (Sentry: {res['sentry_time_sec']:.1f}s, Sniper: {res['sniper_time_sec']:.1f}s)"
         )
 
@@ -348,11 +389,13 @@ def main():
     parser = argparse.ArgumentParser(description="Hardware-Accelerated Sentry + Sniper Pipeline")
     parser.add_argument("--start-day", type=int, default=1, help="Start day (default: 1)")
     parser.add_argument("--end-day", type=int, default=1, help="End day (default: 1)")
+    parser.add_argument("--start-clip", type=int, default=1, help="Start clip index for start-day (default: 1)")
+    parser.add_argument("--end-clip", type=int, default=33, help="End clip index for end-day (default: 33)")
     parser.add_argument("--input-dir", type=str, default=r"E:\RO WATER SEP", help="External HDD root")
     parser.add_argument("--output-dir", type=str, default=r"D:\facial\data\stage1_candidates", help="Candidates output root")
-    parser.add_argument("--min-motion-px", type=int, default=1000, help="Human-scale motion pixel threshold (default: 1000)")
-    parser.add_argument("--pre-win", type=float, default=15.0, help="Window pre-margin seconds (default: 15.0)")
-    parser.add_argument("--post-win", type=float, default=300.0, help="Window post-margin seconds (default: 300.0)")
+    parser.add_argument("--min-motion-px", type=int, default=3000, help="Human-scale motion pixel threshold (default: 3000)")
+    parser.add_argument("--pre-win", type=float, default=5.0, help="Window pre-margin seconds (default: 5.0)")
+    parser.add_argument("--post-win", type=float, default=25.0, help="Window post-margin seconds (default: 25.0)")
     parser.add_argument("--sniper-fps", type=int, default=1, help="Sniper extraction framerate (default: 1)")
     args = parser.parse_args()
 
@@ -361,7 +404,7 @@ def main():
 
     print("=" * 70)
     print("STAGE 1: HARDWARE-ACCELERATED SENTRY + PERIMETER SNIPER PIPELINE")
-    print(f"Days {args.start_day} to {args.end_day} | Input: {input_base} | Output: {output_base}")
+    print(f"Days {args.start_day} to {args.end_day} | Clips: {args.start_clip} to {args.end_clip} | Input: {input_base} | Output: {output_base}")
     print(f"Choke Point: {DEFAULT_DOOR_BOX} | Sniper Crop: {DEFAULT_SNIPER_CROP} @ {args.sniper_fps} FPS")
     print(f"Motion Threshold: >{args.min_motion_px} px | Pre/Post Margin: -{args.pre_win}s / +{args.post_win}s")
     print("=" * 70)
@@ -370,11 +413,15 @@ def main():
     day_manifests = []
 
     for d in range(args.start_day, args.end_day + 1):
+        s_clip = args.start_clip if d == args.start_day else 1
+        e_clip = args.end_clip if d == args.end_day else 33
         m = process_day(
             d, input_base, output_base,
             min_motion_px=args.min_motion_px,
             pre_win=args.pre_win, post_win=args.post_win,
-            sniper_fps=args.sniper_fps
+            sniper_fps=args.sniper_fps,
+            start_clip=s_clip,
+            end_clip=e_clip
         )
         if m:
             day_manifests.append(m)
