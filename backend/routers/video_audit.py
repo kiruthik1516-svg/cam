@@ -39,7 +39,7 @@ _ingestion_thread: Optional[threading.Thread] = None
 
 def resolve_directory_path(dir_str: str) -> Path:
     """Resolve a directory path, translating Windows drive letters if running in a Linux/Docker environment."""
-    raw = str(dir_str).strip()
+    raw = str(dir_str or "").strip().strip('"').strip("'").strip()
     p = Path(raw)
     if p.exists():
         return p.resolve()
@@ -51,12 +51,24 @@ def resolve_directory_path(dir_str: str) -> Path:
         drive = m.group(1).lower()
         sub = m.group(2).strip("/")
         candidates = [
-            Path(f"/{drive}/{sub}"),
-            Path(f"/mnt/{drive}/{sub}"),
-            Path(f"/media/{drive}/{sub}"),
-            Path(f"/host/{drive}/{sub}"),
+            Path(f"/{drive}/{sub}" if sub else f"/{drive}"),
+            Path(f"/mnt/{drive}/{sub}" if sub else f"/mnt/{drive}"),
+            Path(f"/media/{drive}/{sub}" if sub else f"/media/{drive}"),
+            Path(f"/host/{drive}/{sub}" if sub else f"/host/{drive}"),
         ]
         for c in candidates:
+            if c.exists():
+                return c.resolve()
+
+    # If HOST_FOOTAGE_DIR is mounted to /footage, check if path matches it
+    host_footage = os.environ.get("HOST_FOOTAGE_DIR", "").replace("\\", "/").strip().rstrip("/")
+    if host_footage:
+        if clean.lower() == host_footage.lower() or clean.lower() == Path(host_footage).name.lower():
+            if Path("/footage").exists():
+                return Path("/footage").resolve()
+        if clean.lower().startswith(host_footage.lower() + "/"):
+            sub_rel = clean[len(host_footage) + 1:]
+            c = Path("/footage") / sub_rel
             if c.exists():
                 return c.resolve()
 
@@ -66,11 +78,26 @@ def resolve_directory_path(dir_str: str) -> Path:
 def allowed_footage_roots() -> List[Path]:
     """Folders the footage tools may read: FOOTAGE_ROOTS (separated by ; or ,), default /footage."""
     raw = os.environ.get("FOOTAGE_ROOTS", "").strip()
-    items = [part.strip() for part in re.split(r"[;,]", raw) if part.strip()] if raw else ["/footage"]
+    items = [part.strip() for part in re.split(r"[;,]", raw) if part.strip()] if raw else ["/footage", "/app/data"]
+    # Auto-add available drive mounts
+    for auto_dir in [
+        "/d", "/e", "/f", "/g",
+        "/c/Users", "/c",
+        "/mnt/d", "/mnt/e", "/mnt/f", "/mnt/g", "/mnt/c",
+        "/footage", "/app/data",
+    ]:
+        try:
+            if Path(auto_dir).exists() and auto_dir not in items:
+                items.append(auto_dir)
+        except OSError:
+            # Dead mount point (e.g. disconnected USB drive) — skip silently
+            continue
     roots: List[Path] = []
     for item in items:
         try:
-            roots.append(resolve_directory_path(item))
+            resolved = resolve_directory_path(item)
+            if resolved.exists() and resolved not in roots:
+                roots.append(resolved)
         except OSError:
             continue
     return roots
@@ -109,6 +136,7 @@ class IngestRequest(BaseModel):
     enable_motion_gating: bool = Field(True, description="Skip static night/empty scenes for 3x speedup while preserving detections")
     max_workers: Optional[int] = Field(None, description="Max parallel camera workers (None = auto-scale based on free VRAM)")
     live_reserve_mb: int = Field(6144, description="VRAM in MB reserved exclusively for concurrent live surveillance")
+    scenario: Optional[str] = Field("auto", description="Operational scenario preset (e.g. wide_perimeter, auto, office_desk)")
 
 
 @router.get("/browse", response_model=Dict[str, Any])
@@ -124,7 +152,10 @@ def browse_directories(path: Optional[str] = Query(None, description="Path to in
     roots = allowed_footage_roots()
     if not path or not path.strip():
         for root in roots:
-            results.append({"name": root.name or str(root), "path": str(root), "is_drive": True, "has_videos": False})
+            drive_match = re.match(r"^/([a-zA-Z])$", str(root))
+            display_name = f"{drive_match.group(1).upper()}:\\" if drive_match else (root.name or str(root))
+            display_path = f"{drive_match.group(1).upper()}:\\" if drive_match else str(root)
+            results.append({"name": display_name, "path": display_path, "is_drive": True, "has_videos": False})
     else:
         resolved = ensure_within_roots(resolve_directory_path(path))
         if not resolved.exists() or not resolved.is_dir():
@@ -182,7 +213,18 @@ def locate_folder(name: str = Query(..., description="Folder name to search for"
         except (ValueError, OSError):
             continue
         if match.is_dir():
-            candidates.append(str(match))
+            display_path = str(match)
+            m = re.match(r"^/([a-zA-Z])/(.*)", str(match))
+            if m:
+                sub_win = m.group(2).replace('/', '\\')
+                display_path = f"{m.group(1).upper()}:\\{sub_win}"
+            candidates.append(display_path)
+
+    # Also check /footage directly if name matches HOST_FOOTAGE_DIR or contains videos
+    host_footage = os.environ.get("HOST_FOOTAGE_DIR", "")
+    if host_footage and Path(host_footage).name.lower() == name_clean.lower():
+        if host_footage not in candidates:
+            candidates.insert(0, host_footage)
 
     return {
         "name": name,
@@ -200,14 +242,14 @@ def scan_cctv_footage(req: ScanRequest):
     """
     global _latest_audit_report
     # Protect against raw root directory scan DoS
-    raw_str = (req.directory or "").strip().rstrip("/\\")
+    raw_str = (req.directory or "").strip().strip('"').strip("'").strip().rstrip("/\\")
     if not raw_str or (len(raw_str) <= 3 and ":" in raw_str) or raw_str in ["/", "/d", "/c", "/mnt", "/app"]:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Scanning raw drive root is restricted for security. Please specify a CCTV folder path.",
         )
 
-    target_path = resolve_directory_path(req.directory)
+    target_path = resolve_directory_path(raw_str)
     root_str = str(target_path).strip().rstrip("/\\")
     if not root_str or (len(root_str) <= 3 and ":" in root_str) or root_str in ["/", "/d", "/c", "/mnt", "/app"]:
         raise HTTPException(
@@ -241,6 +283,8 @@ def scan_cctv_footage(req: ScanRequest):
             _latest_audit_report = report_dict
 
         return report_dict
+    except FileNotFoundError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Footage folder not found: {str(exc)}")
     except HTTPException:
         raise
     except Exception as exc:
@@ -251,15 +295,12 @@ def scan_cctv_footage(req: ScanRequest):
         )
 
 
-@router.get("/latest-report", response_model=Dict[str, Any])
+@router.get("/latest-report", response_model=Optional[Dict[str, Any]])
 def get_latest_audit_report():
     """Retrieve the latest cached CCTV security audit report."""
     with _audit_lock:
         if _latest_audit_report is None:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="No audit report available. Run a scan first.",
-            )
+            return None
         return _latest_audit_report
 
 
@@ -272,14 +313,14 @@ def start_batch_ingest(req: IngestRequest):
     """
     global _ingestion_thread
     # Protect against raw root directory scan DoS
-    raw_str = (req.directory or "").strip().rstrip("/\\")
+    raw_str = (req.directory or "").strip().strip('"').strip("'").strip().rstrip("/\\")
     if not raw_str or (len(raw_str) <= 3 and ":" in raw_str) or raw_str in ["/", "/d", "/c", "/mnt", "/app"]:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Ingesting raw drive root is restricted for security. Please specify a CCTV folder path.",
         )
 
-    target_path = resolve_directory_path(req.directory)
+    target_path = resolve_directory_path(raw_str)
     root_str = str(target_path).strip().rstrip("/\\")
     if not root_str or (len(root_str) <= 3 and ":" in root_str) or root_str in ["/", "/d", "/c", "/mnt", "/app"]:
         raise HTTPException(
@@ -314,6 +355,8 @@ def start_batch_ingest(req: IngestRequest):
     engine.enable_motion_gating = req.enable_motion_gating
     engine.max_workers = req.max_workers
     engine.live_reserve_mb = req.live_reserve_mb
+    engine.scenario = req.scenario or "auto"
+    engine.progress.scenario = engine.scenario
 
     def _worker():
         try:

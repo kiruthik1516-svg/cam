@@ -44,17 +44,17 @@ export const fetchTrajectory = async (
   hours?: number,
 ): Promise<SubjectTrajectory | null> => {
   const params = new URLSearchParams()
-  if (profileId !== undefined)
-    params.append('profileId', encodeURIComponent(profileId))
+  if (profileId)
+    params.append('profileId', profileId)
   if (hours !== undefined)
-    params.append('hours', encodeURIComponent(String(hours)))
+    params.append('hours', String(hours))
   const qs = params.toString() ? `?${params.toString()}` : ''
-  const response = await authFetch(`/api/analytics/trajectory${qs}`)
-  const raw = await handleResponse<any>(response)
   try {
+    const response = await authFetch(`/api/analytics/trajectory${qs}`)
+    const raw = await handleResponse<any>(response)
     return raw ? adaptSubjectTrajectory(raw) : null
   } catch (e) {
-    console.error('fetchTrajectory adapt failed:', e)
+    console.warn('fetchTrajectory failed or empty:', e)
     return null
   }
 }

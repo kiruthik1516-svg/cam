@@ -238,10 +238,18 @@ export const UnregisteredSubjectSchema = z.object({
 
 export const DuplicateCandidateSchema = z.object({
   id: strOrEmpty,
-  profileA: z.any(),
-  profile_a: z.any(),
-  profileB: z.any(),
-  profile_b: z.any(),
+  profileAId: z.string().nullish(),
+  profileAName: z.string().nullish(),
+  profileARole: z.string().nullish(),
+  profileAAvatarTone: z.string().nullish(),
+  profileBId: z.string().nullish(),
+  profileBName: z.string().nullish(),
+  profileBRole: z.string().nullish(),
+  profileBAvatarTone: z.string().nullish(),
+  profileA: z.any().optional(),
+  profile_a: z.any().optional(),
+  profileB: z.any().optional(),
+  profile_b: z.any().optional(),
   cosine_similarity: z.number().optional(),
   cosineSimilarity: z.number().optional(),
   shared_sightings: z.number().optional(),
@@ -249,22 +257,32 @@ export const DuplicateCandidateSchema = z.object({
 }).transform(raw => {
   const pA = raw.profileA ?? raw.profile_a ?? {};
   const pB = raw.profileB ?? raw.profile_b ?? {};
+  const aId = pA.id ?? raw.profileAId ?? '';
+  const aName = pA.name ?? raw.profileAName ?? '';
+  const aRole = pA.role ?? raw.profileARole ?? '';
+  const aTone = pA.avatar_tone ?? pA.avatarTone ?? raw.profileAAvatarTone ?? AVATAR_TONES[hashString(aId) % AVATAR_TONES.length];
+
+  const bId = pB.id ?? raw.profileBId ?? '';
+  const bName = pB.name ?? raw.profileBName ?? '';
+  const bRole = pB.role ?? raw.profileBRole ?? '';
+  const bTone = pB.avatar_tone ?? pB.avatarTone ?? raw.profileBAvatarTone ?? AVATAR_TONES[hashString(bId) % AVATAR_TONES.length];
+
   return {
     id: raw.id,
     profileA: {
-      id: pA.id ?? '',
-      name: pA.name ?? '',
-      role: normalizeRole(pA.role ?? ''),
-      avatarTone: pA.avatar_tone ?? pA.avatarTone ?? AVATAR_TONES[hashString(pA.id ?? '') % AVATAR_TONES.length],
+      id: aId,
+      name: aName,
+      role: normalizeRole(aRole),
+      avatarTone: aTone,
     },
     profileB: {
-      id: pB.id ?? '',
-      name: pB.name ?? '',
-      role: normalizeRole(pB.role ?? ''),
-      avatarTone: pB.avatar_tone ?? pB.avatarTone ?? AVATAR_TONES[hashString(pB.id ?? '') % AVATAR_TONES.length],
+      id: bId,
+      name: bName,
+      role: normalizeRole(bRole),
+      avatarTone: bTone,
     },
-    cosineSimilarity: raw.cosine_similarity ?? raw.cosineSimilarity ?? 0,
-    sharedSightings: raw.shared_sightings ?? raw.sharedSightings ?? 0
+    cosineSimilarity: raw.cosineSimilarity ?? raw.cosine_similarity ?? 0,
+    sharedSightings: raw.sharedSightings ?? raw.shared_sightings ?? 0
   };
 });
 
@@ -392,14 +410,14 @@ export const DemographicSliceSchema = z.object({
 });
 
 export const SystemKpisSchema = z.object({
-  connectedCameras: numOrZero,
-  totalCameras: numOrZero,
-  detectionsToday: numOrZero,
-  activeAlerts: numOrZero,
-  systemHealth: SystemHealthSchema,
-  gpuLoad: numOrZero,
-  cpuLoad: numOrZero,
-  avgLatencyMs: numOrZero,
+  connectedCameras: numOrZero.optional(),
+  totalCameras: numOrZero.optional(),
+  detectionsToday: numOrZero.optional(),
+  activeAlerts: numOrZero.optional(),
+  systemHealth: SystemHealthSchema.optional(),
+  gpuLoad: numOrZero.optional(),
+  cpuLoad: numOrZero.optional(),
+  avgLatencyMs: numOrZero.optional(),
   connected_cameras: numOrZero.optional(),
   total_cameras: numOrZero.optional(),
   detections_today: numOrZero.optional(),
@@ -407,16 +425,27 @@ export const SystemKpisSchema = z.object({
   system_health: SystemHealthSchema.optional(),
   gpu_load: numOrZero.optional(),
   cpu_load: numOrZero.optional(),
-  avg_latency_ms: numOrZero.optional()
+  avg_latency_ms: numOrZero.optional(),
+  total_detections: numOrZero.optional(),
+  totalDetections: numOrZero.optional(),
+  unique_individuals: numOrZero.optional(),
+  uniqueIndividuals: numOrZero.optional(),
+  total_profiles: numOrZero.optional(),
+  totalProfiles: numOrZero.optional(),
+  cameras_online: numOrZero.optional(),
+  camerasOnline: numOrZero.optional(),
+  critical_alerts: numOrZero.optional(),
+  criticalAlerts: numOrZero.optional(),
 }).transform(raw => ({
-  connectedCameras: raw.connected_cameras ?? raw.connectedCameras,
-  totalCameras: raw.total_cameras ?? raw.totalCameras,
-  detectionsToday: raw.detections_today ?? raw.detectionsToday,
-  activeAlerts: raw.active_alerts ?? raw.activeAlerts,
-  systemHealth: raw.system_health ?? raw.systemHealth ?? 'red',
-  gpuLoad: raw.gpu_load ?? raw.gpuLoad,
-  cpuLoad: raw.cpu_load ?? raw.cpuLoad,
-  avgLatencyMs: raw.avg_latency_ms ?? raw.avgLatencyMs
+  connectedCameras: raw.connected_cameras ?? raw.cameras_online ?? raw.connectedCameras ?? 0,
+  totalCameras: raw.total_cameras ?? raw.totalCameras ?? 0,
+  detectionsToday: raw.detections_today ?? raw.detectionsToday ?? raw.total_detections ?? raw.totalDetections ?? 0,
+  totalDetections: raw.total_detections ?? raw.totalDetections ?? 0,
+  activeAlerts: raw.active_alerts ?? raw.critical_alerts ?? raw.activeAlerts ?? 0,
+  systemHealth: raw.system_health ?? raw.systemHealth ?? 'yellow',
+  gpuLoad: raw.gpu_load ?? raw.gpuLoad ?? 0,
+  cpuLoad: raw.cpu_load ?? raw.cpuLoad ?? 0,
+  avgLatencyMs: raw.avg_latency_ms ?? raw.avgLatencyMs ?? 0
 }));
 
 export const ModelThresholdsSchema = z.object({

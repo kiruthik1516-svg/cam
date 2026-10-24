@@ -4,11 +4,22 @@ export const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:1223
 
 export const WS_URL = process.env.NEXT_PUBLIC_WS_URL || 'ws://localhost:1223'
 
-export function apiUrl(path: string): string {
+export function getBackendUrl(path: string): string {
   if (path.startsWith('http')) return path
   const base = API_URL.endsWith('/') ? API_URL.slice(0, -1) : API_URL
   const uri = path.startsWith('/') ? path : `/${path}`
   return `${base}${uri}`
+}
+
+export function apiUrl(path: string): string {
+  if (path.startsWith('http')) return path
+  if (typeof window !== 'undefined') {
+    const isLocalhostBackend = API_URL.includes('localhost:1223') || API_URL.includes('127.0.0.1:1223')
+    if (isLocalhostBackend) {
+      return path.startsWith('/') ? path : `/${path}`
+    }
+  }
+  return getBackendUrl(path)
 }
 
 export async function handleResponse<T>(res: Response): Promise<T> {
@@ -44,8 +55,9 @@ export async function authFetch(path: string, options?: RequestInit): Promise<Re
     ...options,
     headers,
   }
+  const targetUrl = apiUrl(path)
   try {
-    const res = await fetch(apiUrl(path), reqOptions)
+    const res = await fetch(targetUrl, reqOptions)
     if (res.status === 401 && typeof window !== 'undefined') {
       localStorage.removeItem('sentinel_token')
       if (window.location.pathname !== '/login') {
@@ -54,9 +66,18 @@ export async function authFetch(path: string, options?: RequestInit): Promise<Re
     }
     return res
   } catch (err: unknown) {
+    // Single fast retry for transient socket congestion
+    if (typeof window !== 'undefined') {
+      try {
+        await new Promise((r) => setTimeout(r, 200))
+        return await fetch(targetUrl, reqOptions)
+      } catch {
+        // Fall through to error reporting
+      }
+    }
     const msg = err instanceof Error ? err.message : String(err)
     console.error(`authFetch network error for ${path}:`, msg)
-    throw new Error(`Network request failed to ${apiUrl(path)}: ${msg}`)
+    throw new Error(`Network request failed to ${targetUrl}: ${msg}`)
   }
 }
 
@@ -231,20 +252,20 @@ export async function getCameraStreamTicket(cameraId: string): Promise<string | 
 
 export function getCameraStreamUrl(cameraId: string, ticket?: string | null): string {
   if (ticket) {
-    return apiUrl(`/api/cameras/${encodeURIComponent(cameraId)}/stream?ticket=${encodeURIComponent(ticket)}`)
+    return getBackendUrl(`/api/cameras/${encodeURIComponent(cameraId)}/stream?ticket=${encodeURIComponent(ticket)}`)
   }
   const token = typeof window !== 'undefined' ? localStorage.getItem('sentinel_token') : null
   const query = token ? `?token=${encodeURIComponent(token)}` : ''
-  return apiUrl(`/api/cameras/${encodeURIComponent(cameraId)}/stream${query}`)
+  return getBackendUrl(`/api/cameras/${encodeURIComponent(cameraId)}/stream${query}`)
 }
 
 export function getCameraSnapshotUrl(cameraId: string, ticket?: string | null): string {
   if (ticket) {
-    return apiUrl(`/api/cameras/${encodeURIComponent(cameraId)}/stream/snapshot?ticket=${encodeURIComponent(ticket)}`)
+    return getBackendUrl(`/api/cameras/${encodeURIComponent(cameraId)}/stream/snapshot?ticket=${encodeURIComponent(ticket)}`)
   }
   const token = typeof window !== 'undefined' ? localStorage.getItem('sentinel_token') : null
   const query = token ? `?token=${encodeURIComponent(token)}` : ''
-  return apiUrl(`/api/cameras/${encodeURIComponent(cameraId)}/stream/snapshot${query}`)
+  return getBackendUrl(`/api/cameras/${encodeURIComponent(cameraId)}/stream/snapshot${query}`)
 }
 
 export function hashString(s: string): number {

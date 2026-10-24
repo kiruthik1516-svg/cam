@@ -15,11 +15,62 @@ This system processes live RTSP and webcam video feeds on local edge devices, ex
 - **Distributed Processing**: Offload heavy ML inference to GPU instances using the frame sender and detection service.
 
 ## Tech Stack
-- **Frontend**: Next.js 16, React 19, TailwindCSS, Lucide Icons, `@tanstack/react-query`
+- **Frontend**: Next.js 16, React 19, TailwindCSS, Lucide Icons, @tanstack/react-query
 - **Backend API**: Python 3.11, FastAPI, Uvicorn, WebSockets, SQLAlchemy 2.0 (ORM)
-- **Computer Vision / AI**: InsightFace, ONNX Runtime, OpenCV, NumPy
-- **Database**: PostgreSQL 16 with `pgvector` extension
+- **Computer Vision / AI**: InsightFace (ArcFace 512-D embeddings), ONNX Runtime, OpenCV, PyAV, FFmpeg (d3d11va hardware acceleration)
+- **Database**: PostgreSQL 16 with pgvector extension (HNSW index)
 - **Deployment**: Docker Compose v2 (Production & Dev profiles)
+
+## High-Throughput 3K Surveillance Audit Engine
+
+For forensic ingestion of continuous multi-day 3K surveillance footage (30 unbroken days of 3K HEVC @ 30 FPS, 998 clips, ~954 GB), the platform incorporates a 4-stage distributed processing pipeline:
+
+`
+[Master 3K CCTV Footage (E:\\)] (Read-Only :ro)
+               │
+               ▼  (Direct Sequential Stream @ 45 MB/s)
+[Stage 1: Hardware Sentry + Sniper Engine]
+   ├── Hardware Sentry (Intel Iris Xe d3d11va + HEVC I-frame skipping)
+   │     • Scans Doorway Choke-point [1250, 120, 1550, 380] at 115x real-time (22s / 45-min clip)
+   │     • Filters IR sensor noise with calibrated human threshold (>1,000 px)
+   │     • Skips 100% of unoccupied clips with zero disk writes
+   └── Lossless Perimeter Sniper
+         • Buffers active sessions: [-15s, +300s] with clip-boundary carry-over
+         • Extracts 1:1 lossless perimeter crops [295, 20, 1490, 780] at 1 FPS
+         • Compresses 31.8 GB/day of raw video into ~2.7 GB lossless candidate crops
+               │
+               ▼  (Lightweight tarball upload < 2 mins)
+[Stage 2: Cloud GPU Vectorization (JarvisLabs RTX 5000 / A5000)]
+   • Runs native InsightFace RetinaFace + ArcFace embedding extraction at 180 FPS
+   • Computes forensic face sharpness & quality scores (0-100%)
+   • Streams 512-D normalized unit vectors directly into PostgreSQL detections table
+               │
+               ▼  (Local Database Query)
+[Stage 3: Spatial Behavior & Zone Collision Auditing]
+   • DBSCAN / Cosine-distance clustering of tracklets into persistent identities (SUBJ-01 to SUBJ-XX)
+   • Strict spatial polygon collision auditing against calibrated plant equipment:
+       - Multiport Valves: [755, 220, 985, 360]
+       - Ultimate Power Switch: [998, 155, 1090, 265]
+       - RO Skid Controls: [945, 345, 1210, 510]
+   • Auto-trims lossless 3K MP4 evidence clips for any equipment interactions
+               │
+               ▼
+[Stage 4: Signed Executive Audit Dossier Compilation]
+   • Compiles comprehensive PDF Surveillance Audit Dossier with cryptographic SHA-256 evidence hashes
+   • Strict forensic objectivity: unassigned subjects cataloged strictly as Pending Identification
+`
+
+### Running the Surveillance Pipeline
+`ash
+# Stage 1: Hardware-accelerated candidate extraction (Days 1 to 10)
+python scripts/stage1_sentry_sniper_pipeline.py --start-day 1 --end-day 10
+
+# Stage 2: Cloud GPU ArcFace vectorization
+python scripts/stage2_cloud_worker.py --manifest D:\\facial\\data\\stage1_candidates\\day_01\\manifest.json
+
+# Validate ground-truth recall against PostgreSQL
+python scripts/test_stage1_recall.py
+`
 
 ## Architecture Options
 

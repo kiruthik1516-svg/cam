@@ -720,7 +720,7 @@ function AttendanceTable({ selectedDates }: { selectedDates: Date[] }) {
                   <RoleBadge role={r.role} />
                 </TableCell>
                 <TableCell className="text-sm text-muted-foreground">
-                  {r.department}
+                  {r.department || 'General'}
                 </TableCell>
                 <TableCell className="font-mono text-xs text-success">
                   {formatClock(r.checkIn)}

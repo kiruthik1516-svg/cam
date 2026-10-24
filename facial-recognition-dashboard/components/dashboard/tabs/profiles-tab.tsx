@@ -293,7 +293,13 @@ function DedupPanel() {
         />
       </CardHeader>
       <CardContent className="flex flex-col gap-2.5 p-3">
-        {dupes.map((d) => {
+        {dupes.length === 0 ? (
+          <div className="flex flex-col items-center justify-center gap-2 py-8 text-center text-muted-foreground">
+            <Copy className="size-6 opacity-40" />
+            <p className="text-xs">No duplicate vector candidates detected in vector space.</p>
+          </div>
+        ) : (
+          dupes.map((d) => {
           const isMerged = merged.includes(d.id)
           return (
             <div
@@ -334,7 +340,7 @@ function DedupPanel() {
               </Button>
             </div>
           )
-        })}
+        }))}
       </CardContent>
     </Card>
   )
@@ -562,57 +568,92 @@ function UnregisteredVectorsPanel({ profiles }: { profiles: Profile[] }) {
 
         {selectedSubject && (
           <Dialog open={!!selectedSubject} onOpenChange={(open) => !open && setSelectedSubject(null)}>
-            <DialogContent className="max-w-lg">
-              <DialogHeader>
-                <DialogTitle className="flex items-center gap-2 text-base">
-                  <ScanFace className="size-5 text-rose-500" />
-                  {modalMode === 'register' ? 'Register New Profile' : 'Assign to Existing Profile'}
-                </DialogTitle>
-                <DialogDescription>
-                  Review the captured biometric photo and assign an identity without using CLI.
-                </DialogDescription>
+            <DialogContent className="sm:max-w-xl border-border/80 bg-card/95 backdrop-blur-xl shadow-2xl p-5">
+              <DialogHeader className="gap-1 pb-2 border-b border-border/40">
+                <div className="flex items-center gap-2">
+                  <span className="flex size-8 items-center justify-center rounded-lg bg-rose-500/10 border border-rose-500/20 text-rose-500 shadow-sm">
+                    <ScanFace className="size-4" />
+                  </span>
+                  <div>
+                    <DialogTitle className="text-base font-semibold tracking-tight">
+                      {modalMode === 'register' ? 'Register New Profile' : 'Assign to Existing Profile'}
+                    </DialogTitle>
+                    <DialogDescription className="text-xs text-muted-foreground">
+                      Review captured biometric data and assign an identity or register as a new profile.
+                    </DialogDescription>
+                  </div>
+                </div>
               </DialogHeader>
 
-              <div className="my-2 grid grid-cols-1 items-center gap-4 sm:grid-cols-[130px_1fr] rounded-lg border border-border bg-muted/30 p-3">
-                <div className="flex flex-col items-center gap-1.5">
+              {/* Mode Segmented Tab Selector */}
+              <div className="grid grid-cols-2 rounded-lg border border-border/70 bg-muted/40 p-1 text-xs">
+                <button
+                  type="button"
+                  onClick={() => setModalMode('register')}
+                  className={cn(
+                    'flex items-center justify-center gap-1.5 rounded-md py-1.5 font-medium transition-all cursor-pointer',
+                    modalMode === 'register'
+                      ? 'bg-background text-foreground shadow-sm ring-1 ring-border/50'
+                      : 'text-muted-foreground hover:text-foreground hover:bg-muted/30',
+                  )}
+                >
+                  <UserRoundPlus className="size-3.5 text-rose-500" />
+                  <span>Register New Profile</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setModalMode('assign')}
+                  className={cn(
+                    'flex items-center justify-center gap-1.5 rounded-md py-1.5 font-medium transition-all cursor-pointer',
+                    modalMode === 'assign'
+                      ? 'bg-background text-foreground shadow-sm ring-1 ring-border/50'
+                      : 'text-muted-foreground hover:text-foreground hover:bg-muted/30',
+                  )}
+                >
+                  <UsersRound className="size-3.5 text-primary" />
+                  <span>Assign to Profile</span>
+                </button>
+              </div>
+
+              {/* Biometric Subject Card */}
+              <div className="flex flex-col sm:flex-row items-center sm:items-start gap-3.5 rounded-xl border border-border/70 bg-muted/20 p-3.5 shadow-inner">
+                <div className="flex flex-col items-center gap-1.5 shrink-0">
                   <FaceTile
                     image={selectedSubject.thumbnail}
                     tone="rose"
                     size="lg"
                     flagged
-                    className="size-24 rounded-lg shadow-md ring-2 ring-primary/40"
+                    className="size-20 rounded-lg shadow-md ring-2 ring-rose-500/30"
                   />
-                  <Badge variant="outline" className="text-[10px] font-mono">
+                  <Badge variant="outline" className="font-mono text-[10px] bg-rose-500/10 border-rose-500/30 text-rose-400">
                     {(selectedSubject.bestConfidence * 100).toFixed(1)}% confidence
                   </Badge>
                 </div>
 
-                <div className="space-y-1 text-xs text-muted-foreground">
-                  <p className="font-semibold text-sm text-foreground">{selectedSubject.displayName}</p>
-                  <p><span className="font-medium text-foreground">Captures:</span> {selectedSubject.captureCount} sightings</p>
-                  <p><span className="font-medium text-foreground">Cameras:</span> {selectedSubject.cameras.join(', ') || 'Camera 0'}</p>
-                  <p><span className="font-medium text-foreground">Time Recorded:</span> {formatTime(selectedSubject.firstSeen)} - {formatTime(selectedSubject.lastSeen)} IST</p>
-                  <div className="flex gap-2 pt-2">
-                    <Button
-                      size="xs"
-                      type="button"
-                      variant={modalMode === 'register' ? 'default' : 'outline'}
-                      onClick={() => setModalMode('register')}
-                    >
-                      Register New Profile
-                    </Button>
-                    <Button
-                      size="xs"
-                      type="button"
-                      variant={modalMode === 'assign' ? 'default' : 'outline'}
-                      onClick={() => setModalMode('assign')}
-                    >
-                      Assign to Profile
-                    </Button>
+                <div className="min-w-0 flex-1 space-y-1.5 text-xs">
+                  <div className="flex items-center justify-between gap-2">
+                    <h4 className="font-semibold text-sm text-foreground truncate">
+                      {selectedSubject.displayName}
+                    </h4>
+                    <Badge variant="secondary" className="font-mono text-[10px]">
+                      {selectedSubject.captureCount} {selectedSubject.captureCount === 1 ? 'sighting' : 'sightings'}
+                    </Badge>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-muted-foreground text-[11px]">
+                    <div>
+                      <span className="text-foreground/70 font-medium">Cameras:</span>{' '}
+                      <span className="font-mono text-foreground">{selectedSubject.cameras.join(', ') || 'webcam'}</span>
+                    </div>
+                    <div>
+                      <span className="text-foreground/70 font-medium">Recorded:</span>{' '}
+                      <span className="font-mono">{formatTime(selectedSubject.firstSeen)} IST</span>
+                    </div>
                   </div>
                 </div>
               </div>
 
+              {/* Mode-specific Forms */}
               {modalMode === 'register' ? (
                 <form
                   onSubmit={(e) => {
@@ -625,7 +666,7 @@ function UnregisteredVectorsPanel({ profiles }: { profiles: Profile[] }) {
                       department: regDept.trim() || undefined,
                     })
                   }}
-                  className="space-y-3"
+                  className="space-y-3 pt-1"
                 >
                   <div className="space-y-1">
                     <Label htmlFor="reg-name" className="text-xs">Full Name *</Label>
@@ -679,18 +720,18 @@ function UnregisteredVectorsPanel({ profiles }: { profiles: Profile[] }) {
                   </DialogFooter>
                 </form>
               ) : (
-                <div className="space-y-3">
-                  <div className="space-y-1">
-                    <Label htmlFor="assign-profile" className="text-xs">Select Target Profile</Label>
+                <div className="space-y-3 pt-1">
+                  <div className="space-y-1.5">
+                    <Label htmlFor="assign-profile" className="text-xs font-medium">Select Target Profile</Label>
                     <select
                       id="assign-profile"
                       value={assignProfileId}
                       onChange={(e) => setAssignProfileId(e.target.value)}
-                      className="h-8 w-full rounded-md border border-border bg-background px-2 text-xs"
+                      className="h-9 w-full rounded-md border border-border bg-background px-2.5 text-xs text-foreground focus:ring-1 focus:ring-primary focus:outline-none"
                     >
                       {profiles.map((p) => (
                         <option key={p.id} value={p.id}>
-                          {p.name} ({p.role}{p.department ? ` · ${p.department}` : ''})
+                          {p.name} ({p.role}{p.department ? ` · ${p.department}` : ''}) — {p.embeddingCount} vectors
                         </option>
                       ))}
                     </select>

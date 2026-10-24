@@ -64,7 +64,7 @@ export function CctvAuditPanel() {
   const [sampleFps, setSampleFps] = useState<number>(2.0);
   const [tolerance, setTolerance] = useState<number>(5.0);
   const [motionGating, setMotionGating] = useState<boolean>(true);
-  const [scenario, setScenario] = useState<string>('office_desk');
+  const [scenario, setScenario] = useState<string>('auto');
   const [showManifest, setShowManifest] = useState<boolean>(false);
   const [confirmPurgeId, setConfirmPurgeId] = useState<string | null>(null);
   const [showFolderBrowser, setShowFolderBrowser] = useState<boolean>(false);

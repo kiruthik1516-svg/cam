@@ -2,7 +2,7 @@
 from datetime import datetime
 from enum import Enum
 from typing import Optional, List, Tuple, Dict, Any
-from pydantic import ConfigDict, BaseModel, field_validator, model_validator, field_serializer
+from pydantic import ConfigDict, BaseModel, field_validator, model_validator, field_serializer, computed_field
 from config import to_ist_iso
 from facial_recognition.sources import redact_url
 
@@ -442,6 +442,8 @@ class ImportBatchResponse(BaseModel):
 
 class SystemKpisResponse(BaseModel):
     """System-wide key performance indicators."""
+    model_config = ConfigDict(populate_by_name=True)
+
     total_detections: int
     unique_individuals: int
     total_profiles: int
@@ -459,6 +461,38 @@ class SystemKpisResponse(BaseModel):
     gpu_load: float = 0.0
     cpu_load: float = 0.0
     avg_latency_ms: float = 0.0
+
+    @computed_field
+    def connectedCameras(self) -> int:
+        return self.connected_cameras
+
+    @computed_field
+    def totalCameras(self) -> int:
+        return self.total_cameras
+
+    @computed_field
+    def detectionsToday(self) -> int:
+        return self.detections_today
+
+    @computed_field
+    def activeAlerts(self) -> int:
+        return self.active_alerts
+
+    @computed_field
+    def systemHealth(self) -> str:
+        return self.system_health
+
+    @computed_field
+    def gpuLoad(self) -> float:
+        return self.gpu_load
+
+    @computed_field
+    def cpuLoad(self) -> float:
+        return self.cpu_load
+
+    @computed_field
+    def avgLatencyMs(self) -> float:
+        return self.avg_latency_ms
 
 
 # ==================== Thresholds ====================

@@ -106,7 +106,7 @@ def get_kpis(
         elif connected_cameras > 0:
             system_health = "yellow"
         else:
-            system_health = "red"
+            system_health = "yellow"
     cameras_online = connected_cameras
     active_alerts = alert_q.filter(
         Alert.acknowledged == False

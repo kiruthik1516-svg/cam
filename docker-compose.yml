@@ -54,13 +54,17 @@ services:
       ADMIN_PASSWORD: ${ADMIN_PASSWORD}
       DEBUG: "false"
       ENABLE_FORENSIC_SEARCH: "true"
-      FOOTAGE_ROOTS: ${FOOTAGE_ROOTS:-/footage,/app/data}
+      HOST_FOOTAGE_DIR: ${HOST_FOOTAGE_DIR:-D:\DBGT POC}
+      FOOTAGE_ROOTS: ${FOOTAGE_ROOTS:-/footage,/app/data,/d,/e,D:\,E:\}
       TZ: Asia/Kolkata
     volumes:
       - ./backend:/app/backend
       - ./facial_recognition:/app/facial_recognition
       - ./data:/app/data
       - ${HOST_FOOTAGE_DIR:-./data}:/footage:ro
+      - D:\:/d:ro
+      - E:\:/e:ro
+      - C:\Users:/c/Users:ro
     ports:
       - "1223:1223"
     healthcheck:

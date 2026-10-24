@@ -302,8 +302,8 @@ class InsightFaceDetector:
     def detect(
         self,
         frame: np.ndarray,
-        min_score: float = 0.52,
-        min_size: int = 44,
+        min_score: float = 0.45,
+        min_size: int = 20,
     ) -> List[Dict[str, Any]]:
         results: List[Dict[str, Any]] = []
         logger = logging.getLogger(__name__)

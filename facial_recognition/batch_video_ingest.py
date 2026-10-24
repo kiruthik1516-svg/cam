@@ -17,17 +17,19 @@ import base64
 import collections
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import datetime
+import hashlib
 import json
 import logging
 import math
 import os
+import re
 import sys
 import threading
 import time
 import uuid
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Callable, Dict, List, Optional, Tuple
+from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 
 import cv2
 import numpy as np
@@ -51,6 +53,55 @@ from facial_recognition.video_auditor import (
 )
 
 logger = logging.getLogger(__name__)
+
+
+# ==============================================================================
+# Ingestion Checkpoint Helpers
+# ==============================================================================
+
+def normalize_footage_key(dir_path: Union[str, Path]) -> str:
+    """Normalize drive letters and path separators across Docker Linux and Windows."""
+    s = re.sub(r'[\\/]+', '/', str(dir_path).strip()).rstrip('/')
+    m = re.match(r"^/([a-zA-Z])/(.*)", s)
+    if m:
+        s = f"{m.group(1).lower()}:/{m.group(2)}"
+    return s.lower()
+
+
+def get_ingest_checkpoint_path(footage_dir: Union[str, Path]) -> Path:
+    """Compute standard hashed checkpoint filepath for a footage directory."""
+    ckpt_dir = _root_dir / "data" / "ingest_checkpoints"
+    ckpt_dir.mkdir(parents=True, exist_ok=True)
+    norm_key = normalize_footage_key(footage_dir)
+    dir_hash = hashlib.md5(norm_key.encode("utf-8")).hexdigest()
+    return ckpt_dir / f"ingest_ckpt_{dir_hash}.json"
+
+
+def find_ingest_checkpoint(footage_dir: Union[str, Path]) -> Tuple[Optional[Path], Optional[Dict[str, Any]]]:
+    """Locate existing checkpoint for this footage directory if available."""
+    ckpt_dir = _root_dir / "data" / "ingest_checkpoints"
+    if not ckpt_dir.exists():
+        return None, None
+    norm_target = normalize_footage_key(footage_dir)
+    primary_ckpt = get_ingest_checkpoint_path(footage_dir)
+    if primary_ckpt.exists():
+        try:
+            with open(primary_ckpt, "r", encoding="utf-8") as f:
+                data = json.load(f)
+                return primary_ckpt, data
+        except Exception as e:
+            logger.warning("Error reading primary checkpoint %s: %s", primary_ckpt, e)
+
+    # Search any other json files matching normalized directory
+    for p in ckpt_dir.glob("*.json"):
+        try:
+            with open(p, "r", encoding="utf-8") as f:
+                data = json.load(f)
+                if normalize_footage_key(data.get("directory", "")) == norm_target:
+                    return p, data
+        except Exception:
+            continue
+    return None, None
 
 
 def compute_box_iou(box1: List[int], box2: List[int]) -> float:
@@ -481,32 +532,68 @@ class BatchVideoIngestEngine:
                 except Exception:
                     db.rollback()
 
-            # Register ImportBatch record
+            # Register or Resume ImportBatch record
+            # Check for existing checkpoint to support seamless resumption
+            active_ckpt_path, ckpt_data = find_ingest_checkpoint(footage_dir)
+            completed_files: set = set()
+            resuming: bool = False
+            initial_completed_count: int = 0
+            initial_processed_frames: int = 0
+
+            if ckpt_data and ckpt_data.get("completed_files"):
+                if ckpt_data.get("status") != "completed":
+                    completed_files = set(ckpt_data.get("completed_files", []))
+                    initial_completed_count = len(completed_files)
+                    if not batch_id and ckpt_data.get("batch_id"):
+                        batch_id = ckpt_data.get("batch_id")
+                    resuming = True
+                    logger.info(
+                        "Ingestion Checkpoint Active for %s: %d/%d files already completed. Resuming batch %s.",
+                        footage_dir, initial_completed_count, total_files, batch_id
+                    )
+
             if not batch_id:
                 batch_id = f"batch_{datetime.datetime.now().strftime('%Y%m%d%H%M%S')}_{uuid.uuid4().hex[:6]}"
             if not batch_name:
                 batch_name = f"CCTV Import ({Path(footage_dir).name})"
 
-            import_batch_rec = models.ImportBatch(
-                id=batch_id,
-                name=batch_name,
-                source_directory=str(footage_dir),
-                camera_count=len(discovered_cams),
-                total_files=total_files,
-                total_detections=0,
-                total_alerts=0,
-                sample_fps=self.sample_fps,
-                status="processing",
-            )
-            db.add(import_batch_rec)
-            db.commit()
+            import_batch_rec = db.query(models.ImportBatch).filter(models.ImportBatch.id == batch_id).first()
+            if import_batch_rec:
+                import_batch_rec.status = "processing"
+                db.commit()
+                logger.info("Resuming existing ImportBatch in DB: %s (name=%s, previous_detections=%d)",
+                            batch_id, import_batch_rec.name, import_batch_rec.total_detections or 0)
+            else:
+                import_batch_rec = models.ImportBatch(
+                    id=batch_id,
+                    name=batch_name,
+                    source_directory=str(footage_dir),
+                    camera_count=len(discovered_cams),
+                    total_files=total_files,
+                    total_detections=0,
+                    total_alerts=0,
+                    sample_fps=self.sample_fps,
+                    status="processing",
+                )
+                db.add(import_batch_rec)
+                db.commit()
 
             start_t = time.time()
-            total_processed_frames = 0
-            total_detected_faces = 0
-            total_alerts = 0
-            total_static_skipped = 0
-            completed_files_count = 0
+            total_processed_frames = ckpt_data.get("total_frames_processed", 0) if (resuming and ckpt_data) else 0
+            initial_processed_frames = total_processed_frames
+            total_detected_faces = (import_batch_rec.total_detections or ckpt_data.get("total_detections", 0)) if (resuming and ckpt_data) else 0
+            total_alerts = (import_batch_rec.total_alerts or ckpt_data.get("total_alerts", 0)) if (resuming and ckpt_data) else 0
+            total_static_skipped = ckpt_data.get("total_static_skipped", 0) if (resuming and ckpt_data) else 0
+            completed_files_count = initial_completed_count
+
+            # Initialize progress counters with restored values
+            with self._progress_lock:
+                self.progress.file_index = min(total_files, completed_files_count + 1)
+                self.progress.frames_processed = total_processed_frames
+                self.progress.faces_detected = total_detected_faces
+                self.progress.alerts_triggered = total_alerts
+                self.progress.static_frames_skipped = total_static_skipped
+                self.progress.progress_percent = round((completed_files_count / total_files) * 100.0, 1)
 
             # 4. Multi-Camera Parallel Worker Pool
             def _camera_worker(cam_id: str, cam_clips: List[VideoClipMetadata]) -> Tuple[int, int, int, int]:
@@ -533,6 +620,10 @@ class BatchVideoIngestEngine:
                         if self.stop_event.is_set():
                             break
 
+                        if clip.file_name in completed_files:
+                            logger.info("Checkpoint: skipping already processed clip %s", clip.file_name)
+                            continue
+
                         with self._progress_lock:
                             self.progress.current_file = clip.file_name
                             self.progress.current_camera = clip.camera_id
@@ -545,11 +636,12 @@ class BatchVideoIngestEngine:
                                 live_skip = total_static_skipped + cur_skip
 
                                 elapsed = max(0.001, time.time() - start_t)
-                                fps_proc = live_proc / elapsed
+                                files_done_session = max(0.01, (completed_files_count - initial_completed_count) + file_ratio)
+                                fps_proc = max(0.1, (live_proc - initial_processed_frames)) / elapsed
 
                                 overall_pct = min(99.9, ((completed_files_count + min(0.99, file_ratio)) / total_files) * 100.0)
-                                rem_pct = max(0.0, 100.0 - overall_pct)
-                                eta = (elapsed / max(0.1, overall_pct)) * rem_pct
+                                rem_files = max(0.0, total_files - (completed_files_count + file_ratio))
+                                eta = rem_files * (elapsed / files_done_session)
 
                                 self.progress.file_index = min(total_files, completed_files_count + 1)
                                 self.progress.frames_processed = live_proc
@@ -579,17 +671,18 @@ class BatchVideoIngestEngine:
                         # Thread-safe atomic progress aggregation
                         with self._progress_lock:
                             completed_files_count += 1
+                            completed_files.add(clip.file_name)
                             total_processed_frames += processed
                             total_detected_faces += detected
                             total_alerts += alerts
                             total_static_skipped += skipped
 
-                            elapsed = time.time() - start_t
-                            fps_proc = total_processed_frames / elapsed if elapsed > 0 else 0.0
+                            elapsed = max(0.001, time.time() - start_t)
+                            files_done_session = max(1, completed_files_count - initial_completed_count)
+                            fps_proc = (total_processed_frames - initial_processed_frames) / elapsed
                             pct = round((completed_files_count / total_files) * 100.0, 1)
                             rem_files = total_files - completed_files_count
-                            avg_time_per_file = elapsed / completed_files_count if completed_files_count > 0 else 0
-                            eta = rem_files * avg_time_per_file
+                            eta = rem_files * (elapsed / files_done_session)
 
                             self.progress.file_index = completed_files_count
                             self.progress.frames_processed = total_processed_frames
@@ -601,6 +694,26 @@ class BatchVideoIngestEngine:
                             self.progress.elapsed_seconds = round(elapsed, 1)
                             self.progress.eta_seconds = round(eta, 1)
                             self._notify_progress()
+
+                            # Persist updated checkpoint to disk
+                            try:
+                                ckpt_target = active_ckpt_path or get_ingest_checkpoint_path(footage_dir)
+                                with open(ckpt_target, "w", encoding="utf-8") as cf:
+                                    json.dump({
+                                        "directory": str(footage_dir),
+                                        "batch_id": batch_id,
+                                        "completed_files_count": completed_files_count,
+                                        "total_files": total_files,
+                                        "completed_files": sorted(list(completed_files)),
+                                        "total_detections": total_detected_faces,
+                                        "total_alerts": total_alerts,
+                                        "total_frames_processed": total_processed_frames,
+                                        "total_static_skipped": total_static_skipped,
+                                        "next_file_index": min(total_files, completed_files_count + 1),
+                                        "updated_at": datetime.datetime.now().isoformat(),
+                                    }, cf, indent=2)
+                            except Exception as ckpt_err:
+                                logger.warning("Could not persist checkpoint: %s", ckpt_err)
 
                     return w_processed, w_detected, w_alerts, w_skipped
                 finally:
@@ -633,6 +746,25 @@ class BatchVideoIngestEngine:
                 except Exception:
                     pass
             db.commit()
+
+            # Mark checkpoint as completed if finished successfully
+            if not self.stop_event.is_set() and completed_files_count >= total_files:
+                try:
+                    ckpt_target = active_ckpt_path or get_ingest_checkpoint_path(footage_dir)
+                    with open(ckpt_target, "w", encoding="utf-8") as cf:
+                        json.dump({
+                            "directory": str(footage_dir),
+                            "batch_id": batch_id,
+                            "completed_files_count": completed_files_count,
+                            "total_files": total_files,
+                            "completed_files": sorted(list(completed_files)),
+                            "total_detections": total_detected_faces,
+                            "total_alerts": total_alerts,
+                            "status": "completed",
+                            "completed_at": datetime.datetime.now().isoformat(),
+                        }, cf, indent=2)
+                except Exception as err:
+                    logger.warning("Could not mark checkpoint as completed: %s", err)
 
             self.progress.running = False
             self.progress.completed = not self.stop_event.is_set()

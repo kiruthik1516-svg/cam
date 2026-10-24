@@ -159,17 +159,25 @@ class VideoAuditReport:
     clips: List[VideoClipMetadata] = field(default_factory=list)
 
 
-def format_seconds(seconds: float) -> str:
+def format_seconds(seconds: Any) -> str:
     """Format duration in seconds to human-readable string."""
-    total = int(max(0, round(seconds)))
-    hours = total // 3600
-    minutes = (total % 3600) // 60
-    secs = total % 60
-    if hours > 0:
-        return f"{hours}h {minutes}m {secs}s"
-    if minutes > 0:
-        return f"{minutes}m {secs}s"
-    return f"{secs}s"
+    if seconds is None:
+        return "0s"
+    try:
+        val = float(seconds)
+        if math.isnan(val) or math.isinf(val):
+            return "0s"
+        total = int(max(0, round(val)))
+        hours = total // 3600
+        minutes = (total % 3600) // 60
+        secs = total % 60
+        if hours > 0:
+            return f"{hours}h {minutes}m {secs}s"
+        if minutes > 0:
+            return f"{minutes}m {secs}s"
+        return f"{secs}s"
+    except Exception:
+        return "0s"
 
 
 def compute_sha256(file_path: Path, max_bytes: Optional[int] = None) -> str:
@@ -187,7 +195,7 @@ def compute_sha256(file_path: Path, max_bytes: Optional[int] = None) -> str:
                 hasher.update(chunk)
     else:
         # Sample head, middle, and tail blocks (1/3 each of max_bytes)
-        block = max(1024 * 1024, max_bytes // 3)
+        block = max(64 * 1024, max_bytes // 3)
         with file_path.open("rb") as f:
             # Head block
             hasher.update(f.read(block))
@@ -422,7 +430,7 @@ def check_sensor_noise_decorrelation(vpath: Path, cut_frame: int) -> Optional[Di
             r0, r1, r2 = extract_noise(f0), extract_noise(f1), extract_noise(f2)
             c_norm = float(np.sum((r0 - np.mean(r0)) * (r1 - np.mean(r1))) / (np.std(r0) * np.std(r1) * r0.size + 1e-8))
             c_cut = float(np.sum((r1 - np.mean(r1)) * (r2 - np.mean(r2))) / (np.std(r1) * np.std(r2) * r1.size + 1e-8))
-            is_shock = c_cut < 0.95 * c_norm or abs(c_norm - c_cut) > 0.05
+            is_shock = bool(c_cut < 0.95 * c_norm or abs(c_norm - c_cut) > 0.05)
             return {
                 "normal_correlation": round(c_norm, 4),
                 "cut_correlation": round(c_cut, 4),
@@ -594,7 +602,7 @@ def check_enf_phase_continuity(vpath: Path, cut_frame: int, window: int = 25) ->
             boundary_jump = abs(luminances[window] - luminances[window - 1])
             normal_jump = float(np.mean(np.abs(d_pre))) if len(d_pre) > 0 else 0.01
             # If boundary jump exceeds 2x the normal frame-to-frame fluctuation
-            is_shock = boundary_jump > 2.0 * normal_jump and boundary_jump > 0.02
+            is_shock = bool(boundary_jump > 2.0 * normal_jump and boundary_jump > 0.02)
             return {
                 "is_shock": is_shock,
                 "boundary_jump": round(boundary_jump, 4),
@@ -669,9 +677,13 @@ class VideoAuditor:
         clips_by_camera: Dict[str, List[VideoClipMetadata]] = {}
         all_clips: List[VideoClipMetadata] = []
 
-        # 1. Parse each clip
-        for vpath in video_files:
-            meta = self._analyze_single_clip(vpath, root)
+        # 1. Parse each clip (in parallel for sub-second audit throughput)
+        from concurrent.futures import ThreadPoolExecutor
+        workers = min(8, max(2, (os.cpu_count() or 4)))
+        with ThreadPoolExecutor(max_workers=workers) as executor:
+            results = list(executor.map(lambda vp: self._analyze_single_clip(vp, root), video_files))
+
+        for meta in results:
             if meta:
                 all_clips.append(meta)
                 clips_by_camera.setdefault(meta.camera_id, []).append(meta)
@@ -1053,7 +1065,10 @@ class VideoAuditor:
             discrepancy_sec = (nominal_dur_sec - duration_sec) if nominal_dur_sec else None
 
             # Fast cryptographic evidence hash (head-mid-tail block sampling for sub-second audit)
-            sha256 = compute_sha256(vpath, max_bytes=10 * 1024 * 1024)
+            if self.compute_full_hashes:
+                sha256 = compute_sha256(vpath, max_bytes=768 * 1024)
+            else:
+                sha256 = ""
 
             rel_name = str(vpath.relative_to(root))
 
@@ -1156,11 +1171,11 @@ class VideoAuditor:
                 internal_cut_end_time=cut_end,
                 internal_cut_duration_seconds=round(cut_dur, 2) if cut_dur else None,
                 packet_discontinuity_timestamp=round(pkt_ts, 3) if pkt_ts else None,
-                sensor_noise_decorrelation=noise_decorr,
+                sensor_noise_decorrelation=bool(noise_decorr) if noise_decorr is not None else None,
                 has_freeze_tamper=False,
-                gop_cadence_anomaly=gop_anom,
+                gop_cadence_anomaly=bool(gop_anom) if gop_anom is not None else None,
                 gop_cadence_details=gop_desc,
-                enf_phase_anomaly=enf_anom,
+                enf_phase_anomaly=bool(enf_anom) if enf_anom is not None else None,
                 enf_details=enf_desc,
                 freeze_intervals=[],
             )

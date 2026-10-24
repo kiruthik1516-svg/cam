@@ -139,9 +139,15 @@ export async function scanCctvFootage(payload: {
   return handleResponse<VideoAuditReport>(res);
 }
 
-export async function fetchLatestAuditReport(): Promise<VideoAuditReport> {
-  const res = await authFetch('/api/video-audit/latest-report');
-  return handleResponse<VideoAuditReport>(res);
+export async function fetchLatestAuditReport(): Promise<VideoAuditReport | null> {
+  try {
+    const res = await authFetch('/api/video-audit/latest-report');
+    if (res.status === 404) return null;
+    const data = await handleResponse<VideoAuditReport | null>(res);
+    return data || null;
+  } catch {
+    return null;
+  }
 }
 
 export async function startBatchIngest(payload: {

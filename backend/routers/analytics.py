@@ -174,9 +174,26 @@ def get_duplicates(db: Session = Depends(get_db)):
 
 
 @router.get("/trajectory", response_model=SubjectTrajectoryResponse)
-def get_trajectory(profileId: str = Query(...), hours: int = Query(24), db: Session = Depends(get_db)):
+def get_trajectory(profileId: Optional[str] = Query(None), hours: int = Query(24), db: Session = Depends(get_db)):
     start_time = datetime.now(IST) - timedelta(hours=hours) if hours > 0 else None
     
+    # If no profileId supplied, find most recently detected profile or first available profile
+    if not profileId:
+        latest_det = db.query(Detection).filter(Detection.profile_id.isnot(None)).order_by(Detection.timestamp.desc()).first()
+        if latest_det and latest_det.profile_id:
+            profileId = latest_det.profile_id
+        else:
+            first_profile = db.query(Profile).first()
+            if first_profile:
+                profileId = first_profile.id
+            else:
+                return SubjectTrajectoryResponse(
+                    profileId="none",
+                    profileName="No Profiles Found",
+                    role="visitor",
+                    path=[]
+                )
+
     # 1. Check Profile
     profile = db.query(Profile).filter(
         (Profile.id == profileId) | (func.lower(Profile.name) == func.lower(profileId))
@@ -242,7 +259,13 @@ def get_trajectory(profileId: str = Query(...), hours: int = Query(24), db: Sess
             path=path
         )
 
-    raise HTTPException(status_code=404, detail="Subject or profile not found")
+    # Graceful fallback: return empty trajectory instead of breaking client with 404
+    return SubjectTrajectoryResponse(
+        profileId=profileId,
+        profileName="Subject Not Found",
+        role="visitor",
+        path=[]
+    )
 
 
 def _normalize_datetime_filter(dt: Any) -> Optional[datetime]:

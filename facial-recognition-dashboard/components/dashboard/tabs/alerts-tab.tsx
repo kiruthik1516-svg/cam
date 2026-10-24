@@ -9,6 +9,7 @@ import {
   fetchCameraEpisodes,
   fetchCameras,
   getCameraStreamUrl,
+  getCameraSnapshotUrl,
   getCameraStreamTicket,
 } from '@/lib/api'
 import { Card, CardContent, CardHeader } from '@/components/ui/card'
@@ -215,30 +216,49 @@ function CCTVTimestamp() {
 
 // --- Single camera tile with live MJPEG feed --------------------------------
 
-function CameraStreamTile({ camera }: { camera: { id: string; name: string; ipAddress?: string; zone?: string; status: string } }) {
+function CameraStreamTile({
+  camera,
+  initialLive = false,
+}: {
+  camera: { id: string; name: string; ipAddress?: string; zone?: string; status: string }
+  initialLive?: boolean
+}) {
   const tileRef = useRef<HTMLDivElement>(null)
   const imgRef = useRef<HTMLImageElement>(null)
   const [streamError, setStreamError] = useState(false)
   const [isFullscreen, setIsFullscreen] = useState(false)
-  const [streamUrl, setStreamUrl] = useState<string>(() => getCameraStreamUrl(camera.id))
+  const [isLive, setIsLive] = useState(initialLive)
+  const [ticket, setTicket] = useState<string | null>(null)
+  const [snapshotTs, setSnapshotTs] = useState<number>(() => Date.now())
 
-  // Fetch short-lived single-use ticket to eliminate JWT leakage in stream URLs (solves S1/S5)
+  // Fetch short-lived single-use ticket
   useEffect(() => {
     let cancelled = false
     setStreamError(false)
-    getCameraStreamTicket(camera.id).then((ticket) => {
-      if (!cancelled && ticket) {
-        setStreamUrl(getCameraStreamUrl(camera.id, ticket))
+    getCameraStreamTicket(camera.id).then((t) => {
+      if (!cancelled && t) {
+        setTicket(t)
       }
     })
     return () => {
       cancelled = true
     }
-  }, [camera.id])
+  }, [camera.id, isLive])
+
+  // Periodic snapshot refresh in snapshot mode (avoids holding open TCP sockets)
+  useEffect(() => {
+    if (isLive || camera.status === 'offline') return
+    const interval = setInterval(() => {
+      setSnapshotTs(Date.now())
+    }, 2000)
+    return () => clearInterval(interval)
+  }, [isLive, camera.status])
 
   useEffect(() => {
     function syncFullscreenState() {
-      setIsFullscreen(document.fullscreenElement === tileRef.current)
+      const active = document.fullscreenElement === tileRef.current
+      setIsFullscreen(active)
+      if (active) setIsLive(true)
     }
 
     document.addEventListener('fullscreenchange', syncFullscreenState)
@@ -256,17 +276,26 @@ function CameraStreamTile({ camera }: { camera: { id: string; name: string; ipAd
     await tileRef.current.requestFullscreen()
   }
 
+  const streamSrc = useMemo(() => {
+    if (isLive) {
+      return getCameraStreamUrl(camera.id, ticket)
+    }
+    const base = getCameraSnapshotUrl(camera.id, ticket)
+    const sep = base.includes('?') ? '&' : '?'
+    return `${base}${sep}_t=${snapshotTs}`
+  }, [camera.id, ticket, isLive, snapshotTs])
+
   return (
     <div
       ref={tileRef}
       className="group relative aspect-video overflow-hidden rounded-lg border border-border bg-black shadow-inner [&:fullscreen]:h-screen [&:fullscreen]:w-screen [&:fullscreen]:rounded-none [&:fullscreen]:border-0"
     >
-      {/* Live MJPEG stream */}
+      {/* Live MJPEG or Snapshot frame */}
       {!streamError ? (
         <img
           ref={imgRef}
-          src={streamUrl}
-          alt={`Live feed – ${camera.name}`}
+          src={streamSrc}
+          alt={`Camera feed – ${camera.name}`}
           className="absolute inset-0 h-full w-full object-contain"
           onError={() => setStreamError(true)}
         />
@@ -305,10 +334,23 @@ function CameraStreamTile({ camera }: { camera: { id: string; name: string; ipAd
       {/* Top HUD */}
       <div className="absolute top-2 left-2 right-2 flex items-center justify-between font-mono text-[10px] sm:text-[11px] font-semibold text-white/90 drop-shadow-md">
         <div className="flex items-center gap-1.5">
-          <div className="flex items-center gap-1.5 rounded-sm bg-black/60 px-2 py-0.5 border border-white/10">
-            <div className="size-1.5 rounded-full bg-red-500 animate-pulse" />
-            LIVE
-          </div>
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation()
+              setIsLive((prev) => !prev)
+            }}
+            title={isLive ? 'Live stream active (click to switch to Snapshot mode)' : 'Snapshot mode active (click for 25 FPS live stream)'}
+            className={cn(
+              'flex items-center gap-1.5 rounded-sm px-2 py-0.5 border cursor-pointer select-none transition-colors backdrop-blur-sm',
+              isLive
+                ? 'bg-rose-950/70 border-rose-500/50 text-rose-200 hover:bg-rose-900/80'
+                : 'bg-cyan-950/70 border-cyan-500/50 text-cyan-200 hover:bg-cyan-900/80',
+            )}
+          >
+            <div className={cn('size-1.5 rounded-full', isLive ? 'bg-rose-500 animate-pulse' : 'bg-cyan-400')} />
+            {isLive ? 'LIVE' : 'SNAPSHOT'}
+          </button>
           <div className="rounded-sm bg-black/60 px-2 py-0.5 border border-white/10 truncate max-w-[120px]">
             {camera.name}
           </div>
@@ -367,8 +409,8 @@ function LiveCameraFeeds() {
           </p>
         ) : (
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-2">
-            {onlineCameras.map((c) => (
-              <CameraStreamTile key={c.id} camera={c} />
+            {onlineCameras.map((c, idx) => (
+              <CameraStreamTile key={c.id} camera={c} initialLive={idx < 2} />
             ))}
           </div>
         )}
