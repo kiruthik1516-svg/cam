@@ -121,7 +121,7 @@ export function CctvAuditPanel() {
   });
 
   // Cached audit report
-  const { data: auditReport, refetch: refetchReport, isLoading: isReportLoading } = useQuery<VideoAuditReport>({
+  const { data: auditReport, refetch: refetchReport, isLoading: isReportLoading } = useQuery<VideoAuditReport | null>({
     queryKey: ['video-audit-latest'],
     queryFn: fetchLatestAuditReport,
     retry: false,
