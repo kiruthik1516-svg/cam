@@ -12,8 +12,9 @@ def check():
             d3 = conn.execute(text("SELECT count(*) FROM detections WHERE batch_id = 'batch_30d_day_03';")).fetchone()[0]
             d4 = conn.execute(text("SELECT count(*) FROM detections WHERE batch_id = 'batch_30d_day_04';")).fetchone()[0]
             d5 = conn.execute(text("SELECT count(*) FROM detections WHERE batch_id = 'batch_30d_day_05';")).fetchone()[0]
+            d6 = conn.execute(text("SELECT count(*) FROM detections WHERE batch_id = 'batch_30d_day_06';")).fetchone()[0]
             
-            d5_time = conn.execute(text("SELECT min(timestamp), max(timestamp) FROM detections WHERE batch_id = 'batch_30d_day_05';")).fetchone()
+            d6_time = conn.execute(text("SELECT min(timestamp), max(timestamp) FROM detections WHERE batch_id = 'batch_30d_day_06';")).fetchone()
             
             print(f"TOTAL_DETECTIONS: {tot}")
             print(f"DAY1: {d1}")
@@ -21,7 +22,8 @@ def check():
             print(f"DAY3: {d3}")
             print(f"DAY4: {d4}")
             print(f"DAY5: {d5}")
-            print(f"DAY5_TIMESTAMPS: {d5_time[0]} -> {d5_time[1]}")
+            print(f"DAY6: {d6}")
+            print(f"DAY6_TIMESTAMPS: {d6_time[0]} -> {d6_time[1]}")
     except Exception as e:
         print(f"DB_ERROR: {e}")
 
