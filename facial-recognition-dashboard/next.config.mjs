@@ -50,7 +50,8 @@ const nextConfig = {
     NEXT_PUBLIC_WS_URL: process.env.NEXT_PUBLIC_WS_URL || 'ws://localhost:1223',
   },
   async rewrites() {
-    const backendUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:1223'
+    const defaultBackend = process.env.NODE_ENV === 'production' ? 'http://backend:1223' : 'http://localhost:1223'
+    const backendUrl = process.env.INTERNAL_BACKEND_URL || defaultBackend
     return [
       {
         source: '/api/:path*',

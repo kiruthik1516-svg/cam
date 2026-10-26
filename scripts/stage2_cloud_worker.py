@@ -138,13 +138,80 @@ def process_day(
     """Process a single day directory containing manifest.json and candidate frame crops."""
     day_path = Path(day_dir)
     manifest_path = day_path / "manifest.json"
+    records = []
 
-    if not manifest_path.exists():
-        print(f"Skipping {day_path.name}: manifest.json not found.")
+    if manifest_path.exists():
+        try:
+            with open(manifest_path, "r", encoding="utf-8") as f:
+                data = json.load(f)
+            if isinstance(data, list):
+                records = data
+            elif isinstance(data, dict):
+                # Manifest has clip metadata: build lookup for .jpg files
+                clip_info = {}
+                for c in data.get("clips", []):
+                    c_name = c["clip"]
+                    stem = Path(c_name).stem
+                    ts_str = stem.split("_")[-1]
+                    try:
+                        start_dt = datetime.strptime(ts_str, "%Y%m%d%H%M%S")
+                    except Exception:
+                        start_dt = datetime.now()
+                    clip_info[stem] = {
+                        "start_dt": start_dt,
+                        "windows": c.get("windows", []),
+                    }
+
+                # Enumerate all candidate jpg files in day_path
+                for jpg in sorted(day_path.glob("*.jpg")):
+                    name = jpg.name
+                    parts = name.split("_w")
+                    if len(parts) == 2:
+                        stem = parts[0]
+                        for pfx in [f"{day_path.name}_", "day01_", "day1_"]:
+                            if stem.startswith(pfx):
+                                stem = stem[len(pfx):]
+                        win_part, frame_part = parts[1].split("_")
+                        win_idx = int(win_part)
+                        frame_idx = int(frame_part.replace(".jpg", ""))
+                        info = clip_info.get(stem)
+                        if info:
+                            start_dt = info["start_dt"]
+                            windows = info["windows"]
+                            if win_idx < len(windows):
+                                offset_sec = windows[win_idx][0] + (frame_idx - 1)
+                            else:
+                                offset_sec = float(frame_idx - 1)
+                            frame_dt = start_dt + timedelta(seconds=offset_sec)
+                            ts = frame_dt.strftime("%Y-%m-%d %H:%M:%S")
+                            sec = int(offset_sec)
+                        else:
+                            ts = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                            sec = frame_idx
+                    else:
+                        ts = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                        sec = 0
+
+                    records.append({
+                        "frame_image": name,
+                        "timestamp": ts,
+                        "second": sec,
+                    })
+        except Exception as e:
+            print(f"Error parsing manifest: {e}")
+
+    # Fallback if no records found yet
+    if not records:
+        for jpg in sorted(day_path.glob("*.jpg")):
+            records.append({
+                "frame_image": jpg.name,
+                "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                "second": 0,
+            })
+
+    if not records:
+        print(f"Skipping {day_path.name}: No candidate images found.")
         return None
-
-    with open(manifest_path, "r", encoding="utf-8") as f:
-        records = json.load(f)
 
     day_name = day_path.name  # e.g. day_01
     batch_id = f"{batch_prefix}{day_name}"
