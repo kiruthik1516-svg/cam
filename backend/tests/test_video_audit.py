@@ -407,3 +407,85 @@ def test_video_auditor_midnight_rollover_not_flagged_as_gap_or_cut():
         assert report.clips[0].is_abnormally_short is False
         assert report.overall_continuity_percentage == 100.0
         assert report.security_verdict == "SECURE_100_PERCENT_CONTINUOUS"
+
+
+def test_video_auditor_bulk_day_duplicate_calendar_day():
+    """Verify that duplicate subfolders/days (like Folder 26 and Folder 27 having identical clips)
+    are flagged with DUPLICATE_CALENDAR_DAY without causing spurious pairwise collision errors."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        folder26 = Path(tmpdir) / "26"
+        folder27 = Path(tmpdir) / "27"
+        folder26.mkdir(parents=True, exist_ok=True)
+        folder27.mkdir(parents=True, exist_ok=True)
+        fourcc = cv2.VideoWriter_fourcc(*'mp4v')
+
+        # Create 2 clips in folder 26
+        for name in [
+            "56_8_DBGT_IPC56_aaa1_20260926000000.mp4",
+            "56_8_DBGT_IPC56_aaa2_20260926010000.mp4",
+        ]:
+            p = folder26 / name
+            out = cv2.VideoWriter(str(p), fourcc, 1.0, (160, 120))
+            for _ in range(5):
+                out.write(np.zeros((120, 160, 3), dtype=np.uint8))
+            out.release()
+
+        # Create identical timestamp clips in folder 27
+        for name in [
+            "56_8_DBGT_IPC56_bbb1_20260926000000.mp4",
+            "56_8_DBGT_IPC56_bbb2_20260926010000.mp4",
+        ]:
+            p = folder27 / name
+            out = cv2.VideoWriter(str(p), fourcc, 1.0, (160, 120))
+            for _ in range(5):
+                out.write(np.zeros((120, 160, 3), dtype=np.uint8))
+            out.release()
+
+        auditor = VideoAuditor()
+        report = auditor.scan_directory(tmpdir)
+
+        assert report.total_files_scanned == 4
+        dup_gaps = [g for g in report.gaps if g.severity == "DUPLICATE_CALENDAR_DAY"]
+        assert len(dup_gaps) >= 1
+        assert "Duplicate dataset detected" in dup_gaps[0].description
+        assert "Folder '27'" in dup_gaps[0].description or "Folder '26'" in dup_gaps[0].description
+        assert report.security_verdict == "HIGH_SECURITY_ALERT_DUPLICATE_DATASET"
+        assert report.cameras_summary[0].tamper_verdict == "DUPLICATE_DATASET_DETECTED"
+
+
+def test_video_auditor_bulk_day_missing_calendar_day():
+    """Verify that an omitted 24-hour calendar day across a multi-day archive
+    is explicitly flagged as MISSING_CALENDAR_DAY (86,400s missing)."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        day26 = Path(tmpdir) / "26"
+        day28 = Path(tmpdir) / "28"
+        day26.mkdir(parents=True, exist_ok=True)
+        day28.mkdir(parents=True, exist_ok=True)
+        fourcc = cv2.VideoWriter_fourcc(*'mp4v')
+
+        # Day 26 clip
+        p1 = day26 / "56_8_DBGT_IPC56_aaa1_20260926120000.mp4"
+        out1 = cv2.VideoWriter(str(p1), fourcc, 1.0, (160, 120))
+        for _ in range(5):
+            out1.write(np.zeros((120, 160, 3), dtype=np.uint8))
+        out1.release()
+
+        # Day 28 clip (Sept 27 is completely omitted)
+        p2 = day28 / "56_8_DBGT_IPC56_bbb1_20260928120000.mp4"
+        out2 = cv2.VideoWriter(str(p2), fourcc, 1.0, (160, 120))
+        for _ in range(5):
+            out2.write(np.zeros((120, 160, 3), dtype=np.uint8))
+        out2.release()
+
+        auditor = VideoAuditor()
+        report = auditor.scan_directory(tmpdir)
+
+        missing_gaps = [g for g in report.gaps if g.severity == "MISSING_CALENDAR_DAY"]
+        assert len(missing_gaps) == 1
+        gap = missing_gaps[0]
+        assert gap.gap_start == "2026-09-27T00:00:00"
+        assert gap.gap_end == "2026-09-27T23:59:59"
+        assert gap.gap_duration_seconds == 86400.0
+        assert "2026-09-27" in gap.description
+        assert report.security_verdict == "HIGH_SECURITY_ALERT_MISSING_FOOTAGE"
+        assert report.cameras_summary[0].tamper_verdict == "MISSING_DAYS_DETECTED"

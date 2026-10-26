@@ -1308,12 +1308,22 @@ export function CctvAuditPanel() {
                     <tbody className="divide-y divide-border/30">
                       {report.gaps.map((g, idx) => {
                         const isInternalCut = g.severity === 'INTERNAL_TAMPER_CUT';
+                        const isDuplicateDay = g.severity === 'DUPLICATE_CALENDAR_DAY';
+                        const isMissingDay = g.severity === 'MISSING_CALENDAR_DAY';
                         return (
-                          <tr key={idx} className={cn("hover:bg-muted/20", isInternalCut && "bg-destructive/10")}>
+                          <tr key={idx} className={cn("hover:bg-muted/20", (isInternalCut || isMissingDay) && "bg-destructive/10", isDuplicateDay && "bg-amber-500/10")}>
                             <td className="py-2.5 pr-2">
                               {isInternalCut ? (
                                 <Badge className="bg-destructive text-destructive-foreground text-[10px] font-mono uppercase tracking-wide">
                                   ⚡ INTRA-CLIP CUT
+                                </Badge>
+                              ) : isDuplicateDay ? (
+                                <Badge className="bg-amber-600 text-white text-[10px] font-mono uppercase tracking-wide">
+                                  ⚠️ DUPLICATE DAY
+                                </Badge>
+                              ) : isMissingDay ? (
+                                <Badge className="bg-red-600 text-white text-[10px] font-mono uppercase tracking-wide">
+                                  🚨 MISSING FULL DAY
                                 </Badge>
                               ) : (
                                 <Badge variant="outline" className="text-muted-foreground border-border text-[10px] font-mono uppercase">

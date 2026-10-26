@@ -758,10 +758,120 @@ class VideoAuditor:
                     cam_gaps.append(gap)
                     all_gaps.append(gap)
 
-            # 2. Analyze consecutive clip intervals (inter-clip gaps)
-            for i in range(len(clips) - 1):
-                cur = clips[i]
-                nxt = clips[i + 1]
+            # 2. Bulk Day-Wise & Duplicate Dataset Audit
+            duplicate_clip_paths: set = set()
+            subfolder_clips: Dict[str, List[VideoClipMetadata]] = {}
+            for c in clips:
+                try:
+                    rel_parts = Path(c.file_path).resolve().relative_to(root.resolve()).parts
+                    subfolder = rel_parts[0] if len(rel_parts) > 1 else ""
+                except Exception:
+                    subfolder = ""
+                subfolder_clips.setdefault(subfolder, []).append(c)
+
+            # A. Check for duplicate subfolders / day datasets
+            if len(subfolder_clips) > 1:
+                sf_keys = sorted(subfolder_clips.keys())
+                for i in range(len(sf_keys)):
+                    for j in range(i + 1, len(sf_keys)):
+                        sf1, sf2 = sf_keys[i], sf_keys[j]
+                        c1, c2 = subfolder_clips[sf1], subfolder_clips[sf2]
+                        d1 = set(c.start_time[:10] for c in c1 if c.start_time)
+                        d2 = set(c.start_time[:10] for c in c2 if c.start_time)
+                        common_dates = d1.intersection(d2)
+                        if common_dates:
+                            ts1 = set(c.start_time for c in c1)
+                            ts2 = set(c.start_time for c in c2)
+                            common_ts = ts1.intersection(ts2)
+                            if len(common_ts) >= 2 or (len(ts2) > 0 and len(common_ts) / len(ts2) >= 0.5):
+                                for dup_c in c2:
+                                    duplicate_clip_paths.add(dup_c.file_path)
+                                c2_first = c2[0] if c2 else c1[0]
+                                c2_last = c2[-1] if c2 else c1[-1]
+                                date_label = ", ".join(sorted(common_dates))
+                                gap = TimelineGap(
+                                    camera_id=cam_id,
+                                    gap_start=c2_first.start_time,
+                                    gap_end=c2_last.end_time,
+                                    gap_duration_seconds=0.0,
+                                    formatted_duration=f"Duplicate Dataset ({len(c2)} clips)",
+                                    preceding_file=f"{sf1}/{c1[0].file_name}" if sf1 else c1[0].file_name,
+                                    succeeding_file=f"{sf2}/{c2_first.file_name}" if sf2 else c2_first.file_name,
+                                    severity="DUPLICATE_CALENDAR_DAY",
+                                    tamper_risk="HIGH",
+                                    description=(
+                                        f"Duplicate dataset detected: Folder '{sf2}' contains {len(c2)} clips "
+                                        f"with timestamps matching Folder '{sf1}' (Calendar Date: {date_label}). "
+                                        f"Suspected duplicate export, copy error, or archive overwrite."
+                                    ),
+                                )
+                                cam_gaps.append(gap)
+                                all_gaps.append(gap)
+
+            # B. Check for duplicate clips in flat directories (identical start times)
+            seen_ts: Dict[str, VideoClipMetadata] = {}
+            for c in clips:
+                if c.file_path in duplicate_clip_paths:
+                    continue
+                if c.start_time in seen_ts:
+                    other = seen_ts[c.start_time]
+                    duplicate_clip_paths.add(c.file_path)
+                    gap = TimelineGap(
+                        camera_id=cam_id,
+                        gap_start=c.start_time,
+                        gap_end=c.end_time,
+                        gap_duration_seconds=0.0,
+                        formatted_duration="Duplicate Clip",
+                        preceding_file=other.file_name,
+                        succeeding_file=c.file_name,
+                        severity="DUPLICATE_CALENDAR_DAY",
+                        tamper_risk="HIGH",
+                        description=f"Duplicate footage clip: '{c.file_name}' shares identical start timestamp {c.start_time} with '{other.file_name}'.",
+                    )
+                    cam_gaps.append(gap)
+                    all_gaps.append(gap)
+                else:
+                    seen_ts[c.start_time] = c
+
+            # C. Check for missing full calendar days in bulk archives
+            non_dup_clips = [c for c in clips if c.file_path not in duplicate_clip_paths]
+            unique_dates = sorted(set(datetime.date.fromisoformat(c.start_time[:10]) for c in non_dup_clips if c.start_time))
+            flagged_missing_dates = set()
+            if len(unique_dates) >= 2:
+                min_date = unique_dates[0]
+                max_date = unique_dates[-1]
+                curr_date = min_date + datetime.timedelta(days=1)
+                while curr_date < max_date:
+                    if curr_date not in unique_dates:
+                        flagged_missing_dates.add(curr_date)
+                        prev_clips = [c for c in non_dup_clips if datetime.date.fromisoformat(c.start_time[:10]) < curr_date]
+                        next_clips = [c for c in non_dup_clips if datetime.date.fromisoformat(c.start_time[:10]) > curr_date]
+                        p_file = prev_clips[-1].file_name if prev_clips else "archive_start"
+                        n_file = next_clips[0].file_name if next_clips else "archive_end"
+                        gap = TimelineGap(
+                            camera_id=cam_id,
+                            gap_start=f"{curr_date.isoformat()}T00:00:00",
+                            gap_end=f"{curr_date.isoformat()}T23:59:59",
+                            gap_duration_seconds=86400.0,
+                            formatted_duration="24h 0m 0s (Full Day Missing)",
+                            preceding_file=p_file,
+                            succeeding_file=n_file,
+                            severity="MISSING_CALENDAR_DAY",
+                            tamper_risk="HIGH",
+                            description=(
+                                f"Full calendar day missing from archive: {curr_date.isoformat()} (24h 0m 0s unrecorded). "
+                                f"Archive timeline jumps directly across this date."
+                            ),
+                        )
+                        cam_gaps.append(gap)
+                        all_gaps.append(gap)
+                    curr_date += datetime.timedelta(days=1)
+
+            # 3. Analyze consecutive clip intervals (inter-clip gaps on non-duplicate clips)
+            linear_clips = [c for c in clips if c.file_path not in duplicate_clip_paths]
+            for i in range(len(linear_clips) - 1):
+                cur = linear_clips[i]
+                nxt = linear_clips[i + 1]
 
                 if cur.nominal_duration_seconds and cur.has_internal_cut:
                     cur_end = datetime.datetime.fromisoformat(cur.start_time) + datetime.timedelta(seconds=cur.nominal_duration_seconds)
@@ -839,7 +949,11 @@ class VideoAuditor:
             span_sec = max(span_sec, cam_footage_sec + cam_gap_sec, 0.001)
             continuity_pct = max(0.0, min(100.0, (cam_footage_sec / span_sec) * 100.0))
 
-            if any(g.severity == "INTERNAL_TAMPER_CUT" for g in cam_gaps):
+            if any(g.severity == "DUPLICATE_CALENDAR_DAY" for g in cam_gaps):
+                verdict = "DUPLICATE_DATASET_DETECTED"
+            elif any(g.severity == "MISSING_CALENDAR_DAY" for g in cam_gaps):
+                verdict = "MISSING_DAYS_DETECTED"
+            elif any(g.severity == "INTERNAL_TAMPER_CUT" for g in cam_gaps):
                 verdict = "INTERNAL_TAMPER_CUT_DETECTED"
             elif any(g.severity == "TIMELINE_OVERLAP_COLLISION" for g in cam_gaps):
                 verdict = "TIMELINE_COLLISION_DETECTED"
@@ -883,6 +997,10 @@ class VideoAuditor:
 
         if len(all_clips) == 0:
             security_verdict = "NO_FOOTAGE_FOUND"
+        elif any(g.severity == "DUPLICATE_CALENDAR_DAY" for g in all_gaps):
+            security_verdict = "HIGH_SECURITY_ALERT_DUPLICATE_DATASET"
+        elif any(g.severity == "MISSING_CALENDAR_DAY" for g in all_gaps):
+            security_verdict = "HIGH_SECURITY_ALERT_MISSING_FOOTAGE"
         elif any(g.severity == "INTERNAL_TAMPER_CUT" for g in all_gaps):
             security_verdict = "HIGH_SECURITY_ALERT_INTRA_CLIP_CUT"
         elif any(g.severity == "TIMELINE_OVERLAP_COLLISION" for g in all_gaps):

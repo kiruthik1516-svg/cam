@@ -1,0 +1,428 @@
+{
+  "1": {
+    "day": 1,
+    "files_count": 33,
+    "continuity_pct": 100.0,
+    "total_footage_sec": 86415.06,
+    "formatted_total_footage": "24h 0m 15s",
+    "total_missing_sec": 0.0,
+    "formatted_total_missing": "0s",
+    "security_verdict": "SECURE_100_PERCENT_CONTINUOUS",
+    "gaps_count": 0,
+    "gaps": []
+  },
+  "2": {
+    "day": 2,
+    "files_count": 33,
+    "continuity_pct": 100.0,
+    "total_footage_sec": 86418.3,
+    "formatted_total_footage": "24h 0m 18s",
+    "total_missing_sec": 0.0,
+    "formatted_total_missing": "0s",
+    "security_verdict": "SECURE_100_PERCENT_CONTINUOUS",
+    "gaps_count": 0,
+    "gaps": []
+  },
+  "3": {
+    "day": 3,
+    "files_count": 33,
+    "continuity_pct": 100.0,
+    "total_footage_sec": 86415.25,
+    "formatted_total_footage": "24h 0m 15s",
+    "total_missing_sec": 0.0,
+    "formatted_total_missing": "0s",
+    "security_verdict": "SECURE_100_PERCENT_CONTINUOUS",
+    "gaps_count": 0,
+    "gaps": []
+  },
+  "4": {
+    "day": 4,
+    "files_count": 33,
+    "continuity_pct": 100.0,
+    "total_footage_sec": 86418.8,
+    "formatted_total_footage": "24h 0m 19s",
+    "total_missing_sec": 0.0,
+    "formatted_total_missing": "0s",
+    "security_verdict": "SECURE_100_PERCENT_CONTINUOUS",
+    "gaps_count": 0,
+    "gaps": []
+  },
+  "5": {
+    "day": 5,
+    "files_count": 33,
+    "continuity_pct": 100.0,
+    "total_footage_sec": 86420.18,
+    "formatted_total_footage": "24h 0m 20s",
+    "total_missing_sec": 0.0,
+    "formatted_total_missing": "0s",
+    "security_verdict": "SECURE_100_PERCENT_CONTINUOUS",
+    "gaps_count": 0,
+    "gaps": []
+  },
+  "6": {
+    "day": 6,
+    "files_count": 33,
+    "continuity_pct": 100.0,
+    "total_footage_sec": 86424.0,
+    "formatted_total_footage": "24h 0m 24s",
+    "total_missing_sec": 0.0,
+    "formatted_total_missing": "0s",
+    "security_verdict": "SECURE_100_PERCENT_CONTINUOUS",
+    "gaps_count": 0,
+    "gaps": []
+  },
+  "7": {
+    "day": 7,
+    "files_count": 35,
+    "continuity_pct": 99.83,
+    "total_footage_sec": 86280.05,
+    "formatted_total_footage": "23h 58m 0s",
+    "total_missing_sec": 145.22,
+    "formatted_total_missing": "2m 25s",
+    "security_verdict": "SECURITY_WARNING_TIMELINE_GAPS",
+    "gaps_count": 1,
+    "gaps": [
+      {
+        "severity": "SUSPICIOUS_CUT",
+        "gap_start": "2026-09-07T09:40:14.779122",
+        "gap_end": "2026-09-07T09:42:40",
+        "duration_sec": 145.22,
+        "formatted_duration": "2m 25s",
+        "preceding_file": "56_8_DBGT_IPC56_56b9f65b0fee446e978e2a7e15b77a1f_20260907093440.mp4",
+        "succeeding_file": "56_8_DBGT_IPC56_36b50b33f38143848ec4145a4f4e2170_20260907094240.mp4",
+        "description": "Footage missing for 2m 25s. Possible trimmed or omitted video file."
+      }
+    ]
+  },
+  "8": {
+    "day": 8,
+    "files_count": 33,
+    "continuity_pct": 98.7,
+    "total_footage_sec": 85290.51,
+    "formatted_total_footage": "23h 41m 31s",
+    "total_missing_sec": 1125.23,
+    "formatted_total_missing": "18m 45s",
+    "security_verdict": "HIGH_SECURITY_ALERT_MISSING_FOOTAGE",
+    "gaps_count": 1,
+    "gaps": [
+      {
+        "severity": "CRITICAL_BLACKOUT",
+        "gap_start": "2026-09-08T14:45:37.771622",
+        "gap_end": "2026-09-08T15:04:23",
+        "duration_sec": 1125.23,
+        "formatted_duration": "18m 45s",
+        "preceding_file": "56_8_DBGT_IPC56_0cdb3433a753485a96e2d6807f300ed4_20260908140635.mp4",
+        "succeeding_file": "56_8_DBGT_IPC56_f4139d098daa439db63b1d362a362e36_20260908150423.mp4",
+        "description": "Major footage gap of 18m 45s. Suspected deliberate deletion, camera tamper, or power failure."
+      }
+    ]
+  },
+  "9": {
+    "day": 9,
+    "files_count": 33,
+    "continuity_pct": 100.0,
+    "total_footage_sec": 86417.98,
+    "formatted_total_footage": "24h 0m 18s",
+    "total_missing_sec": 0.0,
+    "formatted_total_missing": "0s",
+    "security_verdict": "SECURE_100_PERCENT_CONTINUOUS",
+    "gaps_count": 0,
+    "gaps": []
+  },
+  "10": {
+    "day": 10,
+    "files_count": 33,
+    "continuity_pct": 100.0,
+    "total_footage_sec": 86419.08,
+    "formatted_total_footage": "24h 0m 19s",
+    "total_missing_sec": 0.0,
+    "formatted_total_missing": "0s",
+    "security_verdict": "WARNING_SUSPICIOUS_CLIPS_DETECTED",
+    "gaps_count": 0,
+    "gaps": []
+  },
+  "11": {
+    "day": 11,
+    "files_count": 33,
+    "continuity_pct": 100.0,
+    "total_footage_sec": 86417.92,
+    "formatted_total_footage": "24h 0m 18s",
+    "total_missing_sec": 0.0,
+    "formatted_total_missing": "0s",
+    "security_verdict": "WARNING_SUSPICIOUS_CLIPS_DETECTED",
+    "gaps_count": 0,
+    "gaps": []
+  },
+  "12": {
+    "day": 12,
+    "files_count": 33,
+    "continuity_pct": 100.0,
+    "total_footage_sec": 86417.95,
+    "formatted_total_footage": "24h 0m 18s",
+    "total_missing_sec": 0.0,
+    "formatted_total_missing": "0s",
+    "security_verdict": "WARNING_SUSPICIOUS_CLIPS_DETECTED",
+    "gaps_count": 0,
+    "gaps": []
+  },
+  "13": {
+    "day": 13,
+    "files_count": 33,
+    "continuity_pct": 100.0,
+    "total_footage_sec": 86417.97,
+    "formatted_total_footage": "24h 0m 18s",
+    "total_missing_sec": 0.0,
+    "formatted_total_missing": "0s",
+    "security_verdict": "WARNING_SUSPICIOUS_CLIPS_DETECTED",
+    "gaps_count": 0,
+    "gaps": []
+  },
+  "14": {
+    "day": 14,
+    "files_count": 35,
+    "continuity_pct": 99.83,
+    "total_footage_sec": 86272.33,
+    "formatted_total_footage": "23h 57m 52s",
+    "total_missing_sec": 147.23,
+    "formatted_total_missing": "2m 27s",
+    "security_verdict": "SECURITY_WARNING_TIMELINE_GAPS",
+    "gaps_count": 1,
+    "gaps": [
+      {
+        "severity": "SUSPICIOUS_CUT",
+        "gap_start": "2026-09-14T09:40:14.767878",
+        "gap_end": "2026-09-14T09:42:42",
+        "duration_sec": 147.23,
+        "formatted_duration": "2m 27s",
+        "preceding_file": "56_8_DBGT_IPC56_0e52d201ade2471d946e77cda16f519d_20260914093137.mp4",
+        "succeeding_file": "56_8_DBGT_IPC56_ab85b618674b441a83e85fd457426d74_20260914094242.mp4",
+        "description": "Footage missing for 2m 27s. Possible trimmed or omitted video file."
+      }
+    ]
+  },
+  "15": {
+    "day": 15,
+    "files_count": 33,
+    "continuity_pct": 100.0,
+    "total_footage_sec": 86418.23,
+    "formatted_total_footage": "24h 0m 18s",
+    "total_missing_sec": 0.0,
+    "formatted_total_missing": "0s",
+    "security_verdict": "SECURE_100_PERCENT_CONTINUOUS",
+    "gaps_count": 0,
+    "gaps": []
+  },
+  "16": {
+    "day": 16,
+    "files_count": 33,
+    "continuity_pct": 100.0,
+    "total_footage_sec": 86418.61,
+    "formatted_total_footage": "24h 0m 19s",
+    "total_missing_sec": 0.0,
+    "formatted_total_missing": "0s",
+    "security_verdict": "SECURE_100_PERCENT_CONTINUOUS",
+    "gaps_count": 0,
+    "gaps": []
+  },
+  "17": {
+    "day": 17,
+    "files_count": 33,
+    "continuity_pct": 100.0,
+    "total_footage_sec": 86418.57,
+    "formatted_total_footage": "24h 0m 19s",
+    "total_missing_sec": 0.0,
+    "formatted_total_missing": "0s",
+    "security_verdict": "SECURE_100_PERCENT_CONTINUOUS",
+    "gaps_count": 0,
+    "gaps": []
+  },
+  "18": {
+    "day": 18,
+    "files_count": 33,
+    "continuity_pct": 100.0,
+    "total_footage_sec": 86420.05,
+    "formatted_total_footage": "24h 0m 20s",
+    "total_missing_sec": 0.0,
+    "formatted_total_missing": "0s",
+    "security_verdict": "SECURE_100_PERCENT_CONTINUOUS",
+    "gaps_count": 0,
+    "gaps": []
+  },
+  "19": {
+    "day": 19,
+    "files_count": 33,
+    "continuity_pct": 100.0,
+    "total_footage_sec": 86413.94,
+    "formatted_total_footage": "24h 0m 14s",
+    "total_missing_sec": 0.0,
+    "formatted_total_missing": "0s",
+    "security_verdict": "SECURE_100_PERCENT_CONTINUOUS",
+    "gaps_count": 0,
+    "gaps": []
+  },
+  "20": {
+    "day": 20,
+    "files_count": 35,
+    "continuity_pct": 99.91,
+    "total_footage_sec": 86341.06,
+    "formatted_total_footage": "23h 59m 1s",
+    "total_missing_sec": 81.27,
+    "formatted_total_missing": "1m 21s",
+    "security_verdict": "SECURITY_WARNING_TIMELINE_GAPS",
+    "gaps_count": 1,
+    "gaps": [
+      {
+        "severity": "SUSPICIOUS_CUT",
+        "gap_start": "2026-09-20T23:42:00.733911",
+        "gap_end": "2026-09-20T23:43:22",
+        "duration_sec": 81.27,
+        "formatted_duration": "1m 21s",
+        "preceding_file": "56_8_DBGT_IPC56_38c0a1be45bb4cbab340263954cfb3fc_20260920230115.mp4",
+        "succeeding_file": "56_8_DBGT_IPC56_dd99268aaf1e46c988f38c2a3fda768a_20260920234322.mp4",
+        "description": "Footage missing for 1m 21s. Possible trimmed or omitted video file."
+      }
+    ]
+  },
+  "21": {
+    "day": 21,
+    "files_count": 34,
+    "continuity_pct": 99.83,
+    "total_footage_sec": 86275.38,
+    "formatted_total_footage": "23h 57m 55s",
+    "total_missing_sec": 144.55,
+    "formatted_total_missing": "2m 25s",
+    "security_verdict": "SECURITY_WARNING_TIMELINE_GAPS",
+    "gaps_count": 1,
+    "gaps": [
+      {
+        "severity": "SUSPICIOUS_CUT",
+        "gap_start": "2026-09-21T09:40:14.447578",
+        "gap_end": "2026-09-21T09:42:39",
+        "duration_sec": 144.55,
+        "formatted_duration": "2m 25s",
+        "preceding_file": "56_8_DBGT_IPC56_4428dd63e808482696a38b954d9844c4_20260921093234.mp4",
+        "succeeding_file": "56_8_DBGT_IPC56_0feb96b6a1c54e8f8980bae968290627_20260921094239.mp4",
+        "description": "Footage missing for 2m 25s. Possible trimmed or omitted video file."
+      }
+    ]
+  },
+  "22": {
+    "day": 22,
+    "files_count": 33,
+    "continuity_pct": 100.0,
+    "total_footage_sec": 86417.28,
+    "formatted_total_footage": "24h 0m 17s",
+    "total_missing_sec": 0.0,
+    "formatted_total_missing": "0s",
+    "security_verdict": "SECURE_100_PERCENT_CONTINUOUS",
+    "gaps_count": 0,
+    "gaps": []
+  },
+  "23": {
+    "day": 23,
+    "files_count": 33,
+    "continuity_pct": 100.0,
+    "total_footage_sec": 86420.33,
+    "formatted_total_footage": "24h 0m 20s",
+    "total_missing_sec": 0.0,
+    "formatted_total_missing": "0s",
+    "security_verdict": "SECURE_100_PERCENT_CONTINUOUS",
+    "gaps_count": 0,
+    "gaps": []
+  },
+  "24": {
+    "day": 24,
+    "files_count": 33,
+    "continuity_pct": 100.0,
+    "total_footage_sec": 86418.48,
+    "formatted_total_footage": "24h 0m 18s",
+    "total_missing_sec": 0.0,
+    "formatted_total_missing": "0s",
+    "security_verdict": "SECURE_100_PERCENT_CONTINUOUS",
+    "gaps_count": 0,
+    "gaps": []
+  },
+  "25": {
+    "day": 25,
+    "files_count": 33,
+    "continuity_pct": 100.0,
+    "total_footage_sec": 86417.77,
+    "formatted_total_footage": "24h 0m 18s",
+    "total_missing_sec": 0.0,
+    "formatted_total_missing": "0s",
+    "security_verdict": "SECURE_100_PERCENT_CONTINUOUS",
+    "gaps_count": 0,
+    "gaps": []
+  },
+  "26": {
+    "day": 26,
+    "files_count": 33,
+    "continuity_pct": 100.0,
+    "total_footage_sec": 86414.78,
+    "formatted_total_footage": "24h 0m 15s",
+    "total_missing_sec": 0.0,
+    "formatted_total_missing": "0s",
+    "security_verdict": "SECURE_100_PERCENT_CONTINUOUS",
+    "gaps_count": 0,
+    "gaps": []
+  },
+  "27": {
+    "day": 27,
+    "files_count": 33,
+    "continuity_pct": 100.0,
+    "total_footage_sec": 86414.78,
+    "formatted_total_footage": "24h 0m 15s",
+    "total_missing_sec": 0.0,
+    "formatted_total_missing": "0s",
+    "security_verdict": "SECURE_100_PERCENT_CONTINUOUS",
+    "gaps_count": 0,
+    "gaps": []
+  },
+  "28": {
+    "day": 28,
+    "files_count": 34,
+    "continuity_pct": 99.83,
+    "total_footage_sec": 86267.46,
+    "formatted_total_footage": "23h 57m 47s",
+    "total_missing_sec": 144.48,
+    "formatted_total_missing": "2m 24s",
+    "security_verdict": "SECURITY_WARNING_TIMELINE_GAPS",
+    "gaps_count": 1,
+    "gaps": [
+      {
+        "severity": "SUSPICIOUS_CUT",
+        "gap_start": "2026-09-28T09:40:16.516456",
+        "gap_end": "2026-09-28T09:42:41",
+        "duration_sec": 144.48,
+        "formatted_duration": "2m 24s",
+        "preceding_file": "56_8_DBGT_IPC56_735b147036e44f6f8429a1c9c4697456_20260928093207.mp4",
+        "succeeding_file": "56_8_DBGT_IPC56_574aa3b024d4439b88896b20cd336483_20260928094241.mp4",
+        "description": "Footage missing for 2m 24s. Possible trimmed or omitted video file."
+      }
+    ]
+  },
+  "29": {
+    "day": 29,
+    "files_count": 33,
+    "continuity_pct": 100.0,
+    "total_footage_sec": 86417.48,
+    "formatted_total_footage": "24h 0m 17s",
+    "total_missing_sec": 0.0,
+    "formatted_total_missing": "0s",
+    "security_verdict": "SECURE_100_PERCENT_CONTINUOUS",
+    "gaps_count": 0,
+    "gaps": []
+  },
+  "30": {
+    "day": 30,
+    "files_count": 33,
+    "continuity_pct": 100.0,
+    "total_footage_sec": 86416.37,
+    "formatted_total_footage": "24h 0m 16s",
+    "total_missing_sec": 0.0,
+    "formatted_total_missing": "0s",
+    "security_verdict": "SECURE_100_PERCENT_CONTINUOUS",
+    "gaps_count": 0,
+    "gaps": []
+  }
+}
