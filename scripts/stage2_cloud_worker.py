@@ -26,7 +26,7 @@ CROP_OFFSET_X = 295
 CROP_OFFSET_Y = 20
 
 
-def load_insightface_app(device_id=0, det_size=(640, 640)):
+def load_insightface_app(device_id=0, det_size=(1280, 800)):
     """Load InsightFace buffalo_l model on CUDA with fallback to CPU."""
     try:
         import onnxruntime as ort
