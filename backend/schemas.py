@@ -72,13 +72,13 @@ class CameraBase(BaseModel):
 
 class CameraResponse(CameraBase):
     status: str
-    ping_ms: int
-    frame_latency_ms: int
-    fps: float
-    gpu_load: float
-    cpu_load: float
+    ping_ms: Optional[int] = 0
+    frame_latency_ms: Optional[int] = 0
+    fps: Optional[float] = 0.0
+    gpu_load: Optional[float] = 0.0
+    cpu_load: Optional[float] = 0.0
     last_heartbeat: Optional[datetime] = None
-    detections_today: int
+    detections_today: Optional[int] = 0
     
     model_config = ConfigDict(from_attributes=True)
 
@@ -348,16 +348,16 @@ class FaceLogResponse(BaseModel):
     camera_name: str
     timestamp: str
     status: str
-    confidence: float
-    liveness_score: float
-    profile_id: Optional[str]
-    profile_name: Optional[str]
-    role: Optional[str]
-    age: int
-    gender: str
-    wearing_mask: bool
-    wearing_glasses: bool
-    snapshot_tone: str  # Color token for avatar
+    confidence: Optional[float] = 0.0
+    liveness_score: Optional[float] = 0.0
+    profile_id: Optional[str] = None
+    profile_name: Optional[str] = None
+    role: Optional[str] = None
+    age: Optional[int] = 0
+    gender: Optional[str] = "unknown"
+    wearing_mask: Optional[bool] = False
+    wearing_glasses: Optional[bool] = False
+    snapshot_tone: Optional[str] = "blue"  # Color token for avatar
     face_image: Optional[str] = None
     source: Optional[str] = "live"
     batch_id: Optional[str] = None

@@ -9,7 +9,7 @@ batch ingestion into Supabase PostgreSQL (detections table with pgvector).
 
 import argparse
 import base64
-from datetime import datetime
+from datetime import datetime, timedelta
 import json
 import os
 from pathlib import Path
