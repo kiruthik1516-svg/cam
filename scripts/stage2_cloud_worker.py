@@ -39,6 +39,7 @@ def load_insightface_app(device_id=0, det_size=(640, 640)):
         # Buffalo_l includes SCRFD-10G (detector) and ArcFace-10G/w600k (512-D embeddings)
         app = FaceAnalysis(
             name="buffalo_l",
+            allowed_modules=["detection", "recognition"],
             providers=["CUDAExecutionProvider", "CPUExecutionProvider"],
         )
         app.prepare(ctx_id=device_id, det_size=det_size)
@@ -48,7 +49,9 @@ def load_insightface_app(device_id=0, det_size=(640, 640)):
         from insightface.app import FaceAnalysis
 
         app = FaceAnalysis(
-            name="buffalo_l", providers=["CPUExecutionProvider"]
+            name="buffalo_l",
+            allowed_modules=["detection", "recognition"],
+            providers=["CPUExecutionProvider"],
         )
         app.prepare(ctx_id=-1, det_size=det_size)
         print(f"[OK] InsightFace buffalo_l loaded on CPU (det-size: {det_size}).")
@@ -261,7 +264,7 @@ def parse_manifest_records(day_path: Path) -> list:
                     parts = name.split("_w")
                     if len(parts) == 2:
                         stem = parts[0]
-                        for pfx in [f"{day_path.name}_", "day01_", "day1_"]:
+                        for pfx in ["day01_", "day02_", "day03_", "day04_", "day05_", "day06_", "day07_", "day08_", "day09_", "day10_", "day11_", "day12_", "day13_", "day14_", "day15_", "day16_", "day17_", "day18_", "day19_", "day20_", "day21_", "day22_", "day23_", "day24_", "day25_", "day26_", "day27_", "day28_", "day29_", "day30_", "day1_", f"{day_path.name}_"]:
                             if stem.startswith(pfx):
                                 stem = stem[len(pfx):]
                         win_part, frame_part = parts[1].split("_")
@@ -279,8 +282,15 @@ def parse_manifest_records(day_path: Path) -> list:
                             ts = frame_dt.strftime("%Y-%m-%d %H:%M:%S")
                             sec = int(offset_sec)
                         else:
-                            ts = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-                            sec = frame_idx
+                            ts_candidate = stem.split("_")[-1]
+                            try:
+                                clip_dt = datetime.strptime(ts_candidate, "%Y%m%d%H%M%S")
+                                frame_dt = clip_dt + timedelta(seconds=(frame_idx - 1))
+                                ts = frame_dt.strftime("%Y-%m-%d %H:%M:%S")
+                                sec = frame_idx
+                            except Exception:
+                                ts = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                                sec = frame_idx
                     else:
                         ts = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
                         sec = 0
@@ -606,9 +616,9 @@ def main():
     engine = create_engine(args.db_url)
     ensure_camera_exists(engine, args.camera_id)
 
-    app = None
-    if args.workers <= 1:
-        app = load_insightface_app(device_id=0, det_size=det_size)
+    print('Pre-warming InsightFace buffalo_l models to cache...')
+    parent_app = load_insightface_app(device_id=0, det_size=det_size)
+    app = parent_app if args.workers <= 1 else None
 
     checkpoint_file = data_dir / "stage2_cloud_progress.json"
     completed_days = {}
