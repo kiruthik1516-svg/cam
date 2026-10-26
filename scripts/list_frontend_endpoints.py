@@ -14,3 +14,4 @@ for root, dirs, files in os.walk('facial-recognition-dashboard'):
 
 for ep in sorted(endpoints):
     print(ep)
+

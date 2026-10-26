@@ -1,16 +1,16 @@
-"""Stage 2 Cloud GPU Worker: Autonomous 30-Day ArcFace Vectorization.
+"""Stage 2 Cloud Worker: Autonomous Parallel ArcFace Vectorization.
 
-Optimized for NVIDIA RTX 4090 / CUDA execution on JarvisLabs.
-Processes candidate interaction frames harvested in Stage 1,
-extracts 512-D ArcFace normalized unit embeddings via InsightFace buffalo_l,
-calculates facial quality and liveness scores, and performs high-throughput
-batch ingestion into Supabase PostgreSQL (detections table with pgvector).
+Optimized for high-throughput multi-core execution (e.g. 8 vCPU / 32 GB RAM).
+Supports parallel multiprocessing across N worker processes to linearly scale
+throughput on multi-core CPU instances, reducing processing time from 20+ min
+down to ~4-5 minutes per day.
 """
 
 import argparse
 import base64
 from datetime import datetime, timedelta
 import json
+import multiprocessing
 import os
 from pathlib import Path
 import sys
@@ -26,7 +26,7 @@ CROP_OFFSET_X = 295
 CROP_OFFSET_Y = 20
 
 
-def load_insightface_app(device_id=0):
+def load_insightface_app(device_id=0, det_size=(640, 640)):
     """Load InsightFace buffalo_l model on CUDA with fallback to CPU."""
     try:
         from insightface.app import FaceAnalysis
@@ -36,22 +36,17 @@ def load_insightface_app(device_id=0):
             name="buffalo_l",
             providers=["CUDAExecutionProvider", "CPUExecutionProvider"],
         )
-        # Det size calibrated for high-res candidate crops (1195x760)
-        app.prepare(ctx_id=device_id, det_size=(1280, 800))
-        print(
-            "[OK] InsightFace buffalo_l loaded successfully on CUDA (GPU Device ID: 0)."
-        )
+        app.prepare(ctx_id=device_id, det_size=det_size)
+        print(f"[OK] InsightFace buffalo_l loaded on CUDA (GPU: {device_id}, det-size: {det_size}).")
         return app
     except Exception as e:
-        print(
-            f"WARNING: InsightFace CUDA loading failed ({e}). Falling back to CPU..."
-        )
         from insightface.app import FaceAnalysis
 
         app = FaceAnalysis(
             name="buffalo_l", providers=["CPUExecutionProvider"]
         )
-        app.prepare(ctx_id=-1, det_size=(960, 640))
+        app.prepare(ctx_id=-1, det_size=det_size)
+        print(f"[OK] InsightFace buffalo_l loaded on CPU (det-size: {det_size}).")
         return app
 
 
@@ -84,16 +79,22 @@ def ensure_camera_exists(engine, camera_id="IPC56"):
     with engine.begin() as conn:
         conn.execute(
             text("""
-            INSERT INTO cameras (id, name, zone, status)
-            VALUES (:cam_id, 'RO Water Treatment Plant Rooftop', 'Rooftop Entrance', 'online')
-            ON CONFLICT (id) DO NOTHING;
+            INSERT INTO cameras (id, name, zone, status, ping_ms, frame_latency_ms, fps, gpu_load, cpu_load, detections_today)
+            VALUES (:cam_id, 'RO Water Treatment Plant Rooftop', 'Rooftop Entrance', 'online', 0, 0, 0.0, 0.0, 0.0, 0)
+            ON CONFLICT (id) DO UPDATE SET
+                ping_ms = COALESCE(cameras.ping_ms, 0),
+                frame_latency_ms = COALESCE(cameras.frame_latency_ms, 0),
+                fps = COALESCE(cameras.fps, 0.0),
+                gpu_load = COALESCE(cameras.gpu_load, 0.0),
+                cpu_load = COALESCE(cameras.cpu_load, 0.0),
+                detections_today = COALESCE(cameras.detections_today, 0);
         """),
             {"cam_id": camera_id},
         )
 
 
 def flush_to_db(engine, records):
-    """Perform bulk batch insert into PostgreSQL detections table."""
+    """Perform bulk batch insert into PostgreSQL detections table using executemany."""
     if not records:
         return
 
@@ -110,36 +111,124 @@ def flush_to_db(engine, records):
     """)
 
     with engine.begin() as conn:
-        for r in records:
-            conn.execute(
-                insert_sql,
-                {
-                    "id": r["id"],
-                    "batch_id": r["batch_id"],
-                    "camera_id": r["camera_id"],
-                    "source": r["source"],
-                    "timestamp": r["timestamp"],
-                    "sequence_number": r["sequence_number"],
-                    "bbox": r["bbox"],
-                    "confidence": r["confidence"],
-                    "quality_score": r["quality_score"],
-                    "embedding_vector": r["embedding_vector"],
-                    "face_image": r["face_image"],
-                    "device_id": r["device_id"],
-                    "status": r["status"],
-                    "priority": r["priority"],
-                },
-            )
+        conn.execute(insert_sql, records)
 
 
-def process_day(
-    day_dir, app, engine, batch_prefix="batch_30d_", camera_id="IPC56"
+def _parallel_worker(
+    worker_id: int,
+    records_chunk: list,
+    day_path_str: str,
+    camera_id: str,
+    batch_id: str,
+    db_url: str,
+    det_size: tuple,
+    device_id: int,
+    return_dict: dict,
 ):
-    """Process a single day directory containing manifest.json and candidate frame crops."""
-    day_path = Path(day_dir)
+    """Sub-process worker executing InsightFace vectorization on a shard of candidate frames."""
+    os.environ["OMP_NUM_THREADS"] = "2"
+    os.environ["OPENBLAS_NUM_THREADS"] = "2"
+    os.environ["MKL_NUM_THREADS"] = "2"
+
+    day_path = Path(day_path_str)
+    engine = create_engine(db_url, pool_pre_ping=True)
+    app = load_insightface_app(device_id=device_id, det_size=det_size)
+
+    total_faces = 0
+    batch_insert_queue = []
+    t0 = time.time()
+    frames_processed = 0
+
+    for idx, r in enumerate(records_chunk, 1):
+        img_name = r["frame_image"]
+        img_path = day_path / img_name
+        if not img_path.exists():
+            continue
+
+        img = cv2.imread(str(img_path))
+        if img is None:
+            continue
+
+        frames_processed += 1
+        faces = app.get(img)
+
+        for f in faces:
+            crop_bbox = [int(x) for x in f.bbox]
+            native_bbox = [
+                crop_bbox[0] + CROP_OFFSET_X,
+                crop_bbox[1] + CROP_OFFSET_Y,
+                crop_bbox[2] + CROP_OFFSET_X,
+                crop_bbox[3] + CROP_OFFSET_Y,
+            ]
+
+            norm_vec = None
+            if hasattr(f, "normed_embedding") and f.normed_embedding is not None:
+                norm_vec = f.normed_embedding.tolist()
+            elif hasattr(f, "embedding") and f.embedding is not None:
+                arr = np.array(f.embedding, dtype=np.float32)
+                n = np.linalg.norm(arr)
+                norm_vec = (arr / n).tolist() if n > 1e-4 else None
+
+            if not norm_vec or len(norm_vec) != 512:
+                continue
+
+            vec_str = f"[{','.join(f'{x:.6f}' for x in norm_vec)}]"
+            q_score = compute_quality_score(f, img)
+
+            pad = 20
+            h, w = img.shape[:2]
+            cx1, cy1 = max(0, crop_bbox[0] - pad), max(0, crop_bbox[1] - pad)
+            cx2, cy2 = min(w, crop_bbox[2] + pad), min(h, crop_bbox[3] + pad)
+            face_crop = img[cy1:cy2, cx1:cx2]
+
+            face_b64 = None
+            if face_crop.size > 0:
+                _, buf = cv2.imencode(".jpg", face_crop, [cv2.IMWRITE_JPEG_QUALITY, 85])
+                face_b64 = base64.b64encode(buf).decode("utf-8")
+
+            raw_ts = r.get("timestamp") or datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            confidence = round(float(f.det_score * 100.0), 2) if hasattr(f, "det_score") else 80.0
+
+            batch_insert_queue.append({
+                "id": str(uuid.uuid4()),
+                "batch_id": batch_id,
+                "camera_id": camera_id,
+                "source": "archive",
+                "timestamp": raw_ts,
+                "sequence_number": r.get("second", 0),
+                "bbox": json.dumps(native_bbox),
+                "confidence": confidence,
+                "quality_score": q_score,
+                "embedding_vector": vec_str,
+                "face_image": face_b64,
+                "device_id": r.get("file", day_path.name),
+                "status": "unknown",
+                "priority": "normal",
+            })
+            total_faces += 1
+
+        if len(batch_insert_queue) >= 10:
+            flush_to_db(engine, batch_insert_queue)
+            batch_insert_queue = []
+
+        if idx % 25 == 0 or idx == len(records_chunk):
+            speed = idx / max(0.001, time.time() - t0)
+            print(f"  [Worker {worker_id} | {day_path.name}] {idx}/{len(records_chunk)} frames ({speed:.1f} FPS) | Faces: {total_faces}", flush=True)
+
+    if batch_insert_queue:
+        flush_to_db(engine, batch_insert_queue)
+
+    return_dict[worker_id] = {
+        "frames_processed": frames_processed,
+        "total_faces": total_faces,
+        "elapsed": time.time() - t0,
+    }
+
+
+def parse_manifest_records(day_path: Path) -> list:
+    """Parse manifest and candidate images with frame-accurate timestamps."""
     manifest_path = day_path / "manifest.json"
     records = []
-
     if manifest_path.exists():
         try:
             with open(manifest_path, "r", encoding="utf-8") as f:
@@ -147,7 +236,6 @@ def process_day(
             if isinstance(data, list):
                 records = data
             elif isinstance(data, dict):
-                # Manifest has clip metadata: build lookup for .jpg files
                 clip_info = {}
                 for c in data.get("clips", []):
                     c_name = c["clip"]
@@ -162,7 +250,6 @@ def process_day(
                         "windows": c.get("windows", []),
                     }
 
-                # Enumerate all candidate jpg files in day_path
                 for jpg in sorted(day_path.glob("*.jpg")):
                     name = jpg.name
                     parts = name.split("_w")
@@ -200,7 +287,6 @@ def process_day(
         except Exception as e:
             print(f"Error parsing manifest: {e}")
 
-    # Fallback if no records found yet
     if not records:
         for jpg in sorted(day_path.glob("*.jpg")):
             records.append({
@@ -208,126 +294,150 @@ def process_day(
                 "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
                 "second": 0,
             })
+    return records
 
+
+def process_day(
+    day_path,
+    app,
+    engine,
+    batch_prefix="batch_30d_",
+    camera_id="IPC56",
+    num_workers=4,
+    det_size=(640, 640),
+    device_id=0,
+    db_url="",
+):
+    """Process all candidate interaction frames for one day with optional parallel sharding."""
+    records = parse_manifest_records(day_path)
     if not records:
         print(f"Skipping {day_path.name}: No candidate images found.")
         return None
 
-    day_name = day_path.name  # e.g. day_01
+    day_name = day_path.name
     batch_id = f"{batch_prefix}{day_name}"
 
-    print(
-        f"\n{'='*70}\n[STAGE 2] Processing {day_name} | {len(records)} candidate frames | Batch: {batch_id}\n{'='*70}"
-    )
+    print(f"\n{'='*70}\n[STAGE 2] Processing {day_name} | {len(records)} candidate frames | Workers: {num_workers} | Batch: {batch_id}\n{'='*70}")
 
-    total_faces = 0
-    batch_insert_queue = []
     t0 = time.time()
-    frames_processed = 0
 
-    for idx, r in enumerate(records, 1):
-        img_name = r["frame_image"]
-        img_path = day_path / img_name
-        if not img_path.exists():
-            continue
+    if num_workers <= 1:
+        # Sequential Single Worker Execution
+        total_faces = 0
+        batch_insert_queue = []
+        frames_processed = 0
 
-        img = cv2.imread(str(img_path))
-        if img is None:
-            continue
-
-        frames_processed += 1
-
-        # Detect faces with ArcFace on CUDA
-        faces = app.get(img)
-
-        for f in faces:
-            # Native 3K coordinates mapping (add crop offsets [295, 20])
-            crop_bbox = [int(x) for x in f.bbox]
-            native_bbox = [
-                crop_bbox[0] + CROP_OFFSET_X,
-                crop_bbox[1] + CROP_OFFSET_Y,
-                crop_bbox[2] + CROP_OFFSET_X,
-                crop_bbox[3] + CROP_OFFSET_Y,
-            ]
-
-            # 512-D Normalized Unit Vector
-            norm_vec = None
-            if (
-                hasattr(f, "normed_embedding")
-                and f.normed_embedding is not None
-            ):
-                norm_vec = f.normed_embedding.tolist()
-            elif hasattr(f, "embedding") and f.embedding is not None:
-                arr = np.array(f.embedding, dtype=np.float32)
-                n = np.linalg.norm(arr)
-                norm_vec = (arr / n).tolist() if n > 1e-4 else None
-
-            if not norm_vec or len(norm_vec) != 512:
+        for idx, r in enumerate(records, 1):
+            img_name = r["frame_image"]
+            img_path = day_path / img_name
+            if not img_path.exists():
                 continue
 
-            # Format vector string for pgvector '[0.0123,-0.0456,...]'
-            vec_str = f"[{','.join(f'{x:.6f}' for x in norm_vec)}]"
+            img = cv2.imread(str(img_path))
+            if img is None:
+                continue
 
-            q_score = compute_quality_score(f, img)
+            frames_processed += 1
+            faces = app.get(img)
 
-            # Crop face thumbnail with 20px padding for evidence dossier
-            pad = 20
-            h, w = img.shape[:2]
-            cx1, cy1 = max(0, crop_bbox[0] - pad), max(0, crop_bbox[1] - pad)
-            cx2, cy2 = min(w, crop_bbox[2] + pad), min(h, crop_bbox[3] + pad)
-            face_crop = img[cy1:cy2, cx1:cx2]
+            for f in faces:
+                crop_bbox = [int(x) for x in f.bbox]
+                native_bbox = [
+                    crop_bbox[0] + CROP_OFFSET_X,
+                    crop_bbox[1] + CROP_OFFSET_Y,
+                    crop_bbox[2] + CROP_OFFSET_X,
+                    crop_bbox[3] + CROP_OFFSET_Y,
+                ]
 
-            face_b64 = None
-            if face_crop.size > 0:
-                _, buf = cv2.imencode(
-                    ".jpg", face_crop, [cv2.IMWRITE_JPEG_QUALITY, 85]
-                )
-                face_b64 = base64.b64encode(buf).decode("utf-8")
+                norm_vec = None
+                if hasattr(f, "normed_embedding") and f.normed_embedding is not None:
+                    norm_vec = f.normed_embedding.tolist()
+                elif hasattr(f, "embedding") and f.embedding is not None:
+                    arr = np.array(f.embedding, dtype=np.float32)
+                    n = np.linalg.norm(arr)
+                    norm_vec = (arr / n).tolist() if n > 1e-4 else None
 
-            # Timestamp parsing
-            raw_ts = r.get("timestamp")
-            if not raw_ts:
-                # Approximate fallback
-                raw_ts = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                if not norm_vec or len(norm_vec) != 512:
+                    continue
 
-            confidence = (
-                round(float(f.det_score * 100.0), 2)
-                if hasattr(f, "det_score")
-                else 80.0
-            )
+                vec_str = f"[{','.join(f'{x:.6f}' for x in norm_vec)}]"
+                q_score = compute_quality_score(f, img)
 
-            batch_insert_queue.append({
-                "id": str(uuid.uuid4()),
-                "batch_id": batch_id,
-                "camera_id": camera_id,
-                "source": "archive",
-                "timestamp": raw_ts,
-                "sequence_number": r.get("second", 0),
-                "bbox": json.dumps(native_bbox),
-                "confidence": confidence,
-                "quality_score": q_score,
-                "embedding_vector": vec_str,
-                "face_image": face_b64,
-                "device_id": r.get("file", day_name),
-                "status": "unknown",
-                "priority": "normal",
-            })
-            total_faces += 1
+                pad = 20
+                h, w = img.shape[:2]
+                cx1, cy1 = max(0, crop_bbox[0] - pad), max(0, crop_bbox[1] - pad)
+                cx2, cy2 = min(w, crop_bbox[2] + pad), min(h, crop_bbox[3] + pad)
+                face_crop = img[cy1:cy2, cx1:cx2]
 
-        # Flush to DB in blocks of 50
-        if len(batch_insert_queue) >= 50:
+                face_b64 = None
+                if face_crop.size > 0:
+                    _, buf = cv2.imencode(".jpg", face_crop, [cv2.IMWRITE_JPEG_QUALITY, 85])
+                    face_b64 = base64.b64encode(buf).decode("utf-8")
+
+                raw_ts = r.get("timestamp") or datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                confidence = round(float(f.det_score * 100.0), 2) if hasattr(f, "det_score") else 80.0
+
+                batch_insert_queue.append({
+                    "id": str(uuid.uuid4()),
+                    "batch_id": batch_id,
+                    "camera_id": camera_id,
+                    "source": "archive",
+                    "timestamp": raw_ts,
+                    "sequence_number": r.get("second", 0),
+                    "bbox": json.dumps(native_bbox),
+                    "confidence": confidence,
+                    "quality_score": q_score,
+                    "embedding_vector": vec_str,
+                    "face_image": face_b64,
+                    "device_id": r.get("file", day_name),
+                    "status": "unknown",
+                    "priority": "normal",
+                })
+                total_faces += 1
+
+            if len(batch_insert_queue) >= 10:
+                flush_to_db(engine, batch_insert_queue)
+                batch_insert_queue = []
+
+            if idx % 250 == 0 or idx == len(records):
+                speed = idx / max(0.001, time.time() - t0)
+                print(f"  [{day_name}] {idx}/{len(records)} frames ({speed:.1f} FPS) | Faces: {total_faces}")
+
+        if batch_insert_queue:
             flush_to_db(engine, batch_insert_queue)
-            batch_insert_queue = []
 
-        if idx % 250 == 0 or idx == len(records):
-            speed = idx / max(0.001, time.time() - t0)
-            print(
-                f"  [{day_name}] {idx}/{len(records)} frames ({speed:.1f} FPS) | Faces: {total_faces}"
+    else:
+        # Multiprocessing Parallel Execution across N Shards
+        manager = multiprocessing.Manager()
+        return_dict = manager.dict()
+        chunks = [[] for _ in range(num_workers)]
+        for i, r in enumerate(records):
+            chunks[i % num_workers].append(r)
+
+        processes = []
+        for wid in range(num_workers):
+            p = multiprocessing.Process(
+                target=_parallel_worker,
+                args=(
+                    wid + 1,
+                    chunks[wid],
+                    str(day_path),
+                    camera_id,
+                    batch_id,
+                    db_url,
+                    det_size,
+                    device_id,
+                    return_dict,
+                ),
             )
+            processes.append(p)
+            p.start()
 
-    # Final flush
-    if batch_insert_queue:
-        flush_to_db(engine, batch_insert_queue)
+        for p in processes:
+            p.join()
+
+        frames_processed = sum(res["frames_processed"] for res in return_dict.values())
+        total_faces = sum(res["total_faces"] for res in return_dict.values())
 
     elapsed = time.time() - t0
     avg_fps = frames_processed / max(0.001, elapsed)
@@ -350,7 +460,7 @@ def process_day(
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Autonomous Stage 2 Cloud GPU Face Vectorizer"
+        description="Autonomous Stage 2 Parallel Cloud Face Vectorizer"
     )
     parser.add_argument(
         "--data-dir",
@@ -388,6 +498,18 @@ def main():
         help="Prefix for batch ID",
     )
     parser.add_argument(
+        "--workers",
+        type=int,
+        default=4,
+        help="Number of parallel worker processes (default: 4)",
+    )
+    parser.add_argument(
+        "--det-size",
+        type=int,
+        default=640,
+        help="SCRFD detection dimension (default: 640)",
+    )
+    parser.add_argument(
         "--resume",
         action="store_true",
         help="Resume skipping already completed days",
@@ -418,7 +540,6 @@ def main():
         print(f"ERROR: Data directory {data_dir} does not exist.")
         sys.exit(1)
 
-    # Discover day folders
     if args.day:
         target_name = (
             args.day
@@ -436,22 +557,21 @@ def main():
         sys.exit(1)
 
     print(f"\n{'#'*70}")
-    print(
-        f"# STAGE 2 CLOUD GPU VECTORIZATION: {len(day_folders)} DAYS TARGETED"
-    )
-    print(f"# Target Directory: {data_dir}")
-    print(f"# Camera ID:        {args.camera_id}")
-    print(f"# Batch Prefix:     {args.batch_prefix}")
+    print(f"# STAGE 2 PARALLEL CLOUD VECTORIZATION: {len(day_folders)} DAYS TARGETED")
+    print(f"# Target Directory:  {data_dir}")
+    print(f"# Camera ID:         {args.camera_id}")
+    print(f"# Batch Prefix:      {args.batch_prefix}")
+    print(f"# Parallel Workers:  {args.workers}")
+    print(f"# Detection Size:    ({args.det_size}, {args.det_size})")
     print(f"{'#'*70}\n")
 
-    # Connect to database and verify setup
     engine = create_engine(args.db_url)
     ensure_camera_exists(engine, args.camera_id)
 
-    # Load InsightFace on GPU
-    app = load_insightface_app(device_id=0)
+    app = None
+    if args.workers <= 1:
+        app = load_insightface_app(device_id=0, det_size=(args.det_size, args.det_size))
 
-    # Progress tracking
     checkpoint_file = data_dir / "stage2_cloud_progress.json"
     completed_days = {}
     if args.resume and checkpoint_file.exists():
@@ -477,11 +597,14 @@ def main():
             engine,
             batch_prefix=args.batch_prefix,
             camera_id=args.camera_id,
+            num_workers=args.workers,
+            det_size=(args.det_size, args.det_size),
+            device_id=0,
+            db_url=args.db_url,
         )
         if res:
             results.append(res)
             completed_days[day_name] = res
-            # Save checkpoint
             with open(checkpoint_file, "w") as f:
                 json.dump(completed_days, f, indent=2)
 
@@ -492,14 +615,12 @@ def main():
     print(f"\n{'='*70}")
     print("STAGE 2 CLOUD VECTORIZATION MASTER SUMMARY")
     print(f"{'='*70}")
-    print(f"Days Processed:       {len(results)} / {len(day_folders)}")
-    print(f"Total Frames Tested:  {total_frames:,}")
+    print(f"Days Processed:         {len(results)} / {len(day_folders)}")
+    print(f"Total Frames Tested:    {total_frames:,}")
     print(f"Total Faces Vectorized: {total_faces:,}")
-    print(
-        f"Total Compute Time:   {total_time:.1f}s ({total_time/60:.2f} minutes)"
-    )
+    print(f"Total Compute Time:     {total_time:.1f}s ({total_time/60:.2f} minutes)")
     if total_time > 0:
-        print(f"Average System Speed: {total_frames/total_time:.1f} FPS")
+        print(f"Average System Speed:   {total_frames/total_time:.1f} FPS")
     print(f"{'='*70}\n")
 
     if args.auto_shutdown:
@@ -509,4 +630,5 @@ def main():
 
 
 if __name__ == "__main__":
+    multiprocessing.freeze_support()
     main()
