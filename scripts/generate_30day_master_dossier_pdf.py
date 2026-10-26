@@ -727,13 +727,16 @@ def build_master_dossier_pdf(
 
 
 def main():
-    audit_json = Path(
-        r"D:\facial\data\stage1_candidates\30day_security_audit_report.json"
-    )
-    personas_json = Path(
-        r"D:\facial\data\30day_personas\30day_personas_master.json"
-    )
-    output_pdf = Path(r"D:\facial\30_day_master_executive_dossier.pdf")
+    root = Path(__file__).resolve().parent.parent
+    audit_json = root / "data" / "stage1_candidates" / "30day_security_audit_report.json"
+    if not audit_json.exists():
+        audit_json = Path(r"D:\facial\data\stage1_candidates\30day_security_audit_report.json")
+
+    personas_json = root / "data" / "30day_personas" / "30day_personas_master.json"
+    if not personas_json.exists():
+        personas_json = Path(r"D:\facial\data\30day_personas\30day_personas_master.json")
+
+    output_pdf = root / "30_day_master_executive_dossier.pdf"
 
     build_master_dossier_pdf(
         audit_json_path=audit_json,

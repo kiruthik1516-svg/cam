@@ -50,6 +50,9 @@ pending/
 *.tar.gz
 *.tar
 *.zip
+*.rar
+*.tar
+*.zip
 *.mp4
 *.avi
 *.mkv

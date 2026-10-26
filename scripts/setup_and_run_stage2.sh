@@ -16,11 +16,16 @@ if ! command -v unrar &> /dev/null && ! command -v 7z &> /dev/null; then
     apt-get install -y p7zip-full unrar > /dev/null 2>&1 || true
 fi
 
-# 2. Python environment & GPU package setup
-echo "[2/5] Installing GPU dependencies (CUDA ONNXRuntime & InsightFace)..."
-pip install --upgrade pip > /dev/null 2>&1
-pip install torch torchvision --index-url https://download.pytorch.org/whl/cu121
-pip install onnxruntime-gpu insightface opencv-python-headless psycopg2-binary sqlalchemy numpy scipy tqdm
+# 2. Python environment & dependency setup
+if command -v nvidia-smi &> /dev/null && nvidia-smi &> /dev/null; then
+    echo "[2/5] NVIDIA GPU detected. Installing CUDA PyTorch, ONNXRuntime-GPU & InsightFace..."
+    pip install torch torchvision --index-url https://download.pytorch.org/whl/cu121
+    pip install onnxruntime-gpu insightface opencv-python-headless psycopg2-binary sqlalchemy numpy scipy tqdm
+else
+    echo "[2/5] CPU VM detected. Installing CPU PyTorch, ONNXRuntime & InsightFace..."
+    pip install torch torchvision --index-url https://download.pytorch.org/whl/cpu
+    pip install onnxruntime insightface opencv-python-headless psycopg2-binary sqlalchemy numpy scipy tqdm
+fi
 
 # 3. Locate & Extract candidate archive
 echo "[3/5] Locating candidate archive..."
@@ -73,13 +78,18 @@ fi
 
 echo "Database target verified."
 
-# 5. Execute Stage 2 Autonomous Cloud Vectorization across all 30 days
-echo "[5/5] Launching Stage 2 Vectorization across all 30 days on CUDA..."
+# 5. Execute Stage 2 Vectorization across all 30 days
+echo "[5/5] Launching Stage 2 Vectorization across all 30 days..."
+SHUTDOWN_FLAG=""
+if [ "${AUTO_SHUTDOWN:-false}" = "true" ]; then
+    SHUTDOWN_FLAG="--auto-shutdown"
+fi
+
 python3 scripts/stage2_cloud_worker.py \
     --data-dir ./stage1_candidates \
     --all-days \
     --resume \
-    --auto-shutdown
+    $SHUTDOWN_FLAG
 
 echo "======================================================================"
 echo " Stage 2 Vectorization Complete!"
