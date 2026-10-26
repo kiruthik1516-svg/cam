@@ -382,3 +382,28 @@ def test_gold_standard_batch_segregation_and_purge(client, auth_headers):
 
 
 
+
+
+def test_video_auditor_midnight_rollover_not_flagged_as_gap_or_cut():
+    """Verify that a clip naturally terminating at or across midnight (day rollover) is not falsely flagged as an intra-clip cut or abnormal trim."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        cam_dir = Path(tmpdir) / "IPC56"
+        cam_dir.mkdir(parents=True, exist_ok=True)
+        fourcc = cv2.VideoWriter_fourcc(*'mp4v')
+
+        # Clip starts at 23:55:00 and lasts 300s (5m), ending at 00:00:00 midnight
+        clip_path = cam_dir / "56_8_DBGT_IPC56_abc123_20260904235500.mp4"
+        out = cv2.VideoWriter(str(clip_path), fourcc, 1.0, (160, 120))
+        for _ in range(300):
+            out.write(np.zeros((120, 160, 3), dtype=np.uint8))
+        out.release()
+
+        auditor = VideoAuditor(tolerance_seconds=5.0)
+        report = auditor.scan_directory(tmpdir)
+
+        assert report.total_files_scanned == 1
+        assert len(report.gaps) == 0
+        assert report.clips[0].has_internal_cut is False
+        assert report.clips[0].is_abnormally_short is False
+        assert report.overall_continuity_percentage == 100.0
+        assert report.security_verdict == "SECURE_100_PERCENT_CONTINUOUS"

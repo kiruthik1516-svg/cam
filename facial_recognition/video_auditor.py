@@ -299,6 +299,11 @@ def detect_internal_cut(
         nominal_duration = (nominal_end_dt - start_dt).total_seconds()
         discrepancy = nominal_duration - duration_sec
     else:
+        # Check if the clip naturally reaches or crosses midnight (day rollover)
+        calc_end = start_dt + datetime.timedelta(seconds=duration_sec)
+        if start_dt.hour == 23 and (calc_end.date() > start_dt.date() or calc_end.time() >= datetime.time(23, 59, 0)):
+            return None
+
         # If no end time in filename, infer nearest standard CCTV recording block (1h = 3600s, 30m = 1800s, 15m = 900s)
         nominal_duration = None
         discrepancy = 0.0
@@ -718,6 +723,14 @@ class VideoAuditor:
                 for c in clips:
                     # Flag abnormally short clips (e.g. 15s when standard is 15-60 min)
                     if c.duration_seconds < min_threshold and len(clips) > 1 and median_dur > 60:
+                        # Exclude natural midnight boundary rollover clips
+                        try:
+                            c_start = datetime.datetime.fromisoformat(c.start_time)
+                            c_end = datetime.datetime.fromisoformat(c.end_time)
+                            if c_start.hour == 23 and (c_end.date() > c_start.date() or c_end.time() >= datetime.time(23, 59, 0)):
+                                continue
+                        except Exception:
+                            pass
                         c.is_abnormally_short = True
                         c.notes = f"Suspiciously short clip ({format_seconds(c.duration_seconds)} vs expected ~{format_seconds(median_dur)})"
 
