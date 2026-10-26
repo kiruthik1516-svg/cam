@@ -230,16 +230,25 @@ def extract_camera_id(path: Path) -> str:
 def extract_clip_start_time(path: Path) -> datetime.datetime:
     """Extract clip recording start time from filename, or fallback to file modified time."""
     stem = path.stem
+    # 1. Check trailing timestamp token first (e.g. 56_8_DBGT_IPC56_<uuid>_20260902111243)
+    last_token = stem.split("_")[-1]
+    if len(last_token) == 14 and last_token.isdigit():
+        try:
+            dt = datetime.datetime.strptime(last_token, "%Y%m%d%H%M%S")
+            if 2020 <= dt.year <= 2035:
+                return dt
+        except ValueError:
+            pass
+
+    # 2. Iterate over all pattern matches across filename (avoid false matches in hex UUIDs)
     for pattern, parser in TIMESTAMP_PATTERNS:
-        m = pattern.search(stem)
-        if m:
+        for m in pattern.finditer(stem):
             try:
                 dt = parser(m)
-                # Sanity check: year must be reasonable (e.g. 2020-2035)
                 if 2020 <= dt.year <= 2035:
                     return dt
             except Exception:
-                pass
+                continue
 
     # Fallback: file modification time
     try:
@@ -254,14 +263,16 @@ def extract_clip_time_window(path: Path) -> Tuple[datetime.datetime, Optional[da
     stem = path.stem
     # Check for two 14-digit timestamps (e.g. Orange@321_ch4_20261012005853_20261012015853)
     matches_14 = re.findall(r"(\d{4})(\d{2})(\d{2})(\d{2})(\d{2})(\d{2})", stem)
-    if len(matches_14) >= 2:
+    valid_dts = []
+    for m in matches_14:
         try:
-            start_dt = datetime.datetime(*[int(v) for v in matches_14[0]])
-            end_dt = datetime.datetime(*[int(v) for v in matches_14[1]])
-            if 2020 <= start_dt.year <= 2035 and 2020 <= end_dt.year <= 2035 and end_dt > start_dt:
-                return start_dt, end_dt
+            dt = datetime.datetime(*[int(v) for v in m])
+            if 2020 <= dt.year <= 2035:
+                valid_dts.append(dt)
         except Exception:
-            pass
+            continue
+    if len(valid_dts) >= 2 and valid_dts[1] > valid_dts[0]:
+        return valid_dts[0], valid_dts[1]
 
     return extract_clip_start_time(path), None
 
