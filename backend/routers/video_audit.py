@@ -59,6 +59,8 @@ def resolve_directory_path(dir_str: str) -> Path:
         for c in candidates:
             if c.exists():
                 return c.resolve()
+        if os.name != 'nt':
+            return candidates[0]
 
     # If HOST_FOOTAGE_DIR is mounted to /footage, check if path matches it
     host_footage = os.environ.get("HOST_FOOTAGE_DIR", "").replace("\\", "/").strip().rstrip("/")
