@@ -304,18 +304,10 @@ def detect_internal_cut(
         if start_dt.hour == 23 and (calc_end.date() > start_dt.date() or calc_end.time() >= datetime.time(23, 59, 0)):
             return None
 
-        # If no end time in filename, infer nearest standard CCTV recording block (1h = 3600s, 30m = 1800s, 15m = 900s)
-        nominal_duration = None
-        discrepancy = 0.0
-        for std_block in [3600.0, 1800.0, 900.0]:
-            diff = std_block - duration_sec
-            if tolerance_sec < diff <= 600.0:  # Missing up to 10 minutes from standard chunk
-                nominal_duration = std_block
-                discrepancy = diff
-                nominal_end_dt = start_dt + datetime.timedelta(seconds=std_block)
-                break
-        if nominal_duration is None:
-            return None
+        # When nominal_end_dt is not specified in the filename/metadata, do not guess
+        # arbitrary block sizes (prevents false intra-clip cuts on short or interrupted clips).
+        # Any actual time missing before the next clip is accurately captured by inter-clip gap audit.
+        return None
 
     if discrepancy <= tolerance_sec:
         return None
