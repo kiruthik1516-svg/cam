@@ -126,3 +126,4 @@ def extract_incident_faces():
 
 if __name__ == "__main__":
     extract_incident_faces()
+

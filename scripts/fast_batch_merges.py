@@ -73,3 +73,4 @@ for sim, p1, p2 in matches:
     p1_contacts = eval_p[p1]["zone_direct_contacts"]
     p2_contacts = eval_p[p2]["zone_direct_contacts"]
     print(f"  {p1} ({p1_dets} dets, {p1_contacts} contacts) <==> {p2} ({p2_dets} dets, {p2_contacts} contacts) | Sim = {sim:.4f}", flush=True)
+

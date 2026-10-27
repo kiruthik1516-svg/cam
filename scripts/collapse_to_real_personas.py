@@ -103,3 +103,4 @@ with open(out_json, "w", encoding="utf-8") as f:
     json.dump(real_personas_manifest, f, indent=2)
 
 print(f"[OK] Saved consolidated real personas manifest: {out_json}", flush=True)
+
