@@ -127,13 +127,14 @@ def cluster_embeddings(vectors, eps=0.38, min_samples=2):
     try:
         from sklearn.cluster import DBSCAN
 
-        # Compute cosine distance matrix (1 - dot product for normalized vectors)
-        # Cosine distance = 1.0 - (u . v)
-        similarity_matrix = np.clip(np.dot(vectors, vectors.T), -1.0, 1.0)
-        distance_matrix = np.clip(1.0 - similarity_matrix, 0.0, 2.0)
-
-        db = DBSCAN(eps=eps, min_samples=min_samples, metric="precomputed")
-        labels = db.fit_predict(distance_matrix)
+        # For unit-normalized vectors: ||u - v||^2 = 2 * (1 - u . v) = 2 * d_cosine
+        # Therefore: d_cosine <= eps <=> ||u - v||_2 <= sqrt(2 * eps)
+        # Using euclidean metric on unit vectors allows sklearn to evaluate distances on the fly
+        # without allocating a massive O(N^2) 40+ GB dense distance matrix, preventing OOM.
+        euclidean_eps = float(np.sqrt(2.0 * eps))
+        print(f"Running memory-efficient DBSCAN (cosine eps={eps} -> euclidean eps={euclidean_eps:.5f}) on {len(vectors)} vectors...")
+        db = DBSCAN(eps=euclidean_eps, min_samples=min_samples, metric="euclidean", n_jobs=-1)
+        labels = db.fit_predict(vectors)
         return labels
     except ImportError:
         print(
