@@ -47,6 +47,8 @@ htmlcov/
 data/
 known_faces/
 pending/
+backups/
+*.dump
 *.tar.gz
 *.tar
 *.zip
