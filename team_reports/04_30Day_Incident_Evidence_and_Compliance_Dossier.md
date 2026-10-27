@@ -1,16 +1,19 @@
-# RO Water Treatment Plant: 30-Day Incident Evidence & Compliance Dossier
-## Complete Audit Master Ledger: 179 Verified Incidents & 90 Daily Surveillance Sheets
+# Incident Evidence & Compliance Dossier: RO Water Treatment Plant
+## Complete 30-Day Master Event Ledger (179 Verified Equipment Interactions)
 
-> [!NOTE]
-> **Target Location:** RO Water Treatment Plant Rooftop | Camera `IPC56`  
-> **Total Extracted Video Clips:** 179 Events (8.20 GB, Organized in `day_01` through `day_30`)  
-> **Audit Document Inventory:** 90 Daily Verification CSVs (30 Clipping Indexes, 30 Audit Sheets, 30 Frame Indexes)  
-> **Target Audience:** Compliance Auditors, Health & Safety Officers, and Evidence Custodians  
+### Document Control & Custody Inventory
+| Parameter | Inventory Specification |
+| :--- | :--- |
+| **Monitored Facility** | RO Water Treatment Plant Rooftop Deck | Camera `IPC56` |
+| **Verified Incident Clips** | 179 Lossless MP4 Clips (8.20 GB, 6.55 Hours) |
+| **Daily Verification Sheets** | 90 Files (30 Clipping Indexes, 30 Manual Audit Sheets, 30 Frame Indexes) |
+| **Pre/Post Buffer Standard** | Mandatory $\pm 60$s Lossless Contextual Roll Margins |
+| **Custody Integrity** | Verified Read-Only Ingest from Source Volume (`E:\RO WATER SEP`) |
 
 ---
 
-### 1. Directory Structure & Evidence Organization
-All evidence clips and daily audit documents have been categorized into dedicated daily folders inside `D:/facial/incident_evidence/`:
+### 1. Evidence Organization & Directory Hierarchy
+All incident video clips and corresponding daily audit documents are archived in daily subdirectories under `D:/facial/incident_evidence/`:
 
 ```
 D:/facial/incident_evidence/
@@ -25,10 +28,10 @@ D:/facial/incident_evidence/
 ├── day_02/ through day_30/                  (Dedicated folders for all remaining 29 days)
 ```
 
-### 2. Complete Inventory of Daily Audit Documents (90 Files)
-1. **Daily Clipping Index CSVs (30 Files):** Catalog all detected events with exact start/end wall-clock timestamps, pre/post buffer windows, affected hazard zones, and automated extraction commands. (0 timestamp inversions).
-2. **Daily Manual Surveillance Audit Sheets (30 Files):** Catalog every single 45-minute raw CCTV file across all 30 days (998 total files) with automated status, active intervals, and reviewer validation columns.
-3. **Daily Extracted Frame Timestamp Indexes (30 Files):** Catalog all 212,382 candidate frames with direct video seek offsets and microsecond timestamps.
+### 2. Inventory of Daily Compliance Documents (90 Files)
+1. **Daily Clipping Index CSVs (30 Files):** Complete records of every incident window with ISO 8601 wall-clock start/end times, pre/post buffer margins, hazard zones, and automated extraction parameters (0 timestamp inversions).
+2. **Daily Manual Surveillance Audit Sheets (30 Files):** Complete records of all 999 raw CCTV video clips across the 30 calendar days, tracking continuous coverage and operational activity.
+3. **Daily Extracted Frame Timestamp Indexes (30 Files):** Microsecond timestamp indexes for all candidate frame crops extracted across the 30-day ingest.
 
 ### 3. Master Incident Timeline (179 Verified Events)
 | Event ID | Day | Date | Start Time | End Time | Duration | Critical Zone | Hazard Level | Personas Involved | Video Evidence Artifact |

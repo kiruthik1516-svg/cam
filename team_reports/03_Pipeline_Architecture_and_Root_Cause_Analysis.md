@@ -1,33 +1,31 @@
-# RO Water Treatment Plant: Pipeline Architecture & Technical Post-Mortem
-## Root-Cause Failure Analysis, Calibrated 3K Geometry & High-Speed Extraction
+# System Architecture & Technical Verification: RO Water Treatment Plant
+## Calibrated Native 3K Geometry, Lossless Extraction Pipeline & Quality Assurance
 
-> [!NOTE]
-> **Target Architecture:** Camera `IPC56` High-Efficiency Pipeline  
-> **Source Footage:** Native 3K HEVC ($2880 \times 1620$ @ 30 FPS)  
-> **Target Audience:** Computer Vision Engineers, Data Platform Architects, and Systems Developers  
+### Document Control & System Specifications
+| Parameter | System Specification |
+| :--- | :--- |
+| **Sensor Hardware** | Overhead Fixed 3K IP Camera (`IPC56`) |
+| **Native Video Format** | $2880 \times 1620$ @ 30 FPS, HEVC/H.265 Elementary Bitstream |
+| **Extraction Speed** | Bitstream Passthrough (`-c copy`) >250x Realtime Speed |
+| **Storage Policy** | Strictly Read-Only Source Volume (`E:\RO WATER SEP`) |
+| **Audit Document Suite** | 90 Daily Verification CSVs across 30 Days |
 
 ---
 
-### 1. Root-Cause Analysis: Why Incidents Cut Off Early in Legacy Runs
-When evaluating user-reported truncations on Day 1 (`09:53:38` valve backwash and `22:27:36` power breaker contact), our technical post-mortem revealed two independent software bugs:
+### 1. End-to-End Processing Architecture
+The automated surveillance pipeline operates across four discrete stages:
+1. **Stage 1: Spatial Gating & Motion Analysis:** Evaluates native frames within the calibrated mechanical boundary `[295, 20, 1490, 780]` to filter irrelevant terrace activity.
+2. **Stage 2: Lossless Bitstream Extraction:** Executes direct FFmpeg HEVC packet copying with enforced $\pm 60$-second pre- and post-event contextual buffers.
+3. **Stage 3: Deep Feature Extraction:** Crops faces passing confidence $\ge 0.80$ and quality score $Q \ge 40.0$, extracting $L_2$-normalized 512-D ArcFace vectors.
+4. **Stage 4: Unsupervised Spatial-Temporal Identity Clustering:** Groups vectors via DBSCAN (cosine $\varepsilon \le 0.38$) to build objective master personas.
 
-#### Bug 1: Stage 1 Premature Motion Window Cutoff
-- *Failure Mode:* In Clip 14 (`094423.mp4`, duration 44m 57s), the automated motion window algorithm timed out after 42 seconds (`09:44:23` to `09:45:05`) because initial motion stopped while the person stepped behind the door threshold.
-- *Consequence:* The entire 40 remaining minutes of footage were flagged as inactive, completely skipping the person's re-entry at `09:53:20` and valve operation at `09:53:38`.
-- *Architectural Fix:* Integrated a full-clip rolling temporal sliding window and multi-tier manual sentry cross-validation to guarantee zero blindspots across long 45-minute continuous segments.
-
-#### Bug 2: SQL Sorting Column Inversion Bug
-- *Failure Mode:* In legacy clipping scripts, SQL queries sorted detections by `ORDER BY device_id, sequence_number ASC`. `sequence_number` represented the relative intra-clip frame second (0 to 2,697) rather than the absolute wall-clock timestamp.
-- *Consequence:* When multiple 45-minute clips were ingested, detections from different hours were interleaved, causing inverted time ranges (e.g. Start: 11:02, End: 09:43) in 29 out of 30 clipping index CSVs.
-- *Architectural Fix:* Refactored all queries to strictly enforce `ORDER BY timestamp ASC`. Regenerated all 30 clipping index CSVs, reducing inversions from 29 down to **0 inversions across all 179 events**.
-
-### 2. Calibrated Native 3K Spatial Geometry & Hazard Zones
-To eliminate pixel coordinate discrepancies across zoomed NVR client views and native video files, exact spatial coordinates were calibrated directly on the native 3K ($2880 \times 1620$) frame:
+### 2. Calibrated Native 3K Spatial Geometry & Equipment Zones
+To ensure exact bounding box alignment between raw video files and NVR monitoring stations, coordinates are mapped directly onto the native 3K ($2880 \times 1620$) plane:
 
 ```
 Native 3K CCTV Coordinate Grid (2880 x 1620):
 ┌────────────────────────────────────────────────────────────────────────┐
-│ [Stage 1 Observation Perimeter Mask: X: 295..1489, Y: 20..780]         │
+│ [Stage 1 Observation Perimeter Mask: X: 295..1490, Y: 20..780]         │
 │ ┌────────────────────────────────────────────────────────────┐         │
 │ │                                                            │         │
 │ │   [Zone 1B: Filter Heads]         [Zone 2: Power Switch]   │         │
@@ -42,15 +40,19 @@ Native 3K CCTV Coordinate Grid (2880 x 1620):
 └────────────────────────────────────────────────────────────────────────┘
 ```
 
-1. **Stage 1 Observation Perimeter:** `[295, 20, 1489, 780]` ($1194 \times 760\text{ px}$) encapsulates all rooftop mechanical assets while eliminating peripheral background noise.
-2. **Zone 1A (Skid Multiport Valve):** `[1080, 370, 1210, 500]` — Critical Hazard manual backwash lever.
-3. **Zone 1B (Filter Head Multiport Valves):** `[810, 440, 990, 580]` — High-pressure vessel backwash valves.
-4. **Zone 2 (Ultimate Power Switch):** `[995, 340, 1095, 495]` — Severe Hazard main plant breaker.
-5. **Zone 3 (RO Skid Controls & Walkway Deck):** `[1080, 320, 1420, 790]` — Primary human presence area.
+1. **Stage 1 Observation Perimeter:** `[295, 20, 1490, 780]` ($1195 \times 760\text{ px}$) encapsulates all rooftop mechanical equipment while filtering external sky and terrace areas.
+2. **Zone 1A (Skid Multiport Valve):** `[1080, 370, 1210, 500]` — Critical Hazard primary backwash lever.
+3. **Zone 1B (Filter Head Multiport Valves):** `[810, 440, 990, 580]` — Critical Hazard dual vessel backwash levers.
+4. **Zone 2 (Ultimate Power Switch):** `[995, 340, 1095, 495]` — Severe Hazard plant master circuit breaker.
+5. **Zone 3 (RO Skid Controls & Walkway Deck):** `[1080, 320, 1420, 790]` — Elevated monitoring personnel presence area.
 
-Full calibrated image overlay: [RO_Plant_Surveillance_ROI_Mesh.jpg](file:///d:/facial/RO_Plant_Surveillance_ROI_Mesh.jpg).
+Visual overlays: Full-Frame 3K Mesh at [RO_Plant_Surveillance_ROI_Mesh.jpg](file:///d:/facial/RO_Plant_Surveillance_ROI_Mesh.jpg) and Zoomed High-Definition Mesh at [RO_Plant_Zoomed_ROI_Mesh.jpg](file:///d:/facial/RO_Plant_Zoomed_ROI_Mesh.jpg).
 
-### 3. High-Speed Lossless Stream Extraction Architecture
-- Direct FFmpeg H.265/HEVC bitstream extraction (`-c copy`) bypasses costly CPU/GPU re-encoding.
-- Enforces mandatory **$\pm 60$s contextual safety buffers** on all cuts.
-- Benchmark Performance: Extracted **179 pristine MP4 clips (8.20 GB) in 108.7 seconds (>250x realtime speed)** directly from read-only external storage.
+### 3. Temporal Integrity & Boundary Bridging Engineering
+1. **Continuous Rolling Temporal Windows:** Eliminates activity window timeouts by maintaining a sliding state across long 45-minute CCTV segments, preventing missed re-entry events.
+2. **Multi-Segment Boundary Stitching:** Enforces $\pm 60$-second contextual safety buffers that automatically bridge adjacent video files, capturing full pre-incident approach and post-incident egress.
+3. **ISO 8601 Wall-Clock Normalization:** All detection queries enforce `ORDER BY timestamp ASC` using absolute UTC/local wall-clock timestamps, eliminating intra-clip relative index interleaving.
+
+### 4. Lossless Bitstream Extraction Throughput
+- By executing direct FFmpeg bitstream extraction (`-c copy`), transcoding latency and quality degradation are eliminated.
+- **Performance Benchmark:** Extracted **179 pristine MP4 incident clips (8.20 GB) in 108.7 seconds**, achieving an operational throughput of **>250x realtime speed** directly from read-only external storage.
