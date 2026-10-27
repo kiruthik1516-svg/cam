@@ -22,12 +22,13 @@ for p in personas:
     q_score = p['exemplar_quality_score']
     portrait = p['exemplar_portrait_file']
     
-    tier = "Tier 1 (Core Staff)" if dets >= 50 else ("Tier 2 (Regular)" if dets >= 10 else "Tier 3 (Occasional)")
+    tier = "Tier 1 (High-Frequency Unknown Subject)" if dets >= 50 else ("Tier 2 (Medium-Frequency Unknown Subject)" if dets >= 10 else "Tier 3 (Transient Unknown Subject)")
     risk = "CRITICAL" if contacts > 20 else ("ELEVATED" if contacts > 0 else "LOW")
 
     rows.append({
         "Persona_ID": pid,
-        "Classification_Tier": tier,
+        "Forensic_Status": "Pending Identification / Enrollment",
+        "Sighting_Frequency_Tier": tier,
         "Total_Detections": dets,
         "Days_Active_Count": days,
         "First_Seen_Timestamp": first,

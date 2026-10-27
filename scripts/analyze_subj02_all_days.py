@@ -56,3 +56,4 @@ z_log = subj02.get('zone_events_log', [])
 print(f"Total Zone Events in Master JSON: {len(z_log)}")
 for ev in z_log:
     print(f"  {ev.get('timestamp')} | Zone: {ev.get('zone')} | Contact: {ev.get('direct_contact')}")
+

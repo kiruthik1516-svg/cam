@@ -50,3 +50,4 @@ with open(master_path, "w", encoding="utf-8") as f:
     json.dump(master, f, indent=2)
 
 print(f"[OK] Master personas JSON updated. Total personas: {len(master['personas'])}")
+

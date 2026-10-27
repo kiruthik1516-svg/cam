@@ -172,3 +172,4 @@ def generate_zoomed_roi():
 
 if __name__ == "__main__":
     generate_zoomed_roi()
+

@@ -12,8 +12,8 @@
 When evaluating user-reported truncations on Day 1 (`09:53:38` valve backwash and `22:27:36` power breaker contact), our technical post-mortem revealed two independent software bugs:
 
 #### Bug 1: Stage 1 Premature Motion Window Cutoff
-- *Failure Mode:* In Clip 14 (`094423.mp4`, duration 44m 57s), the automated motion window algorithm timed out after 42 seconds (`09:44:23` to `09:45:05`) because initial motion stopped while the operator stepped behind the door threshold.
-- *Consequence:* The entire 40 remaining minutes of footage were flagged as inactive, completely skipping the operator's re-entry at `09:53:20` and valve operation at `09:53:38`.
+- *Failure Mode:* In Clip 14 (`094423.mp4`, duration 44m 57s), the automated motion window algorithm timed out after 42 seconds (`09:44:23` to `09:45:05`) because initial motion stopped while the person stepped behind the door threshold.
+- *Consequence:* The entire 40 remaining minutes of footage were flagged as inactive, completely skipping the person's re-entry at `09:53:20` and valve operation at `09:53:38`.
 - *Architectural Fix:* Integrated a full-clip rolling temporal sliding window and multi-tier manual sentry cross-validation to guarantee zero blindspots across long 45-minute continuous segments.
 
 #### Bug 2: SQL Sorting Column Inversion Bug
@@ -46,11 +46,11 @@ Native 3K CCTV Coordinate Grid (2880 x 1620):
 2. **Zone 1A (Skid Multiport Valve):** `[1080, 370, 1210, 500]` — Critical Hazard manual backwash lever.
 3. **Zone 1B (Filter Head Multiport Valves):** `[810, 440, 990, 580]` — High-pressure vessel backwash valves.
 4. **Zone 2 (Ultimate Power Switch):** `[995, 340, 1095, 495]` — Severe Hazard main plant breaker.
-5. **Zone 3 (RO Skid Controls & Walkway Deck):** `[1080, 320, 1420, 790]` — Primary operator work area.
+5. **Zone 3 (RO Skid Controls & Walkway Deck):** `[1080, 320, 1420, 790]` — Primary human presence area.
 
 Full calibrated image overlay: [RO_Plant_Surveillance_ROI_Mesh.jpg](file:///d:/facial/RO_Plant_Surveillance_ROI_Mesh.jpg).
 
 ### 3. High-Speed Lossless Stream Extraction Architecture
 - Direct FFmpeg H.265/HEVC bitstream extraction (`-c copy`) bypasses costly CPU/GPU re-encoding.
 - Enforces mandatory **$\pm 60$s contextual safety buffers** on all cuts.
-- Benchmark Performance: Extracted **179 pristine MP4 clips (8.20 GB) in 108.7 seconds (>250x realtime speed)** directly from read-only storage.
+- Benchmark Performance: Extracted **179 pristine MP4 clips (8.20 GB) in 108.7 seconds (>250x realtime speed)** directly from read-only external storage.

@@ -20,3 +20,4 @@ for d in active_days:
             # Morning window 07:00 - 12:30
             if any(time_s.startswith(h) for h in ['07:', '08:', '09:', '10:', '11:', '12:']):
                 print(f"Day {d:02d}   | {date_s:<10} | {time_s:<10} | {time_e:<10} | {str(r.get('Critical_Zone')):<30} | {r.get('Personas_Involved')}")
+

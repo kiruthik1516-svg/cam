@@ -1,10 +1,15 @@
 # RO Water Treatment Plant: 30-Day Biometric Surveillance Audit
-## Master Report: Unique Subject Personas, Behavioral Patterns & Full Event Timeline
+## Master Report: Unique Discovered Personas, Behavioral Patterns & Full Event Timeline
+
+> [!IMPORTANT]
+> **CRITICAL FORENSIC AUDIT PRINCIPLE: 100% UNREGISTERED / UNKNOWN SUBJECTS**  
+> In the absence of an authorized employee whitelist or enrolled staff database, **all 1,652 discovered personas (`SUBJ-01` through `SUBJ-1652`) represent UNKNOWN INDIVIDUALS (Pending Identification & Enrollment).**  
+> Categorization into Tiers (Tier 1, 2, 3) reflects statistical sighting frequency and recurrence patterns only—**NOT confirmed employment, clearance, or staff authorization.**
 
 > [!NOTE]
 > **Audit Target:** Camera `IPC56` (RO Water Treatment Plant Rooftop Observation Deck)  
 > **Continuous Coverage:** September 1, 2026 00:00:00 – September 30, 2026 23:59:59 (713.66 Recorded Facility Hours)  
-> **Dataset Scope:** 36,198 High-Confidence 512-D ArcFace Embeddings | 1,651 Discovered Personas | 178 Continuous Incident Clips  
+> **Dataset Scope:** 36,198 High-Confidence 512-D ArcFace Embeddings | 1,652 Discovered Unknown Personas | 179 Continuous Incident Clips  
 > **Remote Verification:** Pushed to GitHub repository remote `sub` on branch `main`.
 
 ---
@@ -15,22 +20,20 @@ An autonomous forensic audit and unsupervised facial clustering pipeline was exe
 
 | Metric Category | Audit Value | Description / Operational Context |
 | :--- | :--- | :--- |
-| **Total Discovered Personas** | **1,652 unique identities** | Grouped via unsupervised DBSCAN clustering (cosine $\varepsilon \le 0.38$) |
-| **High-Frequency Core Staff (Tier 1)** | **12 subjects** | Routine operations and maintenance personnel ($\ge 50$ detections) |
-| **Regular Facility Staff (Tier 2)** | **85 subjects** | Periodic shift workers, supervisors, and security guards ($10 - 49$ detections) |
-| **Transient / Occasional Visitors (Tier 3)** | **1555 subjects** | Ad-hoc technicians, delivery personnel, and transient rooftop traversers |
-| **Direct Equipment Contact Subjects** | **18 subjects** | Individuals verified touching valves, electrical switches, or skid controls |
-| **Physical Incident Video Clips** | **179 verified events** | Extracted in pristine MP4 format with $\pm 60$s pre/post roll buffers (8.19 GB) |
+| **Total Discovered Personas** | **1,652 unique identities** | **100% Unknown Persons** grouped via unsupervised DBSCAN clustering (cosine $\varepsilon \le 0.38$) |
+| **High-Frequency Unknowns (Tier 1)** | **12 individuals** | Recurring unknown subjects with $\ge 50$ detections each |
+| **Periodic Unknowns (Tier 2)** | **85 individuals** | Recurring unknown subjects with $10 - 49$ detections |
+| **Transient / Single-Visit (Tier 3)** | **1555 individuals** | Unknown subjects with $2 - 9$ detections |
+| **Direct Equipment Contact Subjects** | **18 individuals** | Unknown individuals verified touching valves, electrical switches, or skid controls |
+| **Physical Incident Video Clips** | **179 verified events** | Extracted in pristine MP4 format with $\pm 60$s pre/post roll buffers (8.20 GB) |
 | **Total Processed Facial Vectors** | **36,226 vectors** | 512-dimensional InsightFace ArcFace vectors ($L_2$-normalized) |
-| **Morning Shift Distribution (Shift A)** | **24,625 (68.0%)** | 06:00 – 13:59 (Primary operational operating window) |
-| **Afternoon Shift Distribution (Shift B)** | **11,188 (30.9%)** | 14:00 – 21:59 (Secondary maintenance & chemical dosing) |
-| **Night Shift Distribution (Shift C)** | **413 (1.1%)** | 22:00 – 05:59 (Security guard vigilance rounds & perimeter checks) |
+| **Morning Shift Distribution (Shift A)** | **24,625 (68.0%)** | 06:00 – 13:59 (Primary operational activity window) |
+| **Afternoon Shift Distribution (Shift B)** | **11,188 (30.9%)** | 14:00 – 21:59 (Secondary afternoon activity window) |
+| **Night Shift Distribution (Shift C)** | **413 (1.1%)** | 22:00 – 05:59 (Nighttime vigilance and electrical switch access) |
 
 ---
 
 ## 2. Technical Query & Pipeline Methodology
-
-The identification and behavioral profiling was conducted via a 4-stage pipeline combining SQL database querying, high-dimensional vector clustering, and geometric spatial collision mapping.
 
 ### 2.1. Vector Extraction SQL Query (PostgreSQL / pgvector)
 ```sql
@@ -64,8 +67,6 @@ For $L_2$-normalized unit vectors, the Euclidean distance maps monotonically to 
 $$\|\mathbf{u} - \mathbf{v}\|_2^2 = 2 \cdot (1 - \mathbf{u} \cdot \mathbf{v}) = 2 \cdot \text{Distance}_{\text{cosine}}(\mathbf{u}, \mathbf{v})$$
 $$\varepsilon_{\text{euclidean}} = \sqrt{2 \cdot \varepsilon_{\text{cosine}}} = \sqrt{2 \cdot 0.38} \approx 0.87178$$
 
-This formulation enables high-speed neighbor indexing without allocating an $O(N^2)$ 40+ GB dense distance matrix, preventing RAM exhaustion.
-
 ### 2.3. Spatial Equipment Zone Collision Formulas
 Spatial interactions and direct physical contacts are evaluated between the subject bounding box $B_{\text{person}}$ and the 3 calibrated plant equipment zones $B_{\text{zone}}$:
 
@@ -81,26 +82,26 @@ $$\text{IoU}(B_1, B_2) = \frac{\text{Area}(B_1 \cap B_2)}{\text{Area}(B_1 \cup B
 
 ## 3. Master Register of Unique Subject Personas
 
-### 3.1. Tier 1: Core Operational Staff ($\ge 50$ Detections)
-These 12 recurring individuals represent the primary operating force responsible for daily plant startup, chemical dosing, membrane flushing, and maintenance.
+### 3.1. Tier 1: High-Frequency Recurring Unknown Subjects ($\ge 50$ Detections)
+These 12 recurring individuals represent the primary human presences on the rooftop, all currently pending formal identification and facility enrollment:
 
-| Subject ID | Status / Role | Total Dets | Days Active | First Seen | Last Seen | Shift A (Morn) | Shift B (Aft) | Shift C (Night) | Direct Contacts | Risk Level |
+| Subject ID | Forensic Status | Total Dets | Days Active | First Seen | Last Seen | Shift A (Morn) | Shift B (Aft) | Shift C (Night) | Direct Contacts | Risk Level |
 | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
-| **SUBJ-01** | Lead Rooftop Operator / Fixture | 29,598 | 29 | `2026-09-01 01:29:57` | `2026-09-30 23:32:16` | 20,793 | 8,481 | 324 | **116** | **CRITICAL** |
-| **SUBJ-02** | Lead Rooftop Operator / Fixture | 166 | 12 | `2026-09-01 09:04:02` | `2026-09-30 08:51:36` | 166 | 0 | 0 | **53** | **CRITICAL** |
-| **SUBJ-03** | Lead Rooftop Operator / Fixture | 104 | 2 | `2026-09-01 07:29:32` | `2026-09-11 07:46:44` | 104 | 0 | 0 | **0** | LOW |
-| **SUBJ-04** | Lead Rooftop Operator / Fixture | 87 | 16 | `2026-09-01 07:29:34` | `2026-09-30 08:13:33` | 87 | 0 | 0 | **0** | LOW |
-| **SUBJ-05** | Lead Rooftop Operator / Fixture | 86 | 2 | `2026-09-16 16:19:07` | `2026-09-23 11:21:56` | 85 | 1 | 0 | **0** | LOW |
-| **SUBJ-06** | Lead Rooftop Operator / Fixture | 85 | 12 | `2026-09-02 08:36:32` | `2026-09-30 09:14:55` | 85 | 0 | 0 | **0** | LOW |
-| **SUBJ-07** | Lead Rooftop Operator / Fixture | 81 | 3 | `2026-09-01 11:14:17` | `2026-09-21 11:22:46` | 81 | 0 | 0 | **0** | LOW |
-| **SUBJ-08** | Lead Rooftop Operator / Fixture | 79 | 10 | `2026-09-01 11:14:57` | `2026-09-29 11:14:42` | 30 | 49 | 0 | **0** | LOW |
-| **SUBJ-09** | Lead Rooftop Operator / Fixture | 79 | 1 | `2026-09-25 14:03:24` | `2026-09-25 14:15:57` | 0 | 79 | 0 | **0** | LOW |
-| **SUBJ-10** | Lead Rooftop Operator / Fixture | 75 | 2 | `2026-09-13 19:40:38` | `2026-09-21 19:37:46` | 0 | 75 | 0 | **0** | LOW |
-| **SUBJ-11** | Lead Rooftop Operator / Fixture | 69 | 9 | `2026-09-01 14:14:17` | `2026-09-30 09:13:37` | 44 | 25 | 0 | **0** | LOW |
-| **SUBJ-12** | Lead Rooftop Operator / Fixture | 68 | 2 | `2026-09-07 17:51:50` | `2026-09-09 17:50:37` | 0 | 68 | 0 | **0** | LOW |
+| **SUBJ-01** | Unknown Subject (Pending Enrollment) | 29,598 | 29 | `2026-09-01 01:29:57` | `2026-09-30 23:32:16` | 20,793 | 8,481 | 324 | **116** | **CRITICAL** |
+| **SUBJ-02** | Unknown Subject (Pending Enrollment) | 166 | 12 | `2026-09-01 09:04:02` | `2026-09-30 08:51:36` | 166 | 0 | 0 | **53** | **CRITICAL** |
+| **SUBJ-03** | Unknown Subject (Pending Enrollment) | 104 | 2 | `2026-09-01 07:29:32` | `2026-09-11 07:46:44` | 104 | 0 | 0 | **0** | LOW |
+| **SUBJ-04** | Unknown Subject (Pending Enrollment) | 87 | 16 | `2026-09-01 07:29:34` | `2026-09-30 08:13:33` | 87 | 0 | 0 | **0** | LOW |
+| **SUBJ-05** | Unknown Subject (Pending Enrollment) | 86 | 2 | `2026-09-16 16:19:07` | `2026-09-23 11:21:56` | 85 | 1 | 0 | **0** | LOW |
+| **SUBJ-06** | Unknown Subject (Pending Enrollment) | 85 | 12 | `2026-09-02 08:36:32` | `2026-09-30 09:14:55` | 85 | 0 | 0 | **0** | LOW |
+| **SUBJ-07** | Unknown Subject (Pending Enrollment) | 81 | 3 | `2026-09-01 11:14:17` | `2026-09-21 11:22:46` | 81 | 0 | 0 | **0** | LOW |
+| **SUBJ-08** | Unknown Subject (Pending Enrollment) | 79 | 10 | `2026-09-01 11:14:57` | `2026-09-29 11:14:42` | 30 | 49 | 0 | **0** | LOW |
+| **SUBJ-09** | Unknown Subject (Pending Enrollment) | 79 | 1 | `2026-09-25 14:03:24` | `2026-09-25 14:15:57` | 0 | 79 | 0 | **0** | LOW |
+| **SUBJ-10** | Unknown Subject (Pending Enrollment) | 75 | 2 | `2026-09-13 19:40:38` | `2026-09-21 19:37:46` | 0 | 75 | 0 | **0** | LOW |
+| **SUBJ-11** | Unknown Subject (Pending Enrollment) | 69 | 9 | `2026-09-01 14:14:17` | `2026-09-30 09:13:37` | 44 | 25 | 0 | **0** | LOW |
+| **SUBJ-12** | Unknown Subject (Pending Enrollment) | 68 | 2 | `2026-09-07 17:51:50` | `2026-09-09 17:50:37` | 0 | 68 | 0 | **0** | LOW |
 
-### 3.2. Tier 2: Regular Facility Staff & Night Security ($10 - 49$ Detections)
-These 84 individuals include evening shift supervisors, specialized filter contractors, and night security personnel.
+### 3.2. Tier 2: Periodic Recurring Unknown Subjects ($10 - 49$ Detections)
+These 84 individuals represent periodic recurring visitors, all classified as unknown subjects:
 
 | Subject ID | Total Dets | Days Active | First Seen | Last Seen | Shift Breakdown (A / B / C) | Direct Equipment Contacts |
 | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
@@ -134,40 +135,40 @@ These 84 individuals include evening shift supervisors, specialized filter contr
 | **SUBJ-39** | 21 | 1 days | `2026-09-02` | `2026-09-02` | 21 / 0 / 0 | 0 |
 | **SUBJ-40** | 21 | 1 days | `2026-09-24` | `2026-09-24` | 21 / 0 / 0 | 0 |
 | **SUBJ-41** | 20 | 10 days | `2026-09-03` | `2026-09-24` | 8 / 12 / 0 | **4 contacts** |
-| *... (55 additional Tier 2 staff cataloged in master database)* | | | | | | |
+| *... (55 additional Tier 2 unknown subjects cataloged in master register)* | | | | | | |
 
 ---
 
 ## 4. Equipment Protection Zone Integrity Ledger (Direct Contact Audits)
 
-Across 713.66 recorded hours, exactly **17 unique subjects** physically breached equipment safety perimeters and established direct contact ($\text{IoU} > 0.08$) with plant equipment.
+Across 713.66 recorded hours, exactly **17 unique unknown subjects** physically breached equipment safety perimeters and established direct contact ($\text{IoU} > 0.08$) with plant equipment.
 
 | Subject ID | Contact Events | Active Days | Total Detections | Primary Targeted Asset | Hazard Level | Action Description |
 | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
-| **SUBJ-01** | **116 contacts** | 29 days | 29598 | RO Skid & Multiport Valves | **CRITICAL** | Physical operation / maintenance manipulation |
-| **SUBJ-02** | **53 contacts** | 12 days | 166 | RO Skid Controls & Walkway | **ELEVATED** | Physical operation / maintenance manipulation |
-| **SUBJ-102** | **5 contacts** | 1 days | 8 | RO Skid Controls & Walkway | **ELEVATED** | Physical operation / maintenance manipulation |
-| **SUBJ-167** | **5 contacts** | 1 days | 6 | RO Skid Controls & Walkway | **ELEVATED** | Physical operation / maintenance manipulation |
-| **SUBJ-41** | **4 contacts** | 10 days | 20 | RO Skid Controls & Walkway | **ELEVATED** | Physical operation / maintenance manipulation |
-| **SUBJ-344** | **3 contacts** | 1 days | 3 | RO Skid Controls & Walkway | **ELEVATED** | Physical operation / maintenance manipulation |
-| **SUBJ-395** | **3 contacts** | 1 days | 3 | RO Skid Controls & Walkway | **ELEVATED** | Physical operation / maintenance manipulation |
-| **SUBJ-129** | **2 contacts** | 1 days | 7 | RO Skid Controls & Walkway | **ELEVATED** | Physical operation / maintenance manipulation |
-| **SUBJ-489** | **2 contacts** | 1 days | 2 | RO Skid Controls & Walkway | **ELEVATED** | Physical operation / maintenance manipulation |
-| **SUBJ-22** | **1 contacts** | 1 days | 35 | RO Skid Controls & Walkway | **ELEVATED** | Physical operation / maintenance manipulation |
-| **SUBJ-1652** | **1 contacts** | 1 days | 28 | Two Multiport Backwash Valves | **CRITICAL** | Physical operation / maintenance manipulation |
-| **SUBJ-342** | **1 contacts** | 1 days | 3 | RO Skid Controls & Walkway | **ELEVATED** | Physical operation / maintenance manipulation |
-| **SUBJ-582** | **1 contacts** | 1 days | 2 | RO Skid Controls & Walkway | **ELEVATED** | Physical operation / maintenance manipulation |
-| **SUBJ-759** | **1 contacts** | 1 days | 2 | Ultimate Plant Power Switch | **SEVERE** | Physical operation / maintenance manipulation |
-| **SUBJ-842** | **1 contacts** | 1 days | 2 | RO Skid Controls & Walkway | **ELEVATED** | Physical operation / maintenance manipulation |
-| **SUBJ-890** | **1 contacts** | 1 days | 2 | Two Multiport Backwash Valves | **CRITICAL** | Physical operation / maintenance manipulation |
-| **SUBJ-993** | **1 contacts** | 1 days | 2 | RO Skid Controls & Walkway | **ELEVATED** | Physical operation / maintenance manipulation |
-| **SUBJ-1079** | **1 contacts** | 1 days | 2 | Ultimate Plant Power Switch | **SEVERE** | Physical operation / maintenance manipulation |
+| **SUBJ-01** | **116 contacts** | 29 days | 29598 | RO Skid & Multiport Valves | **CRITICAL** | Physical operation / valve manipulation |
+| **SUBJ-02** | **53 contacts** | 12 days | 166 | RO Skid Controls & Walkway | **ELEVATED** | Physical operation / valve manipulation |
+| **SUBJ-102** | **5 contacts** | 1 days | 8 | RO Skid Controls & Walkway | **ELEVATED** | Physical operation / valve manipulation |
+| **SUBJ-167** | **5 contacts** | 1 days | 6 | RO Skid Controls & Walkway | **ELEVATED** | Physical operation / valve manipulation |
+| **SUBJ-41** | **4 contacts** | 10 days | 20 | RO Skid Controls & Walkway | **ELEVATED** | Physical operation / valve manipulation |
+| **SUBJ-344** | **3 contacts** | 1 days | 3 | RO Skid Controls & Walkway | **ELEVATED** | Physical operation / valve manipulation |
+| **SUBJ-395** | **3 contacts** | 1 days | 3 | RO Skid Controls & Walkway | **ELEVATED** | Physical operation / valve manipulation |
+| **SUBJ-129** | **2 contacts** | 1 days | 7 | RO Skid Controls & Walkway | **ELEVATED** | Physical operation / valve manipulation |
+| **SUBJ-489** | **2 contacts** | 1 days | 2 | RO Skid Controls & Walkway | **ELEVATED** | Physical operation / valve manipulation |
+| **SUBJ-22** | **1 contacts** | 1 days | 35 | RO Skid Controls & Walkway | **ELEVATED** | Physical operation / valve manipulation |
+| **SUBJ-1652** | **1 contacts** | 1 days | 28 | Two Multiport Backwash Valves | **CRITICAL** | Physical operation / valve manipulation |
+| **SUBJ-342** | **1 contacts** | 1 days | 3 | RO Skid Controls & Walkway | **ELEVATED** | Physical operation / valve manipulation |
+| **SUBJ-582** | **1 contacts** | 1 days | 2 | RO Skid Controls & Walkway | **ELEVATED** | Physical operation / valve manipulation |
+| **SUBJ-759** | **1 contacts** | 1 days | 2 | Ultimate Plant Power Switch | **SEVERE** | Physical operation / valve manipulation |
+| **SUBJ-842** | **1 contacts** | 1 days | 2 | RO Skid Controls & Walkway | **ELEVATED** | Physical operation / valve manipulation |
+| **SUBJ-890** | **1 contacts** | 1 days | 2 | Two Multiport Backwash Valves | **CRITICAL** | Physical operation / valve manipulation |
+| **SUBJ-993** | **1 contacts** | 1 days | 2 | RO Skid Controls & Walkway | **ELEVATED** | Physical operation / valve manipulation |
+| **SUBJ-1079** | **1 contacts** | 1 days | 2 | Ultimate Plant Power Switch | **SEVERE** | Physical operation / valve manipulation |
 
 ---
 
 ## 5. Comprehensive 30-Day Incident & Behavioral Timeline
 
-The master ledger below catalogs every one of the **178 physical equipment interaction events** extracted across Day 01 through Day 30 with enforced $\pm 60$s contextual safety roll buffers.
+The master ledger below catalogs every one of the **179 physical equipment interaction events** extracted across Day 01 through Day 30 with enforced $\pm 60$s contextual safety roll buffers.
 
 | Event ID | Day | Date | Start Time | End Time | Duration | Critical Zone | Hazard Level | Personas Involved | Extracted Video Artifact |
 | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
@@ -353,19 +354,19 @@ The master ledger below catalogs every one of the **178 physical equipment inter
 
 ---
 
-## 6. Forensic Reconciliation: Day 1 09:53:38 Incident Operator
+## 6. Forensic Reconciliation: Unknown Subject SUBJ-1652 vs SUBJ-02
 
 > [!IMPORTANT]
 > **Biometric Verification Finding:**  
-> The human operator observed manually turning the yellow multiport backwash valve at **`09:53:38`** on Day 1 is **NOT `SUBJ-02`**.
+> The unknown human observed manually turning the yellow multiport backwash valve at **`09:53:38`** on Day 1 is **NOT `SUBJ-02`**.
 
 1. **Forensic Distinction:**
-   - **`SUBJ-02` (Official Master Persona):** Extracted from `face_0620_2026-09-01_09-04-32_q92_conf85.jpg` at `09:04:32`. He was wearing dark navy clothing and walked the perimeter corridor.
-   - **Day 1 09:53:38 Operator:** Wore a teal/green collared polo shirt, thick curly hair, and mustache/goatee. He directly manipulated the RO multiport backwash valve.
+   - **`SUBJ-02` (Official Master Persona):** Extracted from `face_0620_2026-09-01_09-04-32_q92_conf85.jpg` at `09:04:32`. Wore dark navy attire and walked the perimeter corridor.
+   - **`SUBJ-1652` (Day 1 09:53:38 Valve Incident Subject):** Wore a teal/green collared polo shirt, thick curly hair, and mustache/goatee. He directly manipulated the RO multiport backwash valve.
    - **Biometric Cosine Similarity:** ArcFace 512-D cosine similarity between both faces is **`0.1831`** (far below the identity match threshold of $\ge 0.45$), confirming they are two distinct human beings.
 2. **Pipeline Omission Cause:**
    - Automated motion extraction on Clip 14 (`094423.mp4`) previously timed out after 42 seconds (`09:44:23` to `09:45:05`).
-   - Consequently, the re-entry at `09:53:20` and valve operation at `09:53:38` had no candidate frames in `day01_all_face_crops` and was recovered exclusively via our high-speed continuous buffer re-extraction.
+   - Consequently, the re-entry at `09:53:20` and valve operation at `09:53:38` had no candidate frames in `day01_all_face_crops` and was recovered exclusively via our continuous buffer re-extraction.
 3. **Visual Proof Artifact:**
    - Side-by-side comparison available at [side_by_side_comparison.jpg](file:///d:/facial/side_by_side_comparison.jpg).
 

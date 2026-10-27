@@ -70,3 +70,4 @@ if not (df_man["Event_ID"] == "EVT-D01-009").any():
     df_man.sort_values(by=["Day", "WallClock_Start"], inplace=True)
     df_man.to_csv(p_man, index=False)
     print(f"[OK] Updated extracted_incident_manifest.csv with EVT-D01-009 (total: {len(df_man)} events)")
+
