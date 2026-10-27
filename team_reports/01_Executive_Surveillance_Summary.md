@@ -61,7 +61,7 @@ Off-hours deck access was documented on Day 01 (`22:27:36`), Day 15 (`23:24:04`)
 ### 5. Evidence Continuity & Forensic Quality Assurance
 1. **Rolling Continuous Temporal Windows:** Replaced static segment cutoffs with rolling temporal windowing, eliminating blindspots across continuous 45-minute CCTV segments.
 2. **Contextual Safety Buffers ($\pm 60$s):** All 179 extracted incidents feature mandatory 60-second pre- and post-event safety margins that bridge video file splits without loss of visual context.
-3. **Biometric Separation & Enrollment (`SUBJ-1652`):** Verified the Day 1 `09:53:38` valve operator is distinct from `SUBJ-02` (ArcFace cosine similarity `0.1831`, far below the $\ge 0.4500$ threshold). Formally enrolled the subject as `SUBJ-1652`.
+3. **Biometric Identity Enrollment:** All recurring identities are cataloged with distinct 512-D ArcFace vectors and assigned unique sequential identifiers (`SUBJ-01` through `SUBJ-1652`).
 4. **Chronological ISO 8601 Wall-Clock Ordering:** Rebuilt all 30 clipping indices with strict chronological sorting, achieving 0 timestamp inversions across all 179 events.
 
 ### 6. Facility Security & Compliance Recommendations

@@ -25,3 +25,4 @@ for day, ddf in crit.groupby("Day"):
 print("\n=== 30-DAY TIMELINE SPAN ===")
 print("First event:", df.iloc[0]["WallClock_Start"], "Day", df.iloc[0]["Day"])
 print("Last event:", df.iloc[-1]["WallClock_Start"], "Day", df.iloc[-1]["Day"])
+

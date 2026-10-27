@@ -149,11 +149,11 @@ def generate_report():
         lines.append(f"| **{pid}** | Unknown Subject (Pending Enrollment) | {dets:,} | {days} | `{first}` | `{last}` | {sa_p:,} | {sb_p:,} | {sc_p:,} | **{c_cnt}** | {risk} |")
     lines.append("")
     lines.append("### 3.2. Tier 2: Periodic Recurring Unknown Subjects ($10 - 49$ Detections)")
-    lines.append(f"A total of **{len(t2)} unique unknown individuals** visited the rooftop periodically:")
+    lines.append(f"A total of **{len(t2)} unique unknown individuals** visited the rooftop periodically with 10 to 49 confirmed detections:")
     lines.append("")
     lines.append("| Subject ID | Total Dets | Days Active | First Seen | Last Seen | Shift Distribution (A/B/C) | Direct Contacts |")
     lines.append("| :--- | :--- | :--- | :--- | :--- | :--- | :--- |")
-    for p in t2[:30]:
+    for p in t2:
         pid = p["persona_id"]
         dets = p["total_detections"]
         days = p["days_active_count"]
@@ -165,8 +165,9 @@ def generate_report():
         c_cnt = p["zone_direct_contacts"]
         c_str = f"**{c_cnt} contacts**" if c_cnt > 0 else "0"
         lines.append(f"| **{pid}** | {dets} | {days} days | `{first}` | `{last}` | {sa_p} / {sb_p} / {sc_p} | {c_str} |")
-    if len(t2) > 30:
-        lines.append(f"| *... ({len(t2) - 30} additional Tier 2 unknown subjects cataloged in master register)* | | | | | | |")
+    lines.append("")
+    lines.append("### 3.3. Tier 3: Transient Unknown Subjects ($2 - 9$ Detections)")
+    lines.append(f"The remaining **{len(t3):,} unknown individuals** represent transient visitors with 2 to 9 confirmed detections. All microsecond timestamps, bounding boxes, and facial quality scores are cataloged in full in the accompanying master CSV register: [`30_Day_Master_Personas_Behavioral_Register.csv`](file:///d:/facial/30_Day_Master_Personas_Behavioral_Register.csv).")
     lines.append("")
     lines.append("---")
     lines.append("")
@@ -211,23 +212,6 @@ def generate_report():
 
         lines.append(f"| `{eid}` | Day {day_num:02d} | `{date_str}` | `{t_start}` | `{t_end}` | {dur}s | {zone} | **{hazard}** | {personas_str} | [`{clip_name}`](file:///d:/facial/incident_evidence/day_{day_num:02d}/{clip_name}) |")
 
-    lines.append("")
-    lines.append("---")
-    lines.append("")
-    lines.append("## 6. Forensic Reconciliation: Unknown Subject SUBJ-1652 vs SUBJ-02")
-    lines.append("")
-    lines.append("### Biometric Ground Truth Verification")
-    lines.append("High-resolution facial feature analysis confirmed that the unknown individual observed operating the multiport valve on Day 1 at `09:53:38` is **distinct from `SUBJ-02`**:")
-    lines.append("")
-    lines.append("1. **Forensic Distinction:**")
-    lines.append("   - **`SUBJ-02` (Official Master Persona):** Extracted from `face_0620_2026-09-01_09-04-32_q92_conf85.jpg` at `09:04:32`. Wore dark navy attire and walked the perimeter corridor.")
-    lines.append("   - **`SUBJ-1652` (Day 1 09:53:38 Valve Incident Subject):** Wore a teal/green collared polo shirt, thick curly hair, and mustache/goatee. He directly manipulated the RO multiport backwash valve.")
-    lines.append("   - **Biometric Cosine Similarity:** ArcFace 512-D cosine similarity between both faces is **`0.1831`** (far below the identity match threshold of $\\ge 0.45$), confirming they are two distinct human beings.")
-    lines.append("2. **Temporal Windowing Architecture:**")
-    lines.append("   - Legacy motion segmentation on Clip 14 (`094423.mp4`) terminated prematurely after 42 seconds (`09:44:23` to `09:45:05`) while the subject paused behind the doorway.")
-    lines.append("   - Deploying rolling temporal continuous windows recovered the full re-entry at `09:53:20` and valve operation at `09:53:38`, cataloged in `Day01_0953_Manual_Incident_Audit.mp4`.")
-    lines.append("3. **Visual Verification Artifact:**")
-    lines.append("   - Side-by-side photographic comparison is available at [side_by_side_comparison.jpg](file:///d:/facial/side_by_side_comparison.jpg).")
     lines.append("")
     lines.append("---")
     lines.append("*Official Forensic Surveillance Audit Report compiled on October 27, 2026.*")

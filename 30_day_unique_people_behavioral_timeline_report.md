@@ -103,7 +103,7 @@ These 12 recurring individuals represent the primary human presences on the roof
 | **SUBJ-12** | Unknown Subject (Pending Enrollment) | 68 | 2 | `2026-09-07 17:51:50` | `2026-09-09 17:50:37` | 0 | 68 | 0 | **0** | LOW |
 
 ### 3.2. Tier 2: Periodic Recurring Unknown Subjects ($10 - 49$ Detections)
-A total of **85 unique unknown individuals** visited the rooftop periodically:
+A total of **85 unique unknown individuals** visited the rooftop periodically with 10 to 49 confirmed detections:
 
 | Subject ID | Total Dets | Days Active | First Seen | Last Seen | Shift Distribution (A/B/C) | Direct Contacts |
 | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
@@ -137,7 +137,64 @@ A total of **85 unique unknown individuals** visited the rooftop periodically:
 | **SUBJ-39** | 21 | 1 days | `2026-09-02` | `2026-09-02` | 21 / 0 / 0 | 0 |
 | **SUBJ-40** | 21 | 1 days | `2026-09-24` | `2026-09-24` | 21 / 0 / 0 | 0 |
 | **SUBJ-41** | 20 | 10 days | `2026-09-03` | `2026-09-24` | 8 / 12 / 0 | **4 contacts** |
-| *... (55 additional Tier 2 unknown subjects cataloged in master register)* | | | | | | |
+| **SUBJ-42** | 20 | 1 days | `2026-09-07` | `2026-09-07` | 20 / 0 / 0 | 0 |
+| **SUBJ-43** | 20 | 1 days | `2026-09-07` | `2026-09-07` | 0 / 20 / 0 | 0 |
+| **SUBJ-44** | 20 | 2 days | `2026-09-09` | `2026-09-11` | 0 / 20 / 0 | 0 |
+| **SUBJ-45** | 20 | 1 days | `2026-09-18` | `2026-09-18` | 0 / 20 / 0 | 0 |
+| **SUBJ-46** | 20 | 1 days | `2026-09-26` | `2026-09-26` | 0 / 20 / 0 | 0 |
+| **SUBJ-47** | 19 | 2 days | `2026-09-02` | `2026-09-16` | 19 / 0 / 0 | 0 |
+| **SUBJ-48** | 19 | 1 days | `2026-09-06` | `2026-09-06` | 19 / 0 / 0 | 0 |
+| **SUBJ-49** | 19 | 1 days | `2026-09-07` | `2026-09-07` | 19 / 0 / 0 | 0 |
+| **SUBJ-50** | 19 | 1 days | `2026-09-17` | `2026-09-17` | 0 / 19 / 0 | 0 |
+| **SUBJ-51** | 19 | 1 days | `2026-09-29` | `2026-09-29` | 19 / 0 / 0 | 0 |
+| **SUBJ-52** | 18 | 1 days | `2026-09-13` | `2026-09-13` | 0 / 18 / 0 | 0 |
+| **SUBJ-53** | 18 | 1 days | `2026-09-18` | `2026-09-18` | 0 / 18 / 0 | 0 |
+| **SUBJ-54** | 18 | 1 days | `2026-09-26` | `2026-09-26` | 0 / 18 / 0 | 0 |
+| **SUBJ-55** | 17 | 1 days | `2026-09-16` | `2026-09-16` | 17 / 0 / 0 | 0 |
+| **SUBJ-56** | 17 | 1 days | `2026-09-16` | `2026-09-16` | 0 / 17 / 0 | 0 |
+| **SUBJ-57** | 17 | 1 days | `2026-09-21` | `2026-09-21` | 17 / 0 / 0 | 0 |
+| **SUBJ-58** | 16 | 1 days | `2026-09-04` | `2026-09-04` | 16 / 0 / 0 | 0 |
+| **SUBJ-59** | 16 | 1 days | `2026-09-13` | `2026-09-13` | 0 / 16 / 0 | 0 |
+| **SUBJ-60** | 15 | 1 days | `2026-09-05` | `2026-09-05` | 15 / 0 / 0 | 0 |
+| **SUBJ-61** | 15 | 1 days | `2026-09-08` | `2026-09-08` | 15 / 0 / 0 | 0 |
+| **SUBJ-62** | 15 | 1 days | `2026-09-15` | `2026-09-15` | 15 / 0 / 0 | 0 |
+| **SUBJ-63** | 15 | 1 days | `2026-09-16` | `2026-09-16` | 15 / 0 / 0 | 0 |
+| **SUBJ-64** | 15 | 4 days | `2026-09-17` | `2026-09-25` | 3 / 12 / 0 | 0 |
+| **SUBJ-65** | 15 | 1 days | `2026-09-20` | `2026-09-20` | 0 / 15 / 0 | 0 |
+| **SUBJ-66** | 14 | 3 days | `2026-09-01` | `2026-09-25` | 0 / 14 / 0 | 0 |
+| **SUBJ-67** | 14 | 1 days | `2026-09-02` | `2026-09-02` | 14 / 0 / 0 | 0 |
+| **SUBJ-68** | 14 | 1 days | `2026-09-03` | `2026-09-03` | 14 / 0 / 0 | 0 |
+| **SUBJ-69** | 14 | 1 days | `2026-09-07` | `2026-09-07` | 0 / 14 / 0 | 0 |
+| **SUBJ-70** | 14 | 1 days | `2026-09-11` | `2026-09-11` | 14 / 0 / 0 | 0 |
+| **SUBJ-71** | 14 | 1 days | `2026-09-11` | `2026-09-11` | 14 / 0 / 0 | 0 |
+| **SUBJ-72** | 14 | 1 days | `2026-09-26` | `2026-09-26` | 0 / 14 / 0 | 0 |
+| **SUBJ-73** | 13 | 3 days | `2026-09-04` | `2026-09-30` | 13 / 0 / 0 | 0 |
+| **SUBJ-74** | 13 | 1 days | `2026-09-11` | `2026-09-11` | 13 / 0 / 0 | 0 |
+| **SUBJ-75** | 13 | 1 days | `2026-09-15` | `2026-09-15` | 0 / 13 / 0 | 0 |
+| **SUBJ-76** | 12 | 1 days | `2026-09-01` | `2026-09-01` | 0 / 12 / 0 | 0 |
+| **SUBJ-77** | 12 | 6 days | `2026-09-07` | `2026-09-28` | 11 / 1 / 0 | 0 |
+| **SUBJ-78** | 12 | 1 days | `2026-09-23` | `2026-09-23` | 12 / 0 / 0 | 0 |
+| **SUBJ-79** | 12 | 1 days | `2026-09-23` | `2026-09-23` | 12 / 0 / 0 | 0 |
+| **SUBJ-80** | 11 | 1 days | `2026-09-02` | `2026-09-02` | 11 / 0 / 0 | 0 |
+| **SUBJ-81** | 11 | 1 days | `2026-09-03` | `2026-09-03` | 11 / 0 / 0 | 0 |
+| **SUBJ-82** | 11 | 2 days | `2026-09-03` | `2026-09-10` | 11 / 0 / 0 | 0 |
+| **SUBJ-83** | 11 | 4 days | `2026-09-06` | `2026-09-26` | 11 / 0 / 0 | 0 |
+| **SUBJ-84** | 11 | 1 days | `2026-09-18` | `2026-09-18` | 0 / 11 / 0 | 0 |
+| **SUBJ-85** | 10 | 2 days | `2026-09-01` | `2026-09-22` | 4 / 6 / 0 | 0 |
+| **SUBJ-86** | 10 | 3 days | `2026-09-01` | `2026-09-11` | 0 / 10 / 0 | 0 |
+| **SUBJ-87** | 10 | 6 days | `2026-09-02` | `2026-09-28` | 10 / 0 / 0 | 0 |
+| **SUBJ-88** | 10 | 2 days | `2026-09-03` | `2026-09-23` | 10 / 0 / 0 | 0 |
+| **SUBJ-89** | 10 | 2 days | `2026-09-04` | `2026-09-06` | 10 / 0 / 0 | 0 |
+| **SUBJ-90** | 10 | 6 days | `2026-09-04` | `2026-09-19` | 10 / 0 / 0 | 0 |
+| **SUBJ-91** | 10 | 1 days | `2026-09-07` | `2026-09-07` | 10 / 0 / 0 | 0 |
+| **SUBJ-92** | 10 | 3 days | `2026-09-09` | `2026-09-25` | 0 / 10 / 0 | 0 |
+| **SUBJ-93** | 10 | 1 days | `2026-09-14` | `2026-09-14` | 10 / 0 / 0 | 0 |
+| **SUBJ-94** | 10 | 3 days | `2026-09-22` | `2026-09-26` | 0 / 10 / 0 | 0 |
+| **SUBJ-95** | 10 | 1 days | `2026-09-26` | `2026-09-26` | 0 / 10 / 0 | 0 |
+| **SUBJ-96** | 10 | 1 days | `2026-09-29` | `2026-09-29` | 10 / 0 / 0 | 0 |
+
+### 3.3. Tier 3: Transient Unknown Subjects ($2 - 9$ Detections)
+The remaining **1,555 unknown individuals** represent transient visitors with 2 to 9 confirmed detections. All microsecond timestamps, bounding boxes, and facial quality scores are cataloged in full in the accompanying master CSV register: [`30_Day_Master_Personas_Behavioral_Register.csv`](file:///d:/facial/30_Day_Master_Personas_Behavioral_Register.csv).
 
 ---
 
@@ -353,23 +410,6 @@ The master ledger below catalogs every one of the **179 physical equipment inter
 | `EVT-D29-004` | Day 29 | `2026-09-29` | `14:34:03` | `14:34:03` | 120s | RO Skid Controls & Walkway | **ELEVATED** | SUBJ-190 | [`Day29_EVT-D29-004_ELEVATED_RO_Skid_Controls_Walkway_20260929_143303.mp4`](file:///d:/facial/incident_evidence/day_29/Day29_EVT-D29-004_ELEVATED_RO_Skid_Controls_Walkway_20260929_143303.mp4) |
 | `EVT-D29-005` | Day 29 | `2026-09-29` | `16:20:21` | `16:20:21` | 120s | RO Skid Controls & Walkway | **ELEVATED** | SUBJ-906 | [`Day29_EVT-D29-005_ELEVATED_RO_Skid_Controls_Walkway_20260929_161921.mp4`](file:///d:/facial/incident_evidence/day_29/Day29_EVT-D29-005_ELEVATED_RO_Skid_Controls_Walkway_20260929_161921.mp4) |
 | `EVT-D30-001` | Day 30 | `2026-09-30` | `09:12:18` | `09:12:18` | 120s | RO Skid Controls & Walkway | **ELEVATED** | SUBJ-213 | [`Day30_EVT-D30-001_ELEVATED_RO_Skid_Controls_Walkway_20260930_091118.mp4`](file:///d:/facial/incident_evidence/day_30/Day30_EVT-D30-001_ELEVATED_RO_Skid_Controls_Walkway_20260930_091118.mp4) |
-
----
-
-## 6. Forensic Reconciliation: Unknown Subject SUBJ-1652 vs SUBJ-02
-
-### Biometric Ground Truth Verification
-High-resolution facial feature analysis confirmed that the unknown individual observed operating the multiport valve on Day 1 at `09:53:38` is **distinct from `SUBJ-02`**:
-
-1. **Forensic Distinction:**
-   - **`SUBJ-02` (Official Master Persona):** Extracted from `face_0620_2026-09-01_09-04-32_q92_conf85.jpg` at `09:04:32`. Wore dark navy attire and walked the perimeter corridor.
-   - **`SUBJ-1652` (Day 1 09:53:38 Valve Incident Subject):** Wore a teal/green collared polo shirt, thick curly hair, and mustache/goatee. He directly manipulated the RO multiport backwash valve.
-   - **Biometric Cosine Similarity:** ArcFace 512-D cosine similarity between both faces is **`0.1831`** (far below the identity match threshold of $\ge 0.45$), confirming they are two distinct human beings.
-2. **Temporal Windowing Architecture:**
-   - Legacy motion segmentation on Clip 14 (`094423.mp4`) terminated prematurely after 42 seconds (`09:44:23` to `09:45:05`) while the subject paused behind the doorway.
-   - Deploying rolling temporal continuous windows recovered the full re-entry at `09:53:20` and valve operation at `09:53:38`, cataloged in `Day01_0953_Manual_Incident_Audit.mp4`.
-3. **Visual Verification Artifact:**
-   - Side-by-side photographic comparison is available at [side_by_side_comparison.jpg](file:///d:/facial/side_by_side_comparison.jpg).
 
 ---
 *Official Forensic Surveillance Audit Report compiled on October 27, 2026.*
