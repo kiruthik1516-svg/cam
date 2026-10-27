@@ -35,19 +35,31 @@ An autonomous forensic and biometric surveillance audit was conducted over 30 co
 - **Shift B (Afternoon, 14:00 – 21:59):** **11,188 detections (30.9%)** — Secondary activity window with multiple unknown subjects traversing the terrace corridor.
 - **Shift C (Night Vigilance, 22:00 – 05:59):** **413 detections (1.1%)** — Nighttime visits, perimeter walkthroughs, and physical contact with the main electrical breaker switch.
 
-### 4. Critical Forensic Investigations & Resolutions
-1. **Day 1 Valve Operation Incident (`09:53:38`):**
-   - *Issue:* Previous test cut ended at `09:53:18`, cutting off 20 seconds before an unknown individual turned the yellow valve.
-   - *Root Cause:* The automated scanner had an activity window cutoff after 42 seconds (`09:44:23` to `09:45:05`).
-   - *Resolution:* Re-extracted continuous 4-minute clip [`Day01_0953_Manual_Incident_Audit.mp4`](file:///d:/facial/incident_evidence/day_01/Day01_0953_Manual_Incident_Audit.mp4) and cataloged this unknown subject as **`SUBJ-1652`**.
-2. **Day 1 Night Power Breaker Contact (`22:27:36`):**
-   - *Issue:* Old test cut ended at `22:27:26`, missing physical contact with the main electrical breaker box.
-   - *Root Cause:* Video file split boundary at `22:28:00` prevented single-file extractors from reading continuous context.
-   - *Resolution:* Re-extracted seamless 6-minute clip [`Day01_2227_Manual_Incident_Audit.mp4`](file:///d:/facial/incident_evidence/day_01/Day01_2227_Manual_Incident_Audit.mp4) bridging both files.
-3. **Clipping Index Inversion Bug Resolution:**
-   - Fixed SQL ordering bug that generated inverted timestamps in 29/30 CSV files; all 30 clipping indices now have **0 inverted timestamps** across all 179 events.
+### 4. 30-Day Critical & Severe Incident Investigations (Days 01 – 30)
+Across the 30 continuous calendar days (713.66 recorded hours), 179 physical equipment interaction events were captured and investigated across all four operational weeks:
 
-### 5. Immediate Security Recommendations
+1. **Severe Power Breaker Switch Access (Zone 2 — 5 Breaches across 4 Days):**
+   - **Day 09 (`16:21:55` & `16:24:51`):** Two consecutive breaches where multiple unknown subjects accessed the main electrical power breaker switch (`EVT-D09-005` involving `SUBJ-233`, `SUBJ-759`, `SUBJ-760` [162s] and `EVT-D09-006` involving `SUBJ-13`, `SUBJ-347` [125s]).
+   - **Day 11 (`06:33:37`):** Early morning unauthorized contact with the main breaker switch by `SUBJ-791` (`EVT-D11-001` [121s]).
+   - **Day 24 (`16:39:26`):** Physical manipulation of the main power switch by `SUBJ-1079` (`EVT-D24-013` [121s]).
+   - **Day 25 (`11:43:10`):** Midday power switch contact by `SUBJ-1088` (`EVT-D25-002` [121s]).
+
+2. **Critical Multiport Backwash Valve Operations (Zone 1A/B — 54 Events across 23 Days):**
+   - **Week 1 (Days 01–07, 9 events):** Routine morning backwash operations, including Day 1 events (`SUBJ-01` at `07:29` & `08:14`, and `SUBJ-1652` at `09:53:38`).
+   - **Week 2 (Days 08–14, 13 events):** Daily operational cycling by Tier 1 and Tier 2 unknown subjects.
+   - **Week 3 (Days 15–21, 17 events):** Peak critical activity window, featuring Day 15 multi-subject group access (5 valve operations involving 10 unknown subjects).
+   - **Week 4 (Days 22–26, 15 events):** Frequent high-contact days including Day 25 (4 valve operations) and Day 26 mass gathering (3 events, 34 unknown subjects on deck).
+
+3. **Shift C Night Vigilance Breaches (22:00 – 05:59):**
+   - Off-hours deck access detected on Day 01 (`22:27:36`), Day 15 (`23:24:04`), and Day 29 (`23:14:10`) where unknown individuals accessed the equipment deck outside scheduled plant hours.
+
+### 5. Forensic Pipeline Bug Resolutions & Universal 30-Day Fixes
+Day 1 served as the initial forensic calibration testbed, uncovering critical software failure modes that prompted universal fixes across all 30 days:
+1. **Premature Motion Window Cutoff:** Clip 14 (`094423.mp4`) automated scanner timed out after 42s, missing the `09:53:38` valve manipulation. Resolved by deploying rolling continuous temporal windows and enrolling the operator as `SUBJ-1652` (verified distinct from `SUBJ-02`, cosine sim `0.1831`).
+2. **File Split Boundary Truncation:** Clip boundary at `22:28:00` cut off the Day 1 `22:27:36` breaker contact. Resolved by enforcing mandatory $\pm 60$s contextual safety buffers bridging adjacent video files across all 179 incident clips.
+3. **Database Timestamp Inversion Bug:** Fixed SQL ordering bug that generated inverted timestamps in 29/30 CSV files; all 30 clipping indices now have **0 inverted timestamps** across all 179 events.
+
+### 6. Immediate Security Recommendations
 - **Mandatory Personnel Enrollment:** Conduct an immediate formal identity verification round with facility HR to associate names and employment status with the 1,652 unknown subject clusters (`SUBJ-01` to `SUBJ-1652`).
 - **Physical Access Restriction:** Secure Zone 1A/B Multiport Valves and Zone 2 Power Switch with physical lockout/tagout (LOTO) padlock enclosures to prevent unauthorized operation.
 - **Automated Contact Alerting:** Deploy the calibrated spatial ROI mesh (`IoU > 0.08`) for real-time audible alarms whenever an unregistered individual approaches within 40px of critical equipment.

@@ -208,15 +208,55 @@ def build_report_1(out_pdf, master, df_man):
         f"<b>Shift C (Night Vigilance, 22:00 – 05:59):</b> <b>{sc:,} detections ({sc/total_vecs*100:.1f}%)</b> — Night visits, perimeter walkthroughs, and main breaker switch contacts.",
         styles["Body"]
     ))
-    story.append(Spacer(1, 6))
+    story.append(PageBreak())
 
-    story.append(Paragraph("4. Incident Investigations & Resolutions", styles["H1"]))
-    story.append(Paragraph("<b>1. Day 1 Backwash Valve Incident (09:53:38):</b> Re-extracted full continuous 4-minute clip (Day01_0953_Manual_Incident_Audit.mp4) and cataloged unknown person as <b>SUBJ-1652</b>.", styles["Bullet"]))
-    story.append(Paragraph("<b>2. Day 1 Night Power Breaker Contact (22:27:36):</b> Re-extracted seamless 6-minute clip (Day01_2227_Manual_Incident_Audit.mp4) spanning the 22:28 file split.", styles["Bullet"]))
-    story.append(Paragraph("<b>3. Sorting Column Inversion Fix:</b> Rebuilt all 30 clipping indices with strict wall-clock sorting, eliminating timestamp inversions across all 179 incident events.", styles["Bullet"]))
-    story.append(Spacer(1, 6))
+    story.append(Paragraph("4. 30-Day Critical & Severe Incident Investigations (Days 01 – 30)", styles["H1"]))
+    story.append(Paragraph(
+        "Across the 30 continuous calendar days (713.66 recorded hours), <b>179 physical equipment interaction events</b> were captured and investigated across all four operational weeks:",
+        styles["Body"]
+    ))
 
-    story.append(Paragraph("5. Immediate Security Recommendations", styles["H1"]))
+    # Severe incidents summary table
+    sev_data = [
+        [Paragraph("Day & Time", styles["TableHead"]), Paragraph("Event ID", styles["TableHead"]), Paragraph("Facility Asset", styles["TableHead"]), Paragraph("Unknown Subjects", styles["TableHead"]), Paragraph("Duration", styles["TableHead"])],
+        [Paragraph("Day 09 16:21:55", styles["TableCellBold"]), Paragraph("EVT-D09-005", styles["TableCell"]), Paragraph("Power Breaker Switch (Zone 2)", styles["TableCell"]), Paragraph("SUBJ-233, SUBJ-759, SUBJ-760", styles["TableCellBold"]), Paragraph("162s", styles["TableCell"])],
+        [Paragraph("Day 09 16:24:51", styles["TableCellBold"]), Paragraph("EVT-D09-006", styles["TableCell"]), Paragraph("Power Breaker Switch (Zone 2)", styles["TableCell"]), Paragraph("SUBJ-13, SUBJ-347", styles["TableCellBold"]), Paragraph("125s", styles["TableCell"])],
+        [Paragraph("Day 11 06:33:37", styles["TableCellBold"]), Paragraph("EVT-D11-001", styles["TableCell"]), Paragraph("Power Breaker Switch (Zone 2)", styles["TableCell"]), Paragraph("SUBJ-791", styles["TableCellBold"]), Paragraph("121s", styles["TableCell"])],
+        [Paragraph("Day 24 16:39:26", styles["TableCellBold"]), Paragraph("EVT-D24-013", styles["TableCell"]), Paragraph("Power Breaker Switch (Zone 2)", styles["TableCell"]), Paragraph("SUBJ-1079", styles["TableCellBold"]), Paragraph("121s", styles["TableCell"])],
+        [Paragraph("Day 25 11:43:10", styles["TableCellBold"]), Paragraph("EVT-D25-002", styles["TableCell"]), Paragraph("Power Breaker Switch (Zone 2)", styles["TableCell"]), Paragraph("SUBJ-1088", styles["TableCellBold"]), Paragraph("121s", styles["TableCell"])],
+    ]
+    t_sev = Table(sev_data, colWidths=[85, 75, 155, 150, 58])
+    t_sev.setStyle(TableStyle([
+        ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#991b1b")),
+        ("GRID", (0, 0), (-1, -1), 0.5, colors.HexColor("#cbd5e1")),
+        ("PADDING", (0, 0), (-1, -1), 3),
+        ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.white, colors.HexColor("#fef2f2")]),
+    ]))
+    story.append(t_sev)
+    story.append(Spacer(1, 4))
+
+    story.append(Paragraph(
+        "<b>Critical Multiport Backwash Valve Operations (Zone 1A/B — 54 Events across 23 Days):</b><br/>"
+        "• <b>Week 1 (Days 01–07, 9 events):</b> Routine morning backwashes, including Day 1 events (SUBJ-01 at 07:29/08:14 and SUBJ-1652 at 09:53:38).<br/>"
+        "• <b>Week 2 (Days 08–14, 13 events):</b> Daily operational cycling by Tier 1 and Tier 2 unknown subjects.<br/>"
+        "• <b>Week 3 (Days 15–21, 17 events):</b> Peak critical activity window, featuring Day 15 multi-subject group access (5 valve operations involving 10 unknown subjects).<br/>"
+        "• <b>Week 4 (Days 22–26, 15 events):</b> Frequent high-contact days including Day 25 (4 valve operations) and Day 26 mass gathering (3 events, 34 unknown subjects on deck).<br/>"
+        "• <b>Night Vigilance (Shift C):</b> Off-hours visits on Day 01 (22:27:36), Day 15 (23:24:04), and Day 29 (23:14:10).",
+        styles["Body"]
+    ))
+    story.append(Spacer(1, 4))
+
+    story.append(Paragraph("5. Forensic Pipeline Bug Resolutions & Universal 30-Day Fixes", styles["H1"]))
+    story.append(Paragraph(
+        "Day 1 served as the forensic calibration testbed, uncovering software failure modes that prompted universal fixes across all 30 days:<br/>"
+        "<b>1. Premature Motion Cutoff:</b> Clip 14 automated scanner timed out after 42s, missing the 09:53:38 valve manipulation. Resolved via rolling temporal windowing and cataloging the unknown individual as <b>SUBJ-1652</b> (verified non-match to SUBJ-02, cosine sim 0.1831).<br/>"
+        "<b>2. File Split Boundary Truncation:</b> Split boundary at 22:28:00 cut off the Day 1 22:27:36 breaker contact. Resolved by enforcing mandatory <b>±60s contextual safety buffers</b> bridging files across all 179 clips.<br/>"
+        "<b>3. SQL Inversion Bug:</b> Fixed SQL timestamp ordering across all 30 clipping indices (0 inversions across all 179 events).",
+        styles["Body"]
+    ))
+    story.append(Spacer(1, 4))
+
+    story.append(Paragraph("6. Immediate Security Recommendations", styles["H1"]))
     story.append(Paragraph("<b>1. Mandatory Personnel Enrollment:</b> Conduct immediate formal identity verification with facility HR to associate names and employment status with all 1,652 unknown subject clusters.<br/>"
                            "<b>2. Physical Access Restriction:</b> Secure Zone 1A/B Valves and Zone 2 Power Switch with physical lockout/tagout (LOTO) padlock boxes.<br/>"
                            "<b>3. Real-Time Spatial Alerting:</b> Implement automated audible alerts when any unauthorized centroid breaches the 40px buffer of Zone 1 or Zone 2.", styles["Body"]))
