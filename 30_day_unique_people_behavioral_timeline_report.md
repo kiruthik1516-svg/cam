@@ -119,7 +119,7 @@ These 84 individuals include evening shift supervisors, specialized filter contr
 | **SUBJ-25** | 29 | 9 days | `2026-09-03` | `2026-09-30` | 29 / 0 / 0 | 0 |
 | **SUBJ-26** | 28 | 1 days | `2026-09-03` | `2026-09-03` | 28 / 0 / 0 | 0 |
 | **SUBJ-27** | 28 | 2 days | `2026-09-08` | `2026-09-19` | 0 / 28 / 0 | 0 |
-| **OP-VALVE-01** | 28 | 1 days | `2026-09-01` | `2026-09-01` | 28 / 0 / 0 | **1 contacts** |
+| **SUBJ-X** | 28 | 1 days | `2026-09-01` | `2026-09-01` | 28 / 0 / 0 | **1 contacts** |
 | **SUBJ-28** | 27 | 3 days | `2026-09-08` | `2026-09-15` | 1 / 26 / 0 | 0 |
 | **SUBJ-29** | 27 | 1 days | `2026-09-29` | `2026-09-29` | 0 / 27 / 0 | 0 |
 | **SUBJ-30** | 26 | 1 days | `2026-09-02` | `2026-09-02` | 0 / 26 / 0 | 0 |
@@ -154,7 +154,7 @@ Across 713.66 recorded hours, exactly **17 unique subjects** physically breached
 | **SUBJ-129** | **2 contacts** | 1 days | 7 | RO Skid Controls & Walkway | **ELEVATED** | Physical operation / maintenance manipulation |
 | **SUBJ-489** | **2 contacts** | 1 days | 2 | RO Skid Controls & Walkway | **ELEVATED** | Physical operation / maintenance manipulation |
 | **SUBJ-22** | **1 contacts** | 1 days | 35 | RO Skid Controls & Walkway | **ELEVATED** | Physical operation / maintenance manipulation |
-| **OP-VALVE-01** | **1 contacts** | 1 days | 28 | Two Multiport Backwash Valves | **CRITICAL** | Physical operation / maintenance manipulation |
+| **SUBJ-X** | **1 contacts** | 1 days | 28 | Two Multiport Backwash Valves | **CRITICAL** | Physical operation / maintenance manipulation |
 | **SUBJ-342** | **1 contacts** | 1 days | 3 | RO Skid Controls & Walkway | **ELEVATED** | Physical operation / maintenance manipulation |
 | **SUBJ-582** | **1 contacts** | 1 days | 2 | RO Skid Controls & Walkway | **ELEVATED** | Physical operation / maintenance manipulation |
 | **SUBJ-759** | **1 contacts** | 1 days | 2 | Ultimate Plant Power Switch | **SEVERE** | Physical operation / maintenance manipulation |
@@ -175,7 +175,7 @@ The master ledger below catalogs every one of the **178 physical equipment inter
 | `EVT-D01-002` | Day 01 | `2026-09-01` | `08:14:29` | `08:14:40` | 131s | Two Multiport Backwash Valves | **CRITICAL** | SUBJ-01 | [`Day01_EVT-D01-002_CRITICAL_Two_Multiport_Backwash_Valves_20260901_081329.mp4`](file:///d:/facial/incident_evidence/day_01/Day01_EVT-D01-002_CRITICAL_Two_Multiport_Backwash_Valves_20260901_081329.mp4) |
 | `EVT-D01-003` | Day 01 | `2026-09-01` | `09:04:18` | `09:04:32` | 134s | RO Skid Controls & Walkway | **ELEVATED** | SUBJ-02 | [`Day01_EVT-D01-003_ELEVATED_RO_Skid_Controls_Walkway_20260901_090318.mp4`](file:///d:/facial/incident_evidence/day_01/Day01_EVT-D01-003_ELEVATED_RO_Skid_Controls_Walkway_20260901_090318.mp4) |
 | `EVT-D01-004` | Day 01 | `2026-09-01` | `09:08:10` | `09:08:20` | 130s | RO Skid Controls & Walkway | **ELEVATED** | SUBJ-02, SUBJ-489 | [`Day01_EVT-D01-004_ELEVATED_RO_Skid_Controls_Walkway_20260901_090710.mp4`](file:///d:/facial/incident_evidence/day_01/Day01_EVT-D01-004_ELEVATED_RO_Skid_Controls_Walkway_20260901_090710.mp4) |
-| `EVT-D01-009` | Day 01 | `2026-09-01` | `09:53:20` | `09:54:15` | 175s | Two Multiport Backwash Valves | **CRITICAL** | OP-VALVE-01 | [`Day01_0953_Manual_Incident_Audit.mp4`](file:///d:/facial/incident_evidence/day_01/Day01_0953_Manual_Incident_Audit.mp4) |
+| `EVT-D01-009` | Day 01 | `2026-09-01` | `09:53:20` | `09:54:15` | 175s | Two Multiport Backwash Valves | **CRITICAL** | SUBJ-X | [`Day01_0953_Manual_Incident_Audit.mp4`](file:///d:/facial/incident_evidence/day_01/Day01_0953_Manual_Incident_Audit.mp4) |
 | `EVT-D01-005` | Day 01 | `2026-09-01` | `11:16:19` | `11:16:19` | 120s | RO Skid Controls & Walkway | **ELEVATED** | SUBJ-07 | [`Day01_EVT-D01-005_ELEVATED_RO_Skid_Controls_Walkway_20260901_111519.mp4`](file:///d:/facial/incident_evidence/day_01/Day01_EVT-D01-005_ELEVATED_RO_Skid_Controls_Walkway_20260901_111519.mp4) |
 | `EVT-D01-006` | Day 01 | `2026-09-01` | `12:00:08` | `12:00:16` | 128s | Two Multiport Backwash Valves | **CRITICAL** | SUBJ-507, SUBJ-508 | [`Day01_EVT-D01-006_CRITICAL_Two_Multiport_Backwash_Valves_20260901_115908.mp4`](file:///d:/facial/incident_evidence/day_01/Day01_EVT-D01-006_CRITICAL_Two_Multiport_Backwash_Valves_20260901_115908.mp4) |
 | `EVT-D01-007` | Day 01 | `2026-09-01` | `14:14:35` | `14:14:35` | 120s | RO Skid Controls & Walkway | **ELEVATED** | SUBJ-536 | [`Day01_EVT-D01-007_ELEVATED_RO_Skid_Controls_Walkway_20260901_141335.mp4`](file:///d:/facial/incident_evidence/day_01/Day01_EVT-D01-007_ELEVATED_RO_Skid_Controls_Walkway_20260901_141335.mp4) |
