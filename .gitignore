@@ -48,6 +48,7 @@ data/
 known_faces/
 pending/
 backups/
+incident_evidence/
 *.dump
 *.tar.gz
 *.tar
