@@ -165,3 +165,4 @@ def generate_html_grid():
 
 if __name__ == "__main__":
     generate_html_grid()
+
