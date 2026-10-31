@@ -63,44 +63,44 @@ def generate_zoomed_roi():
     # 3. Equipment Zones (mapped to crop)
     zones = [
         {
-            "id": "ZONE 1A",
-            "name": "Skid Backwash Valve (Manual Incident 09:53:38)",
+            "id": "ZONE 1",
+            "name": "Two Multiport Backwash Valves",
             "hazard": "CRITICAL",
-            "bbox_native": [1080, 370, 1210, 500],
-            "color": (0, 30, 235),
-            "bg_badge": (0, 15, 160),
-            "badge_pos": (p_x1 + 680, p_y1 + 510),
+            "bbox_native": [755, 200, 1050, 420],
+            "color": (0, 140, 255),
+            "bg_badge": (0, 90, 180),
+            "badge_pos": (p_x1 + 280, p_y1 + 430),
             "badge_size": (350, 48)
         },
         {
-            "id": "ZONE 1B",
-            "name": "Dual Media Filter Multiport Heads",
-            "hazard": "CRITICAL",
-            "bbox_native": [810, 440, 990, 580],
-            "color": (0, 140, 255),
-            "bg_badge": (0, 90, 180),
-            "badge_pos": (p_x1 + 280, p_y1 + 590),
-            "badge_size": (340, 48)
-        },
-        {
             "id": "ZONE 2",
-            "name": "Ultimate Power Switch (Manual Incident 22:27:36)",
+            "name": "Ultimate Power Switch (Wall Electrical Breaker)",
             "hazard": "SEVERE",
-            "bbox_native": [995, 340, 1095, 495],
-            "color": (210, 0, 220),
-            "bg_badge": (140, 0, 150),
-            "badge_pos": (p_x1 + 480, p_y1 + 260),
+            "bbox_native": [760, 140, 980, 420],
+            "color": (0, 30, 235),
+            "bg_badge": (0, 15, 160),
+            "badge_pos": (p_x1 + 280, p_y1 + 120),
             "badge_size": (360, 48)
         },
         {
             "id": "ZONE 3",
-            "name": "RO Skid & Operator Deck (corridor threshold)",
+            "name": "RO Skid Controls & Walkway",
             "hazard": "ELEVATED",
-            "bbox_native": [1080, 320, 1420, 790],
+            "bbox_native": [945, 200, 1420, 720],
+            "color": (0, 215, 255),
+            "bg_badge": (0, 140, 180),
+            "badge_pos": (p_x1 + 680, p_y1 + 730),
+            "badge_size": (360, 48)
+        },
+        {
+            "id": "ZONE 4",
+            "name": "RO Water Plant Evaluated Unit",
+            "hazard": "MONITORING",
+            "bbox_native": [740, 140, 1450, 780],
             "color": (220, 190, 0),
             "bg_badge": (130, 110, 0),
-            "badge_pos": (p_x1 + 840, p_y1 + 750),
-            "badge_size": (340, 48)
+            "badge_pos": (p_x1 + 10, p_y1 + 790),
+            "badge_size": (360, 48)
         }
     ]
 

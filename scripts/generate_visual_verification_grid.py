@@ -159,7 +159,7 @@ def generate_html_grid():
     print(f"[OK] Generated {out_file} ({len(html)} lines)")
 
     # Copy to brain artifact directory
-    brain_file = Path("C:/Users/mkiru/.gemini/antigravity/brain/8c6e85a2-8ea1-4c6c-bb23-a9aed5b45fc6/100_percent_ground_truth_verification_audit.html")
+    brain_file = Path("C:/Users/mkiru/.gemini/antigravity/brain/9cd9e7a5-62c1-473e-9b1f-aa014627f6c9/100_percent_ground_truth_verification_audit.html")
     shutil.copy2(out_file, brain_file)
     print(f"[OK] Copied visual verification grid to brain artifact: {brain_file}")
 

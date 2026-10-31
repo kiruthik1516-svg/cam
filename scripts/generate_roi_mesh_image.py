@@ -63,47 +63,47 @@ def generate_roi_mesh():
     # 3. Critical Equipment Protection Zones (Calibrated Native 3K Coordinates)
     zones = [
         {
-            "id": "ZONE 1A",
-            "name": "Skid Multiport Backwash Valve",
+            "id": "ZONE 1",
+            "name": "Two Multiport Backwash Valves",
             "hazard": "CRITICAL HAZARD",
-            "detail": "09:53:38 Incident Point",
-            "bbox": [1080, 370, 1210, 500],
-            "color_bgr": (0, 30, 235),      # Crisp Red
-            "bg_badge": (0, 15, 160),
-            "badge_pos": (1080, 515),
-            "badge_size": (370, 58)
-        },
-        {
-            "id": "ZONE 1B",
-            "name": "Filter Media Vessel Head Valves",
-            "hazard": "CRITICAL HAZARD",
-            "detail": "High-Pressure Hydraulic Valves",
-            "bbox": [810, 440, 990, 580],
+            "detail": "Dual Media Filtration Multiport Valve Heads",
+            "bbox": [755, 200, 1050, 420],
             "color_bgr": (0, 140, 255),     # Vibrant Orange
             "bg_badge": (0, 90, 180),
-            "badge_pos": (620, 595),
+            "badge_pos": (755, 435),
             "badge_size": (370, 58)
         },
         {
             "id": "ZONE 2",
             "name": "Ultimate Plant Power Switch",
             "hazard": "SEVERE HAZARD",
-            "detail": "22:27:36 Incident Point",
-            "bbox": [995, 340, 1095, 495],
-            "color_bgr": (210, 0, 220),     # Bright Magenta
-            "bg_badge": (140, 0, 150),
-            "badge_pos": (850, 270),
+            "detail": "Wall-Mounted Main Electrical Power Breaker",
+            "bbox": [760, 140, 980, 420],
+            "color_bgr": (0, 30, 235),      # Crisp Red
+            "bg_badge": (0, 15, 160),
+            "badge_pos": (760, 120),
             "badge_size": (360, 58)
         },
         {
             "id": "ZONE 3",
-            "name": "RO Skid & Operator Work Deck",
+            "name": "RO Skid Controls & Walkway",
             "hazard": "ELEVATED MONITORING",
-            "detail": "Access Corridor & Skid Deck",
-            "bbox": [1080, 320, 1420, 790],
+            "detail": "RO High Pressure Pumps & Control Levers",
+            "bbox": [945, 200, 1420, 720],
+            "color_bgr": (0, 215, 255),     # Bright Yellow-Orange
+            "bg_badge": (0, 140, 180),
+            "badge_pos": (1080, 735),
+            "badge_size": (380, 58)
+        },
+        {
+            "id": "ZONE 4",
+            "name": "RO Water Plant Evaluated Unit",
+            "hazard": "FACILITY BOUNDARY",
+            "detail": "Comprehensive RO Skid & Filtration Perimeter",
+            "bbox": [740, 140, 1450, 780],
             "color_bgr": (220, 190, 0),     # Bright Cyan / Aqua
             "bg_badge": (130, 110, 0),
-            "badge_pos": (1230, 805),
+            "badge_pos": (740, 795),
             "badge_size": (380, 58)
         }
     ]

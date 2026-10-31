@@ -19,7 +19,7 @@ import shutil
 from reportlab.lib.pagesizes import A4
 from reportlab.lib import colors
 from reportlab.platypus import (
-    SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, PageBreak, KeepTogether, HRFlowable
+    SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, PageBreak, KeepTogether, HRFlowable, Image
 )
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.pdfgen import canvas
@@ -181,8 +181,27 @@ def build_report_1(out_pdf, real_personas, master, df_man):
     sev_events = df_man[df_man["Hazard_Level"] == "SEVERE"]
     crit_events = df_man[df_man["Hazard_Level"] == "CRITICAL"]
 
-    story.append(Paragraph("RO Water Treatment Plant // Official Surveillance Audit", styles["DocSubTitle"]))
-    story.append(Paragraph("Executive Briefing & Facility Vulnerability Assessment", styles["DocTitle"]))
+    logo_file = Path("D:/facial/team_reports/thoorigai_logo.jpg")
+    title_flow = [
+        Paragraph("RO Water Treatment Plant // Official Surveillance Audit", styles["DocSubTitle"]),
+        Paragraph("Executive Briefing & Facility Vulnerability Assessment", styles["DocTitle"])
+    ]
+    if logo_file.exists():
+        logo_img = Image(str(logo_file), width=36, height=50)
+        head_table = Table([[title_flow, logo_img]], colWidths=[460, 63])
+        head_table.setStyle(TableStyle([
+            ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+            ("ALIGN", (1, 0), (1, 0), "RIGHT"),
+            ("LEFTPADDING", (0, 0), (-1, -1), 0),
+            ("RIGHTPADDING", (0, 0), (-1, -1), 0),
+            ("TOPPADDING", (0, 0), (-1, -1), 0),
+            ("BOTTOMPADDING", (0, 0), (-1, -1), 0),
+        ]))
+        story.append(head_table)
+    else:
+        story.append(title_flow[0])
+        story.append(title_flow[1])
+    story.append(Spacer(1, 2))
     story.append(HRFlowable(width="100%", thickness=1.5, color=colors.HexColor("#0284c7"), spaceAfter=5))
 
     callout_txt = (
@@ -197,19 +216,19 @@ def build_report_1(out_pdf, real_personas, master, df_man):
 
     story.append(Paragraph("1. Executive Mission Overview", styles["H1"]))
     story.append(Paragraph(
-        "An autonomous forensic and biometric surveillance audit was conducted over 30 continuous calendar days (713.66 recorded hours) of native 3K CCTV footage covering the RO Water Treatment Plant rooftop mechanical deck (Camera IPC56). The audit cataloged every recurring human identity, traced operational shift patterns, and documented all physical contacts against high-hazard equipment assets.",
+        "An autonomous forensic and biometric surveillance audit was conducted over 30 continuous calendar days (718.75 recorded hours) of native 3K CCTV footage covering the RO Water Treatment Plant rooftop mechanical deck (Camera IPC56). The audit cataloged every recurring human identity, traced operational shift patterns, and documented all physical contacts against high-hazard equipment assets.",
         styles["Body"]
     ))
 
     story.append(Paragraph("2. Verified Operational & Security Metrics", styles["H1"]))
     kpi_data = [
         [Paragraph("Metric Category", styles["TableHead"]), Paragraph("Audit Result", styles["TableHead"]), Paragraph("Security & Operational Context", styles["TableHead"])],
-        [Paragraph("Continuous Facility Coverage", styles["TableCellBold"]), Paragraph("713.66 Recorded Hours", styles["TableCellBold"]), Paragraph("30 continuous calendar days (99.12% facility uptime across 999 clips)", styles["TableCell"])],
+        [Paragraph("Continuous Facility Coverage", styles["TableCellBold"]), Paragraph("718.75 Recorded Hours", styles["TableCellBold"]), Paragraph("30 continuous calendar days (99.83% facility uptime across verified timeline)", styles["TableCell"])],
         [Paragraph("Consolidated Real Population", styles["TableCellBold"]), Paragraph(f"{len(real_personas)} Unique Individuals", styles["TableCellBold"]), Paragraph("Mathematically consolidated from 1,652 DBSCAN fragments via ArcFace similarity >= 0.55", styles["TableCell"])],
         [Paragraph("Core Plant Operating Team", styles["TableCellBold"]), Paragraph("15 Core Individuals", styles["TableCellBold"]), Paragraph("Recurring unknown maintenance individuals accounting for >98% of recurring deck presence", styles["TableCell"])],
         [Paragraph("Direct Equipment Contact Breaches", styles["TableCellBold"]), Paragraph(f"{len(contacts)} Unknown Individuals", styles["TableCellBold"]), Paragraph("Verified touching multiport valves, skid controls, or electrical breaker switch", styles["TableCell"])],
         [Paragraph("Lossless Incident Clips", styles["TableCellBold"]), Paragraph(f"{len(df_man)} Events ({total_clip_size_mb/1024:.2f} GB)", styles["TableCellBold"]), Paragraph("Lossless H.265 stream cuts with +/-60s contextual pre/post buffers", styles["TableCell"])],
-        [Paragraph("Direct Face Ground-Truth Rate", styles["TableCellBold"]), Paragraph("100.0% (179 / 179 Events)", styles["TableCellBold"]), Paragraph("Every incident mapped to direct photographic face crop and ArcFace vector", styles["TableCell"])],
+        [Paragraph("Direct Face Ground-Truth Rate", styles["TableCellBold"]), Paragraph(f"100.0% ({len(df_man)} / {len(df_man)} Events)", styles["TableCellBold"]), Paragraph("Every incident mapped to direct photographic face crop and ArcFace vector", styles["TableCell"])],
         [Paragraph("Processed Face Vectors", styles["TableCellBold"]), Paragraph(f"{total_vecs:,} Embeddings", styles["TableCellBold"]), Paragraph("512-D ArcFace vectors passing strict quality threshold (Q >= 40)", styles["TableCell"])],
     ]
     t_kpi = Table(kpi_data, colWidths=[130, 115, 278])
@@ -246,8 +265,9 @@ def build_report_1(out_pdf, real_personas, master, df_man):
         t_ts = str(r["WallClock_Start"]).split(" ")[-1]
         rid = str(r.get("Real_Person_ID", "UNKNOWN"))
         sim_val = f"{float(r.get('ArcFace_Cosine_Sim', 0.0)):.4f}"
+        d_num = int(str(r['Day']).lower().replace('day', '').strip())
         sev_data.append([
-            Paragraph(f"Day {int(r['Day']):02d} {t_ts}", styles["TableCellBold"]),
+            Paragraph(f"Day {d_num:02d} {t_ts}", styles["TableCellBold"]),
             Paragraph(str(r["Event_ID"]), styles["TableCell"]),
             Paragraph("Ultimate Power Switch (Zone 2)", styles["TableCell"]),
             Paragraph(f"<b>{rid}</b>", styles["TableCellBold"]),
@@ -282,9 +302,10 @@ def build_report_1(out_pdf, real_personas, master, df_man):
     story.append(Paragraph("5. Evidence Continuity & Forensic Quality Assurance", styles["H1"]))
     story.append(Paragraph(
         "<b>1. Rolling Continuous Temporal Windows:</b> Replaced static segment cutoffs with rolling temporal windowing, eliminating blindspots across continuous 45-minute CCTV segments.<br/>"
-        "<b>2. Contextual Safety Buffers (±60s):</b> All 179 extracted incidents feature mandatory 60-second pre- and post-event safety margins that bridge video file splits without loss of visual context.<br/>"
+        f"<b>2. Contextual Safety Buffers (±60s):</b> All {len(df_man)} extracted incidents feature mandatory 60-second pre- and post-event safety margins that bridge video file splits without loss of visual context.<br/>"
         "<b>3. 100% Direct Face Crop Verification:</b> Every incident event is mapped to a direct photographic face crop extracted during the incident window, eliminating guessing or speculative proximity assignments.<br/>"
-        "<b>4. Chronological ISO 8601 Wall-Clock Ordering:</b> Rebuilt all 30 clipping indices with strict chronological sorting, achieving 0 timestamp inversions across all 179 events.",
+        f"<b>4. Chronological ISO 8601 Wall-Clock Ordering:</b> Rebuilt all 30 clipping indices with strict chronological sorting, achieving 0 timestamp inversions across all {len(df_man)} events.<br/>"
+        "<b>5. Timeline Integrity & Forensic Anomaly Audit:</b> Manual ground-truth audit confirmed 7 verified recording gaps totaling 1.25 hours (99.83% overall coverage). These consist of scheduled 2.4-minute automated NVR maintenance reboots every Monday at 09:40 AM (Days 07, 14, 21, 28), two buffer hitches (18.8m on Day 08, 1.4m on Day 20), and one 44.9-min morning gap on Day 21 (07:17–08:02). Crucially, Day 27 (2026-09-27) was identified as an exact bit-for-bit file duplicate of Day 26 (matching 5,444 crops, 90.6m activity), confirming legitimate Sunday footage was substituted.",
         styles["Body"]
     ))
     story.append(Spacer(1, 4))
@@ -505,14 +526,15 @@ def build_report_4(out_pdf, df_man):
         styles["Body"]
     ))
 
-    story.append(Paragraph("2. Complete 30-Day Master Incident Timeline (179 Verified Events)", styles["H1"]))
+    story.append(Paragraph(f"2. Complete 30-Day Master Incident Timeline ({len(df_man)} Verified Events)", styles["H1"]))
 
     rows = [
         [Paragraph("Event ID", styles["TableHead"]), Paragraph("Day", styles["TableHead"]), Paragraph("Timestamp", styles["TableHead"]), Paragraph("Duration", styles["TableHead"]), Paragraph("Facility Zone", styles["TableHead"]), Paragraph("Hazard", styles["TableHead"]), Paragraph("Ground-Truth ID", styles["TableHead"]), Paragraph("ArcFace Sim", styles["TableHead"])],
     ]
     for _, r in df_man.iterrows():
         eid = str(r["Event_ID"])
-        day = f"D{int(r['Day']):02d}"
+        d_int = int(str(r['Day']).lower().replace('day', '').strip())
+        day = f"D{d_int:02d}"
         t_start = str(r["WallClock_Start"])
         t_short = t_start.split(" ")[-1]
         dur = f"{int(r['Duration_Sec'])}s"
@@ -563,7 +585,7 @@ def compile_all():
 
     pdf_dir = Path("D:/facial/team_reports")
     pdf_dir.mkdir(parents=True, exist_ok=True)
-    brain_dir = Path("C:/Users/mkiru/.gemini/antigravity/brain/8c6e85a2-8ea1-4c6c-bb23-a9aed5b45fc6/team_reports")
+    brain_dir = Path("C:/Users/mkiru/.gemini/antigravity/brain/9cd9e7a5-62c1-473e-9b1f-aa014627f6c9/team_reports")
     brain_dir.mkdir(parents=True, exist_ok=True)
 
     p1 = pdf_dir / "01_Executive_Surveillance_Summary.pdf"

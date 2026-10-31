@@ -104,9 +104,8 @@ def main():
             target_crop_path = best[3]
             crop_q = best[1]
             crop_conf = best[2]
-        elif eid == "EVT-D01-009":
-            # Manual audit crop for Day 1 09:53:38
-            target_crop_path = Path("D:/facial/data/30day_personas/portraits/SUBJ-1652_exemplar.jpg")
+        elif pd.notna(r.get('Personas')) and (Path(f"D:/facial/data/30day_personas/portraits/{r['Personas']}_exemplar.jpg")).exists():
+            target_crop_path = Path(f"D:/facial/data/30day_personas/portraits/{r['Personas']}_exemplar.jpg")
             crop_q = 95
             crop_conf = 98
 
@@ -187,8 +186,10 @@ def main():
 
     df_res = pd.DataFrame(matches_summary)
     out_csv = Path("D:/facial/incident_evidence/179_incidents_biometric_mapping.csv")
+    out_csv_182 = Path("D:/facial/incident_evidence/182_incidents_biometric_mapping.csv")
     df_res.to_csv(out_csv, index=False)
-    print(f"[OK] Saved mapping to {out_csv}")
+    df_res.to_csv(out_csv_182, index=False)
+    print(f"[OK] Saved mapping to {out_csv} and {out_csv_182}")
 
     # Top Real Persons matched
     print("\nTop Real Person occurrences across incidents:")

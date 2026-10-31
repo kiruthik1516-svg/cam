@@ -34,7 +34,7 @@ def main():
     print(f"[OK] Updated {manifest_csv}")
 
     # Copy to brain artifact directory
-    brain_dir = Path("C:/Users/mkiru/.gemini/antigravity/brain/8c6e85a2-8ea1-4c6c-bb23-a9aed5b45fc6")
+    brain_dir = Path("C:/Users/mkiru/.gemini/antigravity/brain/9cd9e7a5-62c1-473e-9b1f-aa014627f6c9")
     df_man.to_csv(brain_dir / "extracted_incident_manifest.csv", index=False)
     print(f"[OK] Copied manifest to {brain_dir / 'extracted_incident_manifest.csv'}")
 

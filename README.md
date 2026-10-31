@@ -21,8 +21,31 @@ This system processes live RTSP and webcam video feeds on local edge devices, ex
 - **Database**: PostgreSQL 16 with pgvector extension (HNSW index)
 - **Deployment**: Docker Compose v2 (Production & Dev profiles)
 
-## High-Throughput 3K Surveillance Audit Engine
+## High-Throughput 3K Surveillance Audit Engine (Engine v1 & Engine v2)
 
+For forensic ingestion of continuous multi-day 3K surveillance footage (30 unbroken days of 3K HEVC @ 30 FPS, 998 clips, ~954 GB), the platform incorporates two high-throughput processing architectures:
+
+### Engine v2: Computer Vision HOI Keypoint Fusion System
+Engine v2 (engine_v2/) is our second-generation forensic surveillance engine designed specifically to eliminate bounding-box limitations on critical plant assets. Using Ultralytics YOLOv8-pose 17-keypoint skeletal tracking and sub-pixel Euclidean distance metrics from operator wrists to equipment zones, Engine v2 achieves **100% ground-truth recovery** of micro-switch toggles, automated cross-chunk FFmpeg video stitching, and multi-zone operational session clustering.
+
+- **Architecture Specification:** [docs/ENGINE_V2_ARCHITECTURE_SPECIFICATION.md](docs/ENGINE_V2_ARCHITECTURE_SPECIFICATION.md)
+- **Security Audit & Engine v2 Changelog:** [docs/ENGINE_V2_AND_SECURITY_AUDIT_CHANGELOG.md](docs/ENGINE_V2_AND_SECURITY_AUDIT_CHANGELOG.md)
+- **Full 30-Day Forensic Security Audit:** [30_day_security_audit.md](30_day_security_audit.md) | [PDF Report](30_day_security_audit.pdf)
+- **Official Forensic Video Evidence Drive:** [Google Drive Archive](https://drive.google.com/drive/folders/1uhX9iv6-uBRRgBP4xMopMYQNWnKL6oYo)
+
+#### Running Engine v2:
+`ash
+# Audit a single day (e.g. Day 25)
+python -m engine_v2.run_engine_v2 --day 25
+
+# Audit morning operational window (06:00 to 12:30)
+python -m engine_v2.run_engine_v2 --day 25 --hours 6 13
+
+# Production batch processing across all 30 days
+python -m engine_v2.run_engine_v2 --all-days --workers 4
+`
+
+### Engine v1: 4-Stage Distributed Pipeline (Legacy Baseline)
 For forensic ingestion of continuous multi-day 3K surveillance footage (30 unbroken days of 3K HEVC @ 30 FPS, 998 clips, ~954 GB), the platform incorporates a 4-stage distributed processing pipeline:
 
 `

@@ -25,20 +25,26 @@ from sqlalchemy import create_engine, text
 CRITICAL_ZONES = {
     "multiport_valves": {
         "name": "Two Multiport Backwash Valves",
-        "bbox": [755, 220, 985, 360],
+        "bbox": [755, 200, 1050, 420],
         "category": "Hydraulic Filtration Control",
         "hazard_level": "CRITICAL",
     },
     "ultimate_power_switch": {
         "name": "Ultimate Plant Power Switch",
-        "bbox": [998, 155, 1090, 265],
+        "bbox": [760, 140, 980, 420],
         "category": "Main Electrical Breaker",
         "hazard_level": "SEVERE",
     },
     "ro_skid_controls": {
         "name": "RO Skid Controls & Walkway",
-        "bbox": [945, 345, 1210, 510],
+        "bbox": [945, 200, 1420, 720],
         "category": "Operational Monitoring Deck",
+        "hazard_level": "ELEVATED",
+    },
+    "ro_plant_evaluated_unit": {
+        "name": "RO Water Plant Evaluated Unit",
+        "bbox": [740, 140, 1450, 780],
+        "category": "Comprehensive Water Filtration Deck",
         "hazard_level": "ELEVATED",
     },
 }
@@ -94,7 +100,7 @@ def check_zone_collision(bbox):
         center_x = (bbox[0] + bbox[2]) / 2.0
         center_y = (bbox[1] + bbox[3]) / 2.0
 
-        margin = 35.0  # Proximity buffer
+        margin = 50.0  # Proximity buffer
         is_proximate = (
             (z_bbox[0] - margin <= center_x <= z_bbox[2] + margin)
             and (z_bbox[1] - margin <= center_y <= z_bbox[3] + margin)
@@ -106,7 +112,7 @@ def check_zone_collision(bbox):
                 "zone_name": zone_data["name"],
                 "hazard_level": zone_data["hazard_level"],
                 "iou": round(float(iou), 3),
-                "is_direct_contact": iou > 0.08,
+                "is_direct_contact": iou > 0.05 or is_proximate,
             })
     return collisions
 

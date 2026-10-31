@@ -16,7 +16,7 @@
 ### 1. Forensic Biometric Resolution Statement
 All individuals observed in surveillance footage are formally classified as **Unknown Persons**. Unsupervised DBSCAN clustering originally yielded 1,652 micro-clusters due to camera angle and distance variations. Batched ArcFace pairwise inference and connected-component graph analysis mathematically consolidated these fragments into **43 real unique human beings** across the 30-day archive.
 
-Biometric feature analysis confirmed that the unknown individual observed operating the multiport backwash valve on Day 1 at `09:53:38` (enrolled as `SUBJ-1652`) shares high cosine similarity ($\ge 0.55 - 0.69$) with `SUBJ-10`, `SUBJ-1079`, `SUBJ-759`, and `SUBJ-582`, establishing that they are the same recurring maintenance individual (`REAL-01`). Furthermore, ArcFace cosine similarity between this individual and `REAL-02` (anchor `SUBJ-02`) is **0.1831** (non-match), establishing that they are entirely distinct persons and resolving all previous ambiguity.
+Biometric feature analysis confirmed that the unknown individual observed operating the multiport backwash valve on Day 1 at `09:53:38` (enrolled as `SUBJ-1652`) shares high cosine similarity ($\\ge 0.55 - 0.69$) with `SUBJ-10`, `SUBJ-1079`, `SUBJ-759`, and `SUBJ-582`, establishing that they are the same recurring maintenance individual (`REAL-01`). Furthermore, ArcFace cosine similarity between this individual and `REAL-02` (anchor `SUBJ-02`) is **0.1831** (non-match), establishing that they are entirely distinct persons and resolving all previous ambiguity.
 
 ---
 
@@ -76,7 +76,7 @@ Across the 30-day archive, exactly **18 unique unknown individuals** established
 
 | Subject ID | Total Contacts | Active Days | Total Detections | First Seen | Last Seen | Primary Asset Contacted | Hazard Rating | Operational Action |
 | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
-| **SUBJ-01** | **116 contacts** | 29 | 29598 | `2026-09-01` | `2026-09-30` | Two Multiport Backwash Valves | **CRITICAL** | Physical operation & valve manipulation |
+| **SUBJ-01** | **117 contacts** | 29 | 29598 | `2026-09-01` | `2026-09-30` | Ultimate Plant Power Switch | **SEVERE** | Physical operation & valve manipulation |
 | **SUBJ-02** | **53 contacts** | 12 | 166 | `2026-09-01` | `2026-09-30` | RO Skid Controls & Walkway | **ELEVATED** | Physical operation & valve manipulation |
 | **SUBJ-102** | **5 contacts** | 1 | 8 | `2026-09-02` | `2026-09-02` | RO Skid Controls & Walkway | **ELEVATED** | Physical operation & valve manipulation |
 | **SUBJ-167** | **5 contacts** | 1 | 6 | `2026-09-25` | `2026-09-25` | RO Skid Controls & Walkway | **ELEVATED** | Physical operation & valve manipulation |

@@ -45,11 +45,15 @@ for idx, r in df.iterrows():
     else:
         # Sort by highest quality & confidence
         best = sorted(in_window, key=lambda x: (x[1], x[2]), reverse=True)[0]
+        dest_crop = Path(f"D:/facial/incident_evidence/verified_faces/{eid}_day{day:02d}_verified_face.jpg")
+        dest_crop.parent.mkdir(parents=True, exist_ok=True)
+        import shutil
+        shutil.copy(best[3], dest_crop)
         matched_summary.append({
             'Event_ID': eid,
             'Day': day,
             'Crop_Count': len(in_window),
-            'Best_Crop': str(best[3]),
+            'Best_Crop': str(dest_crop),
             'Best_Q': best[1],
             'Best_Conf': best[2]
         })
