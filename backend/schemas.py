@@ -2,7 +2,7 @@
 from datetime import datetime
 from enum import Enum
 from typing import Optional, List, Tuple, Dict, Any
-from pydantic import ConfigDict, BaseModel, field_validator, model_validator, field_serializer, computed_field
+from pydantic import ConfigDict, BaseModel, Field, field_validator, model_validator, field_serializer, computed_field
 from config import to_ist_iso
 from facial_recognition.sources import redact_url
 
