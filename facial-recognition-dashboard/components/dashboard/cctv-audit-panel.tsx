@@ -13,12 +13,18 @@ import {
   fetchGpuStatus,
   browseDirectories,
   locateFolder,
+  fetchHoiIncidents,
+  fetchPipelineJobs,
+  submitPipelineJob,
+  cancelPipelineJob,
+  clearFinishedPipelineJobs,
   type VideoAuditReport,
   type IngestionProgress,
   type GpuStatusResponse,
   type BrowseDirectoryResponse,
 } from '@/lib/api';
-import { ImportBatch } from '@/lib/types';
+import { ImportBatch, HoiIncidentItem, PipelineJob } from '@/lib/types';
+import { HoiEvidencePlayerModal } from './hoi-evidence-player-modal';
 import { useDashboardMode } from '@/lib/mode-context';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -54,6 +60,10 @@ import {
   UserCheck,
   Radio,
   Smile,
+  Eye,
+  Sparkles,
+  Crosshair,
+  ExternalLink,
 } from 'lucide-react';
 
 export function CctvAuditPanel() {
@@ -73,6 +83,51 @@ export function CctvAuditPanel() {
   const [showCompletionBanner, setShowCompletionBanner] = useState<boolean>(false);
   const [completedSummary, setCompletedSummary] = useState<IngestionProgress | null>(null);
   const folderInputRef = useRef<HTMLInputElement>(null);
+
+  // Engine v2 HOI Evidence & Video Player State
+  const [selectedHoiDay, setSelectedHoiDay] = useState<number>(25);
+  const [selectedHoiSeverity, setSelectedHoiSeverity] = useState<string>('ALL');
+  const [activeHoiIncident, setActiveHoiIncident] = useState<HoiIncidentItem | null>(null);
+  const [isHoiPlayerOpen, setIsHoiPlayerOpen] = useState<boolean>(false);
+
+  // Query HOI incidents
+  const { data: hoiIncidents = [], isLoading: isHoiLoading, refetch: refetchHoi } = useQuery<HoiIncidentItem[]>({
+    queryKey: ['hoi-incidents', selectedHoiDay, selectedHoiSeverity],
+    queryFn: () => fetchHoiIncidents({
+      day: selectedHoiDay,
+      severity: selectedHoiSeverity === 'ALL' ? undefined : selectedHoiSeverity,
+    }),
+  });
+
+  // Background Pipeline Tasks State
+  const { data: pipelineJobs = [], refetch: refetchJobs } = useQuery<PipelineJob[]>({
+    queryKey: ['pipeline-jobs'],
+    queryFn: () => fetchPipelineJobs({ limit: 15 }),
+    refetchInterval: 3000,
+  });
+
+  const [activeLogTaskId, setActiveLogTaskId] = useState<string | null>(null);
+
+  const submitJobMutation = useMutation({
+    mutationFn: submitPipelineJob,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['pipeline-jobs'] });
+    },
+  });
+
+  const cancelJobMutation = useMutation({
+    mutationFn: cancelPipelineJob,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['pipeline-jobs'] });
+    },
+  });
+
+  const clearFinishedJobsMutation = useMutation({
+    mutationFn: clearFinishedPipelineJobs,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['pipeline-jobs'] });
+    },
+  });
 
   // Directory browser query
   const { data: browseData, isLoading: isBrowsing } = useQuery<BrowseDirectoryResponse>({
@@ -246,7 +301,8 @@ export function CctvAuditPanel() {
   };
 
   return (
-    <Card className="gap-0 py-0 border-border/60 bg-card/40 backdrop-blur-xl shadow-2xl">
+    <div className="space-y-6">
+      <Card className="gap-0 py-0 border-border/60 bg-card/40 backdrop-blur-xl shadow-2xl">
       <CardHeader className="border-b border-border/60 py-4 px-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div className="flex items-start gap-3">
           <span className="flex size-10 items-center justify-center rounded-lg bg-primary/10 text-primary ring-1 ring-inset ring-primary/20">
@@ -1469,5 +1525,396 @@ export function CctvAuditPanel() {
         )}
       </CardContent>
     </Card>
-  );
+
+    {/* ========================================================================= */}
+    {/* ENGINE V2 OPERATIONAL INCIDENTS & IN-BROWSER 3K EVIDENCE PLAYER           */}
+    {/* ========================================================================= */}
+    <Card className="bg-card/40 border-border/70 backdrop-blur-xl shadow-xl">
+      <CardHeader className="pb-3 border-b border-border/40">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <div className="size-9 rounded-lg bg-primary/10 border border-primary/40 flex items-center justify-center shrink-0">
+              <Video className="size-5 text-primary" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2 flex-wrap">
+                <CardTitle className="text-base font-bold text-foreground font-mono">
+                  Engine v2 Operational Incidents & In-Browser 3K Evidence Player
+                </CardTitle>
+                <Badge variant="outline" className="text-[10px] font-mono border-primary/40 bg-primary/10 text-primary">
+                  17-Keypoint YOLOv8-Pose HOI
+                </Badge>
+              </div>
+              <CardDescription className="text-xs text-muted-foreground mt-0.5">
+                RFC 7233 partial-content (HTTP 206) video streaming for 3K MP4 evidence clips with skeletal contact telemetry
+              </CardDescription>
+            </div>
+          </div>
+
+          {/* Day & Severity Filter Controls */}
+          <div className="flex items-center gap-2 flex-wrap">
+            <div className="flex items-center gap-1.5 bg-background/50 border border-border/60 rounded-md p-1">
+              <span className="text-[11px] font-mono text-muted-foreground px-1.5">Day:</span>
+              {[25, 1, 2, 3].map((d) => (
+                <button
+                  key={d}
+                  type="button"
+                  onClick={() => setSelectedHoiDay(d)}
+                  className={cn(
+                    "px-2 py-0.5 rounded text-xs font-mono font-medium transition-colors",
+                    selectedHoiDay === d
+                      ? "bg-primary text-primary-foreground shadow-xs"
+                      : "text-muted-foreground hover:text-foreground"
+                  )}
+                >
+                  Day {d}
+                </button>
+              ))}
+            </div>
+
+            <select
+              value={selectedHoiSeverity}
+              onChange={(e) => setSelectedHoiSeverity(e.target.value)}
+              className="h-8 rounded-md border border-input bg-card/60 px-2 text-xs font-mono text-foreground focus-visible:outline-none"
+            >
+              <option value="ALL">All Severities</option>
+              <option value="CRITICAL">Critical (Valves)</option>
+              <option value="SEVERE">Severe (Switch)</option>
+              <option value="ELEVATED">Elevated (RO Skid)</option>
+            </select>
+
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => refetchHoi()}
+              disabled={isHoiLoading}
+              className="h-8 px-2 text-xs font-mono gap-1 border-border/70"
+            >
+              <RefreshCw className={cn("size-3", isHoiLoading && "animate-spin")} />
+              <span>Refresh</span>
+            </Button>
+          </div>
+        </div>
+      </CardHeader>
+
+      <CardContent className="p-5 space-y-4">
+        {/* Metric Ribbon */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          <div className="rounded-lg border border-border/50 bg-background/50 p-3 space-y-1">
+            <span className="text-[10px] font-mono uppercase text-muted-foreground block">Total Incidents</span>
+            <span className="text-xl font-bold font-mono text-foreground tabular-nums">{hoiIncidents.length}</span>
+            <span className="text-[10px] text-muted-foreground block">Day {selectedHoiDay} sessions</span>
+          </div>
+
+          <div className="rounded-lg border border-amber-500/30 bg-amber-500/5 p-3 space-y-1">
+            <span className="text-[10px] font-mono uppercase text-amber-400 block">Severe Power Switch</span>
+            <span className="text-xl font-bold font-mono text-amber-400 tabular-nums">
+              {hoiIncidents.filter((i) => i.severity === 'SEVERE').length}
+            </span>
+            <span className="text-[10px] text-muted-foreground block">Breaker contact events</span>
+          </div>
+
+          <div className="rounded-lg border border-destructive/30 bg-destructive/5 p-3 space-y-1">
+            <span className="text-[10px] font-mono uppercase text-destructive block">Critical Valves</span>
+            <span className="text-xl font-bold font-mono text-destructive tabular-nums">
+              {hoiIncidents.filter((i) => i.severity === 'CRITICAL').length}
+            </span>
+            <span className="text-[10px] text-muted-foreground block">Multiport backwash events</span>
+          </div>
+
+          <div className="rounded-lg border border-primary/30 bg-primary/5 p-3 space-y-1">
+            <span className="text-[10px] font-mono uppercase text-primary block">Avg Min Wrist Reach</span>
+            <span className="text-xl font-bold font-mono text-primary tabular-nums">
+              {hoiIncidents.length > 0
+                ? (hoiIncidents.reduce((acc, curr) => acc + curr.min_wrist_distance_px, 0) / hoiIncidents.length).toFixed(1)
+                : '0.0'}{' '}
+              <span className="text-xs font-normal text-muted-foreground">px</span>
+            </span>
+            <span className="text-[10px] text-muted-foreground block">Threshold &le; 12.0 px</span>
+          </div>
+        </div>
+
+        {/* Evidence Clips & Sessions Table */}
+        {hoiIncidents.length === 0 ? (
+          <div className="rounded-lg border border-border/50 bg-background/30 p-8 text-center text-xs text-muted-foreground font-mono">
+            {isHoiLoading ? 'Loading Engine v2 evidence manifests...' : `No incident evidence records found for Day ${selectedHoiDay}.`}
+          </div>
+        ) : (
+          <div className="rounded-lg border border-border/50 bg-background/50 overflow-hidden">
+            <div className="max-h-[420px] overflow-y-auto">
+              <table className="w-full text-left text-xs font-mono">
+                <thead className="sticky top-0 bg-muted/80 backdrop-blur-md border-b border-border/50 text-[10px] uppercase text-muted-foreground z-10">
+                  <tr>
+                    <th className="py-2 px-3">Incident ID</th>
+                    <th className="py-2 px-3">Timestamp Window</th>
+                    <th className="py-2 px-3">Target Asset Zone</th>
+                    <th className="py-2 px-3">HOI Wrist Contact</th>
+                    <th className="py-2 px-3">Severity</th>
+                    <th className="py-2 px-3 text-right">Forensic Evidence</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-border/20">
+                  {hoiIncidents.map((inc) => (
+                    <tr key={inc.incident_id} className="hover:bg-muted/30 transition-colors">
+                      <td className="py-2 px-3">
+                        <div className="font-bold text-foreground">{inc.incident_id}</div>
+                        <div className="text-[10px] text-muted-foreground flex items-center gap-1">
+                          <span>{inc.track_id || 'OP-RO-VALVE-01'}</span>
+                          {inc.file_size_mb ? <span>&bull; {inc.file_size_mb} MB</span> : null}
+                        </div>
+                      </td>
+                      <td className="py-2 px-3 tabular-nums">
+                        <div className="text-foreground font-medium">{inc.peak_time.split(' ')[1] || inc.peak_time}</div>
+                        <div className="text-[10px] text-muted-foreground">
+                          {inc.duration_sec.toFixed(1)}s duration
+                        </div>
+                      </td>
+                      <td className="py-2 px-3">
+                        <Badge variant="secondary" className="text-[10px] font-mono px-1.5 py-0 bg-muted/60 text-foreground">
+                          {inc.zone_id}
+                        </Badge>
+                        <div className="text-[10px] text-muted-foreground truncate max-w-[140px]" title={inc.zone_name}>
+                          {inc.zone_name}
+                        </div>
+                      </td>
+                      <td className="py-2 px-3 tabular-nums">
+                        <div className="flex items-center gap-1.5">
+                          <span className={cn(
+                            "font-bold",
+                            inc.min_wrist_distance_px <= 12 ? "text-destructive" : "text-primary"
+                          )}>
+                            {inc.min_wrist_distance_px.toFixed(1)} px
+                          </span>
+                          <Badge variant="outline" className="text-[9px] px-1 py-0 border-border/60 text-muted-foreground">
+                            {inc.active_hand}
+                          </Badge>
+                        </div>
+                        <div className="text-[10px] text-muted-foreground">
+                          {inc.min_wrist_distance_px <= 12 ? 'Direct Contact' : 'Proximity Envelope'}
+                        </div>
+                      </td>
+                      <td className="py-2 px-3">
+                        <Badge
+                          variant="outline"
+                          className={cn(
+                            "text-[10px] font-mono px-2 py-0.5",
+                            inc.severity === 'CRITICAL' && 'bg-red-500/15 text-red-400 border-red-500/30 font-bold',
+                            inc.severity === 'SEVERE' && 'bg-amber-500/15 text-amber-400 border-amber-500/30',
+                            inc.severity === 'ELEVATED' && 'bg-sky-500/15 text-sky-300 border-sky-500/30'
+                          )}
+                        >
+                          {inc.severity}
+                        </Badge>
+                      </td>
+                      <td className="py-2 px-3 text-right">
+                        <div className="flex items-center justify-end gap-1.5">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => {
+                              setActiveHoiIncident(inc);
+                              setIsHoiPlayerOpen(true);
+                            }}
+                            className="h-7 px-2.5 text-[11px] font-mono border-primary/50 text-primary hover:bg-primary/10 gap-1"
+                          >
+                            <Play className="size-3 fill-current" />
+                            <span>Watch 3K Clip</span>
+                          </Button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+      </CardContent>
+    </Card>
+
+    {/* ========================================================================= */}
+    {/* DECOUPLED BACKGROUND TASK QUEUE & WORKER ARCHITECTURE                     */}
+    {/* ========================================================================= */}
+    <Card className="bg-card/40 border-border/70 backdrop-blur-xl shadow-xl">
+      <CardHeader className="pb-3 border-b border-border/40">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <div className="size-9 rounded-lg bg-emerald-500/10 border border-emerald-500/40 flex items-center justify-center shrink-0">
+              <Cpu className="size-5 text-emerald-400" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2 flex-wrap">
+                <CardTitle className="text-base font-bold text-foreground font-mono">
+                  Decoupled Background Task Queue & Worker Manager
+                </CardTitle>
+                <Badge variant="outline" className="text-[10px] font-mono border-emerald-500/40 bg-emerald-500/10 text-emerald-400">
+                  Subprocess Architecture
+                </Badge>
+              </div>
+              <CardDescription className="text-xs text-muted-foreground mt-0.5">
+                Persistent worker queue for multi-hour video forensics, 30-day orchestration, and vector indexing
+              </CardDescription>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2 flex-wrap">
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() =>
+                submitJobMutation.mutate({
+                  task_type: 'ENGINE_V2_DAY_RUN',
+                  day: selectedHoiDay,
+                  title: `Engine v2 Forensic Analysis - Day ${selectedHoiDay}`,
+                })
+              }
+              disabled={submitJobMutation.isPending}
+              className="h-8 px-2.5 text-xs font-mono border-primary/50 text-primary hover:bg-primary/10 gap-1.5"
+            >
+              <Play className="size-3.5 fill-current" />
+              <span>Run Day {selectedHoiDay} Job</span>
+            </Button>
+
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() =>
+                submitJobMutation.mutate({
+                  task_type: 'ORCHESTRATE_30DAY',
+                  title: '30-Day Master Surveillance Orchestrator',
+                  workers: 2,
+                })
+              }
+              disabled={submitJobMutation.isPending}
+              className="h-8 px-2.5 text-xs font-mono border-emerald-500/50 text-emerald-400 hover:bg-emerald-500/10 gap-1.5"
+            >
+              <Activity className="size-3.5" />
+              <span>Orchestrate 30-Day Batch</span>
+            </Button>
+
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={() => clearFinishedJobsMutation.mutate()}
+              disabled={clearFinishedJobsMutation.isPending}
+              className="h-8 px-2 text-xs font-mono text-muted-foreground hover:text-foreground"
+              title="Clear completed and cancelled jobs"
+            >
+              <Trash2 className="size-3.5" />
+            </Button>
+          </div>
+        </div>
+      </CardHeader>
+
+      <CardContent className="p-5 space-y-4">
+        {pipelineJobs.length === 0 ? (
+          <div className="rounded-lg border border-border/50 bg-background/30 p-6 text-center text-xs text-muted-foreground font-mono">
+            No background worker jobs in history. Use the buttons above to enqueue a processing run.
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {pipelineJobs.map((job) => (
+              <div
+                key={job.task_id}
+                className="rounded-lg border border-border/50 bg-background/50 p-3.5 space-y-2 font-mono text-xs"
+              >
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <Badge
+                      variant="outline"
+                      className={cn(
+                        "text-[10px] font-mono px-2 py-0.5",
+                        job.status === 'RUNNING' && 'bg-primary/20 text-primary border-primary/50 animate-pulse',
+                        job.status === 'QUEUED' && 'bg-amber-500/20 text-amber-300 border-amber-500/50',
+                        job.status === 'COMPLETED' && 'bg-success/20 text-success border-success/50',
+                        job.status === 'FAILED' && 'bg-destructive/20 text-destructive border-destructive/50',
+                        job.status === 'CANCELLED' && 'bg-muted/40 text-muted-foreground border-border/60'
+                      )}
+                    >
+                      {job.status}
+                    </Badge>
+                    <span className="font-bold text-foreground text-sm">{job.title}</span>
+                    <span className="text-[10px] text-muted-foreground">({job.task_id})</span>
+                    {job.pid && (
+                      <span className="text-[10px] text-muted-foreground">PID: {job.pid}</span>
+                    )}
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    {(job.status === 'RUNNING' || job.status === 'QUEUED') && (
+                      <Button
+                        size="sm"
+                        variant="destructive"
+                        onClick={() => cancelJobMutation.mutate(job.task_id)}
+                        disabled={cancelJobMutation.isPending}
+                        className="h-6 px-2 text-[10px] font-mono"
+                      >
+                        Cancel
+                      </Button>
+                    )}
+
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() =>
+                        setActiveLogTaskId(activeLogTaskId === job.task_id ? null : job.task_id)
+                      }
+                      className="h-6 px-2 text-[10px] font-mono text-muted-foreground hover:text-foreground"
+                    >
+                      {activeLogTaskId === job.task_id ? 'Hide Logs' : 'View Logs'}
+                    </Button>
+                  </div>
+                </div>
+
+                {/* Progress Bar & Telemetry */}
+                <div className="space-y-1">
+                  <div className="flex items-center justify-between text-[11px] text-muted-foreground">
+                    <span className="truncate max-w-[400px]">{job.current_step}</span>
+                    <span className="font-bold text-foreground tabular-nums">
+                      {job.progress_pct.toFixed(1)}%
+                    </span>
+                  </div>
+                  <div className="w-full bg-muted/40 h-1.5 rounded-full overflow-hidden">
+                    <div
+                      className={cn(
+                        "h-full transition-all duration-300",
+                        job.status === 'COMPLETED' && 'bg-success',
+                        job.status === 'RUNNING' && 'bg-primary',
+                        job.status === 'FAILED' && 'bg-destructive',
+                        job.status === 'CANCELLED' && 'bg-muted-foreground'
+                      )}
+                      style={{ width: `${Math.min(100, Math.max(0, job.progress_pct))}%` }}
+                    />
+                  </div>
+                </div>
+
+                {/* Expanded Log Output */}
+                {activeLogTaskId === job.task_id && (
+                  <div className="mt-2 rounded bg-black/80 border border-border/60 p-3 max-h-48 overflow-y-auto space-y-0.5 text-[10px] text-primary-foreground/90 font-mono">
+                    {job.log_tail.length === 0 ? (
+                      <span className="text-muted-foreground italic">No log output captured yet.</span>
+                    ) : (
+                      job.log_tail.map((line, idx) => (
+                        <div key={idx} className="whitespace-pre-wrap leading-tight">
+                          {line}
+                        </div>
+                      ))
+                    )}
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+      </CardContent>
+    </Card>
+
+    {/* Video Evidence Player Modal */}
+    <HoiEvidencePlayerModal
+      incident={activeHoiIncident}
+      open={isHoiPlayerOpen}
+      onOpenChange={setIsHoiPlayerOpen}
+    />
+  </div>
+);
 }

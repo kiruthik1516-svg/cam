@@ -486,3 +486,51 @@ export interface TemporalAnomalyEvent {
   quality_score?: number | null
   face_image?: string | null
 }
+
+
+export interface HoiIncidentItem {
+  incident_id: string
+  day: number
+  start_time: string
+  peak_time: string
+  end_time: string
+  duration_sec: number
+  zone_id: string
+  zone_name: string
+  severity: string
+  interaction_type: string
+  active_hand: string
+  min_wrist_distance_px: number
+  track_id: string
+  clip_filename: string
+  snapshot_filename: string
+  file_size_mb?: number | null
+  video_url: string
+  snapshot_url: string
+}
+
+
+export interface PipelineJob {
+  task_id: string;
+  title: string;
+  task_type: string;
+  status: 'QUEUED' | 'RUNNING' | 'COMPLETED' | 'FAILED' | 'CANCELLED';
+  created_at: string;
+  started_at?: string | null;
+  completed_at?: string | null;
+  progress_pct: number;
+  current_step: string;
+  metrics: Record<string, any>;
+  log_tail: string[];
+  error?: string | null;
+  pid?: number | null;
+}
+
+export interface PipelineJobStats {
+  total_jobs: number;
+  running_jobs: number;
+  queued_jobs: number;
+  completed_jobs: number;
+  failed_jobs: number;
+  cancelled_jobs: number;
+}

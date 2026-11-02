@@ -64,3 +64,9 @@ incident_evidence/
 # Local tools & worktrees
 .amazonq/rules/gstack.md
 .claude/
+
+incident_evidence_v2/
+*.pt
+scratch_*.jpg
+native_*.jpg
+backend/data/

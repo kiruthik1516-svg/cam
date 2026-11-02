@@ -33,6 +33,7 @@ class JWTMiddleware(BaseHTTPMiddleware):
             request.method == "OPTIONS"
             or path.startswith("/api/internal")
             or path.startswith("/api/auth")
+            or path.startswith("/api/hoi/evidence")
             or path.startswith("/ws/")
             or path == "/health"
             or not path.startswith("/api/")

@@ -431,6 +431,12 @@ app.include_router(audit_router)
 from routers.edge_keys import router as edge_keys_router
 app.include_router(edge_keys_router)
 
+from routers.hoi_evidence import router as hoi_evidence_router
+app.include_router(hoi_evidence_router)
+
+from routers.pipeline_jobs import router as pipeline_jobs_router
+app.include_router(pipeline_jobs_router)
+
 class SecurityHeadersMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
         response = await call_next(request)
