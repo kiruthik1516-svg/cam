@@ -414,3 +414,75 @@ export interface BiometricPurgeResult {
   preserveFlaggedAlerts: boolean
 }
 
+
+
+// ==================== Subject Intelligence & Behavioral Analytics ====================
+
+export interface DailyPunch {
+  date: string
+  first_seen?: string | null
+  last_seen?: string | null
+  dwell_seconds: number
+  sightings_count: number
+  cameras: string[]
+}
+
+export interface ShiftBreakdown {
+  morning_shift_a: number
+  afternoon_shift_b: number
+  night_shift_c: number
+  morning_percentage: number
+  afternoon_percentage: number
+  night_percentage: number
+}
+
+export interface ObservedCameraStat {
+  camera_id: string
+  camera_name: string
+  count: number
+  first_seen?: string | null
+  last_seen?: string | null
+}
+
+export interface SubjectVectorMatch {
+  id: string
+  name: string
+  similarity: number
+  role: string
+  is_profile: boolean
+}
+
+export interface SubjectIntelligence {
+  subject_id: string
+  display_name: string
+  status: 'unregistered' | 'profile'
+  total_sightings: number
+  active_days_count: number
+  active_dates: string[]
+  global_first_seen?: string | null
+  global_last_seen?: string | null
+  presence_span_hours: number
+  average_daily_dwell_minutes: number
+  shift_breakdown: ShiftBreakdown
+  hourly_frequency: number[]
+  daily_punches: DailyPunch[]
+  observed_cameras: ObservedCameraStat[]
+  exemplar_face_image?: string | null
+  exemplar_quality?: number | null
+  exemplar_timestamp?: string | null
+  exemplar_camera_id?: string | null
+  candidate_vector_matches: SubjectVectorMatch[]
+}
+
+export interface TemporalAnomalyEvent {
+  detection_id: string
+  subject_id?: string | null
+  subject_name: string
+  timestamp: string
+  camera_id: string
+  camera_name: string
+  hour_of_day: number
+  anomaly_reason: string
+  quality_score?: number | null
+  face_image?: string | null
+}

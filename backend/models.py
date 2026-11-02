@@ -190,6 +190,8 @@ class Detection(Base):
         ),
         Index("ix_detections_source_timestamp", "source", "timestamp"),
         Index("ix_detections_source_camera", "source", "camera_id", "timestamp"),
+        Index("ix_detections_subject_timestamp", "unregistered_subject_id", "timestamp"),
+        Index("ix_detections_profile_timestamp", "profile_id", "timestamp"),
     )
     
     id = Column(String, primary_key=True, index=True)

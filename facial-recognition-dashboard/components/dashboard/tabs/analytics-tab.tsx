@@ -15,6 +15,7 @@ import {
   YAxis,
 } from 'recharts'
 import {
+  fetchTemporalAnomalies,
   fetchAttendance,
   fetchFootfall,
   fetchGenderDistribution,
@@ -51,8 +52,10 @@ import {
   Video,
   CheckCircle2,
   TrendingUp,
+  Moon,
 } from 'lucide-react'
 import { useDashboardMode } from '@/lib/mode-context'
+import { SubjectDossierDrawer } from '@/components/dashboard/subject-dossier-drawer'
 
 const GENDER_COLORS: Record<string, string> = {
   Male: '#3b82f6',
@@ -659,7 +662,7 @@ function DemographicPie({
   )
 }
 
-function AttendanceTable({ selectedDates }: { selectedDates: Date[] }) {
+function AttendanceTable({ selectedDates, onOpenDossier }: { selectedDates: Date[]; onOpenDossier?: (id: string) => void }) {
   const { mode, selectedBatchId } = useDashboardMode()
   const { data: filteredData = [] } = useQuery({
     queryKey: ['attendance', selectedDates, mode, selectedBatchId],
@@ -704,7 +707,12 @@ function AttendanceTable({ selectedDates }: { selectedDates: Date[] }) {
           </TableHeader>
           <TableBody>
             {filteredData.map((r) => (
-              <TableRow key={r.profileId}>
+              <TableRow
+                key={r.profileId}
+                className={cn(onOpenDossier && "cursor-pointer hover:bg-muted/30 transition-colors")}
+                onClick={() => onOpenDossier && onOpenDossier(r.profileId)}
+                title="Click to view deep forensic intelligence dossier"
+              >
                 <TableCell className="pl-4">
                   <div className="flex items-center gap-2.5">
                     <FaceTile tone={r.avatarTone} size="sm" />
@@ -740,7 +748,75 @@ function AttendanceTable({ selectedDates }: { selectedDates: Date[] }) {
   )
 }
 
+
+function NocturnalAnomaliesCard({ onOpenDossier }: { onOpenDossier: (id: string) => void }) {
+  const { data: anomalies } = useQuery({
+    queryKey: ['temporal-anomalies'],
+    queryFn: () => fetchTemporalAnomalies(24),
+    refetchInterval: 10000,
+  })
+
+  if (!anomalies || anomalies.length === 0) return null
+
+  return (
+    <Card className="gap-0 py-0 border-purple-500/30 bg-purple-500/5">
+      <CardHeader className="border-b border-border py-3">
+        <div className="flex items-center justify-between">
+          <SectionHeading
+            icon={Moon}
+            title="Nocturnal Vigilance & Shift Anomalies"
+            count={anomalies.length}
+            description="Sightings detected during Shift C (Night: 22:00 – 05:59 IST) outside standard daytime plant operations"
+          />
+          <Badge variant="outline" className="text-[10px] uppercase font-semibold border-purple-500/40 text-purple-400">
+            Shift C Nocturnal Events
+          </Badge>
+        </div>
+      </CardHeader>
+      <CardContent className="p-3">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2.5">
+          {anomalies.map((anom) => (
+            <div
+              key={anom.detection_id}
+              onClick={() => anom.subject_id && onOpenDossier(anom.subject_id)}
+              className={cn(
+                "flex items-center gap-3 p-2.5 rounded-xl border border-border bg-card/80 transition-all",
+                anom.subject_id && "cursor-pointer hover:border-primary/50 hover:bg-muted/30"
+              )}
+            >
+              {anom.face_image ? (
+                <img
+                  src={`data:image/jpeg;base64,${anom.face_image}`}
+                  alt={anom.subject_name}
+                  className="size-11 rounded-lg object-cover ring-1 ring-purple-500/30 shrink-0"
+                />
+              ) : (
+                <div className="flex size-11 items-center justify-center rounded-lg bg-purple-500/10 text-purple-400 shrink-0">
+                  <Moon className="size-5" />
+                </div>
+              )}
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center justify-between">
+                  <span className="font-semibold text-xs text-foreground truncate">
+                    {anom.subject_name}
+                  </span>
+                  <Badge variant="outline" className="text-[9px] font-mono border-purple-500/40 text-purple-400">
+                    {anom.hour_of_day}:00 IST
+                  </Badge>
+                </div>
+                <p className="text-[10px] text-muted-foreground truncate">{anom.camera_name}</p>
+                <p className="text-[10px] font-mono text-purple-400/90 truncate">{formatClock(anom.timestamp)}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+      </CardContent>
+    </Card>
+  )
+}
+
 export function AnalyticsTab() {
+  const [dossierSubjectId, setDossierSubjectId] = useState<string | null>(null)
   const { mode, selectedBatchId } = useDashboardMode()
 
   // 1. Fetch import batches when in archive mode
@@ -974,7 +1050,14 @@ export function AnalyticsTab() {
           />
         </div>
       </div>
-      <AttendanceTable selectedDates={selectedDates} />
+      <AttendanceTable selectedDates={selectedDates} onOpenDossier={(id) => setDossierSubjectId(id)} />
+      <NocturnalAnomaliesCard onOpenDossier={(id) => setDossierSubjectId(id)} />
+
+      {/* Forensic Intelligence Dossier Drawer */}
+      <SubjectDossierDrawer
+        subjectId={dossierSubjectId}
+        onClose={() => setDossierSubjectId(null)}
+      />
     </div>
   )
 }

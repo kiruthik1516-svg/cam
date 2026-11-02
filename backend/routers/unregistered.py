@@ -329,6 +329,36 @@ def assign_unregistered_subject(subject_id: str, req: UnregisteredSubjectAssignR
 
 
 
+
+def _recompute_subject_centroid(subject: UnregisteredSubject, db: Session):
+    """Recompute representative embedding as normalized centroid of all assigned detections."""
+    import numpy as np
+    import json
+    dets = db.query(Detection.embedding_vector).filter(
+        Detection.unregistered_subject_id == subject.id,
+        Detection.embedding_vector != None
+    ).all()
+    if not dets:
+        return
+    vectors = []
+    for (d_vec,) in dets:
+        if d_vec is None:
+            continue
+        if isinstance(d_vec, str):
+            d_vec = json.loads(d_vec)
+        arr = np.asarray(d_vec, dtype=np.float32).flatten()
+        norm = np.linalg.norm(arr)
+        if norm >= 1e-6:
+            vectors.append(arr / norm)
+    if vectors:
+        centroid = np.mean(vectors, axis=0)
+        c_norm = np.linalg.norm(centroid)
+        if c_norm >= 1e-6:
+            subject.representative_embedding = (centroid / c_norm).tolist()
+            db.add(subject)
+            db.commit()
+
+
 @router.post("/api/unregistered-subjects/{subject_id}/merge", response_model=UnregisteredSubjectResponse)
 def merge_unregistered_subject(subject_id: str, req: UnregisteredSubjectMergeRequest, db: Session = Depends(get_db)):
     target = db.query(UnregisteredSubject).filter(

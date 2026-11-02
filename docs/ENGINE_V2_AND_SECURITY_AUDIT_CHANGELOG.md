@@ -246,3 +246,4 @@ To prevent repository bloat and ensure compliance with GitHub file size constrai
    - Day 25 Forensic Audit Manifest (`Day25_Incident_Manifest.csv`, `Day25_Forensic_Summary.json`).
    - ThoorigAI corporate logo and verified identity facial crops.
    - Surveillance mesh alignment templates and indexing scripts (`scripts/`).
+

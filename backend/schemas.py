@@ -1026,3 +1026,89 @@ class DeviceApiKeyCreatedResponse(BaseModel):
     @field_serializer("created_at", when_used="always")
     def serialize_dates(self, v: Optional[datetime]):
         return to_ist_iso(v) if v is not None else None
+
+
+# ==================== Subject Intelligence & Behavioral Analytics ====================
+
+class DailyPunchResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    
+    date: str
+    first_seen: Optional[str] = None
+    last_seen: Optional[str] = None
+    dwell_seconds: int = 0
+    sightings_count: int = 0
+    cameras: List[str] = Field(default_factory=list)
+
+
+class ShiftBreakdownResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    
+    morning_shift_a: int = 0      # 06:00 - 13:59
+    afternoon_shift_b: int = 0    # 14:00 - 21:59
+    night_shift_c: int = 0        # 22:00 - 05:59
+    morning_percentage: float = 0.0
+    afternoon_percentage: float = 0.0
+    night_percentage: float = 0.0
+
+
+class ObservedCameraStat(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    
+    camera_id: str
+    camera_name: str
+    count: int = 0
+    first_seen: Optional[str] = None
+    last_seen: Optional[str] = None
+
+
+class SubjectVectorMatch(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    
+    id: str
+    name: str
+    similarity: float
+    role: str
+    is_profile: bool = False
+
+
+class SubjectIntelligenceResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    
+    subject_id: str
+    display_name: str
+    status: str                                      # 'unregistered' or 'profile'
+    total_sightings: int
+    active_days_count: int
+    active_dates: List[str] = Field(default_factory=list)
+    global_first_seen: Optional[str] = None
+    global_last_seen: Optional[str] = None
+    presence_span_hours: float = 0.0
+    average_daily_dwell_minutes: float = 0.0
+    
+    shift_breakdown: ShiftBreakdownResponse
+    hourly_frequency: List[int] = Field(default_factory=list)  # 24 integers (0 to 23 hours)
+    daily_punches: List[DailyPunchResponse] = Field(default_factory=list)
+    observed_cameras: List[ObservedCameraStat] = Field(default_factory=list)
+    
+    exemplar_face_image: Optional[str] = None        # Base64 JPEG
+    exemplar_quality: Optional[float] = None
+    exemplar_timestamp: Optional[str] = None
+    exemplar_camera_id: Optional[str] = None
+    
+    candidate_vector_matches: List[SubjectVectorMatch] = Field(default_factory=list)
+
+
+class TemporalAnomalyEvent(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    
+    detection_id: str
+    subject_id: Optional[str] = None
+    subject_name: str
+    timestamp: str
+    camera_id: str
+    camera_name: str
+    hour_of_day: int
+    anomaly_reason: str
+    quality_score: Optional[float] = None
+    face_image: Optional[str] = None

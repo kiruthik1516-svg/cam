@@ -1,5 +1,5 @@
 import { authFetch, handleResponse, strOrEmpty, numOrZero } from './config';
-import type { SystemKpis, FootfallBucket, SubjectTrajectory, MovementNetwork, DuplicateCandidate, DemographicSlice, AttendanceRecord } from '../types';
+import type { SystemKpis, FootfallBucket, SubjectTrajectory, MovementNetwork, DuplicateCandidate, DemographicSlice, AttendanceRecord, SubjectIntelligence, TemporalAnomalyEvent } from '../types';
 
 import { adaptKpis, adaptFootfallBucket, adaptSubjectTrajectory, adaptDuplicateCandidate, adaptDemographicSlice, adaptAttendanceRecord } from './adapters';
 
@@ -203,3 +203,14 @@ export const fetchMovementNetwork = async (): Promise<MovementNetwork> => {
   }
 }
 
+
+
+export const fetchSubjectIntelligence = async (subjectId: string): Promise<SubjectIntelligence> => {
+  const response = await authFetch(`/api/analytics/subjects/${encodeURIComponent(subjectId)}/intelligence`)
+  return await handleResponse<SubjectIntelligence>(response)
+}
+
+export const fetchTemporalAnomalies = async (limit: number = 50): Promise<TemporalAnomalyEvent[]> => {
+  const response = await authFetch(`/api/analytics/anomalies/temporal?limit=${limit}`)
+  return await handleResponse<TemporalAnomalyEvent[]>(response)
+}

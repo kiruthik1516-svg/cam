@@ -15,6 +15,8 @@ from models import (
     ProfileRole as ProfileRoleEnum, DetectionStatus as DetectionStatusEnum
 )
 from schemas import (
+    SubjectIntelligenceResponse, DailyPunchResponse, ShiftBreakdownResponse,
+    ObservedCameraStat, SubjectVectorMatch, TemporalAnomalyEvent,
     MovementNetworkResponse, MovementEdgeResponse,
     DuplicateCandidateResponse, ProfileResponse,
     SubjectTrajectoryResponse, TrajectoryNodeResponse,
@@ -536,3 +538,264 @@ def get_attendance(
 
 
 
+
+
+# ==================== Subject Intelligence & Behavioral Analytics ====================
+
+@router.get("/subjects/{subject_id}/intelligence", response_model=SubjectIntelligenceResponse)
+def get_subject_intelligence(subject_id: str, db: Session = Depends(get_db)):
+    """Fetch complete forensic intelligence: first/last seen, daily punches, 24h diurnal histogram, shift breakdown, active days, and vector similarity."""
+    from collections import defaultdict
+    import numpy as np
+    import json
+    
+    unreg = db.query(UnregisteredSubject).filter(UnregisteredSubject.id == subject_id).first()
+    profile = None
+    if not unreg:
+        profile = db.query(Profile).filter(Profile.id == subject_id).first()
+        if not profile:
+            raise HTTPException(status_code=404, detail=f"Subject {subject_id} not found")
+
+    display_name = unreg.display_name if unreg else profile.name
+    status_str = "unregistered" if unreg else "profile"
+    
+    if unreg:
+        dets = db.query(Detection).filter(
+            Detection.unregistered_subject_id == subject_id
+        ).order_by(Detection.timestamp.asc()).all()
+    else:
+        dets = db.query(Detection).filter(
+            Detection.profile_id == subject_id
+        ).order_by(Detection.timestamp.asc()).all()
+
+    if not dets:
+        return SubjectIntelligenceResponse(
+            subject_id=subject_id,
+            display_name=display_name,
+            status=status_str,
+            total_sightings=0,
+            active_days_count=0,
+            active_dates=[],
+            shift_breakdown=ShiftBreakdownResponse(),
+            hourly_frequency=[0] * 24,
+            daily_punches=[],
+            observed_cameras=[],
+            candidate_vector_matches=[]
+        )
+
+    # 1. Global Timings
+    global_first_seen = to_ist_iso(dets[0].timestamp)
+    global_last_seen = to_ist_iso(dets[-1].timestamp)
+    presence_span_hours = round((dets[-1].timestamp - dets[0].timestamp).total_seconds() / 3600.0, 2)
+
+    # 2. Daily Punches (Group by Calendar Date in IST)
+    daily_groups = defaultdict(list)
+    for d in dets:
+        ist_dt = to_ist(d.timestamp)
+        date_str = ist_dt.strftime("%Y-%m-%d")
+        daily_groups[date_str].append((ist_dt, d))
+
+    sorted_dates = sorted(daily_groups.keys())
+    daily_punches = []
+    total_dwell_seconds = 0
+
+    for dt_str in sorted_dates:
+        group = daily_groups[dt_str]
+        first_dt = group[0][0]
+        last_dt = group[-1][0]
+        dwell_s = max(0, int((last_dt - first_dt).total_seconds()))
+        total_dwell_seconds += dwell_s
+        cams = sorted(list({g[1].camera_id for g in group if g[1].camera_id}))
+        daily_punches.append(DailyPunchResponse(
+            date=dt_str,
+            first_seen=first_dt.strftime("%H:%M:%S"),
+            last_seen=last_dt.strftime("%H:%M:%S"),
+            dwell_seconds=dwell_s,
+            sightings_count=len(group),
+            cameras=cams
+        ))
+
+    avg_dwell_min = round((total_dwell_seconds / max(1, len(sorted_dates))) / 60.0, 1)
+
+    # 3. 24-Hour Diurnal Histogram
+    hourly_freq = [0] * 24
+    for d in dets:
+        ist_dt = to_ist(d.timestamp)
+        hourly_freq[ist_dt.hour] += 1
+
+    # 4. Shift Breakdown
+    m_count, a_count, n_count = 0, 0, 0
+    for d in dets:
+        ist_dt = to_ist(d.timestamp)
+        h = ist_dt.hour
+        if 6 <= h < 14:
+            m_count += 1
+        elif 14 <= h < 22:
+            a_count += 1
+        else:
+            n_count += 1
+
+    tot = float(len(dets))
+    shift_breakdown = ShiftBreakdownResponse(
+        morning_shift_a=m_count,
+        afternoon_shift_b=a_count,
+        night_shift_c=n_count,
+        morning_percentage=round((m_count / tot) * 100.0, 1),
+        afternoon_percentage=round((a_count / tot) * 100.0, 1),
+        night_percentage=round((n_count / tot) * 100.0, 1)
+    )
+
+    # 5. Observed Cameras
+    camera_map = {c.id: c.name for c in db.query(Camera).all()}
+    cam_stats = defaultdict(lambda: {"count": 0, "first": None, "last": None})
+    for d in dets:
+        ist_dt = to_ist(d.timestamp)
+        c_id = d.camera_id
+        entry = cam_stats[c_id]
+        entry["count"] += 1
+        if entry["first"] is None:
+            entry["first"] = ist_dt
+        entry["last"] = ist_dt
+
+    observed_cameras = []
+    for c_id, stat in cam_stats.items():
+        observed_cameras.append(ObservedCameraStat(
+            camera_id=c_id,
+            camera_name=camera_map.get(c_id, c_id),
+            count=stat["count"],
+            first_seen=stat["first"].strftime("%Y-%m-%d %H:%M:%S") if stat["first"] else None,
+            last_seen=stat["last"].strftime("%Y-%m-%d %H:%M:%S") if stat["last"] else None,
+        ))
+
+    # 6. Best Exemplar Portrait
+    best_det = max(dets, key=lambda x: x.quality_score if x.quality_score is not None else 0.0)
+
+    # 7. Candidate Vector Matches (Cosine Similarity)
+    candidate_matches = []
+    subject_vec = None
+    if unreg and unreg.representative_embedding is not None:
+        subject_vec = unreg.representative_embedding
+    elif best_det and best_det.embedding_vector is not None:
+        subject_vec = best_det.embedding_vector
+
+    if subject_vec is not None:
+        try:
+            raw_v = subject_vec
+            if isinstance(raw_v, str):
+                raw_v = json.loads(raw_v)
+            vec = np.asarray(raw_v, dtype=np.float32).flatten()
+            norm = np.linalg.norm(vec)
+            if norm >= 1e-6:
+                norm_vec = vec / norm
+                # Compare against other unregistered subjects
+                other_unregs = db.query(UnregisteredSubject).filter(
+                    UnregisteredSubject.id != subject_id,
+                    UnregisteredSubject.representative_embedding != None
+                ).limit(100).all()
+                for ou in other_unregs:
+                    ov = ou.representative_embedding
+                    if isinstance(ov, str):
+                        ov = json.loads(ov)
+                    ov_arr = np.asarray(ov, dtype=np.float32).flatten()
+                    ov_norm = np.linalg.norm(ov_arr)
+                    if ov_norm >= 1e-6:
+                        sim = float(np.dot(norm_vec, ov_arr / ov_norm))
+                        if sim >= 0.50:
+                            candidate_matches.append(SubjectVectorMatch(
+                                id=ou.id,
+                                name=ou.display_name,
+                                similarity=round(sim * 100.0, 1),
+                                role="unregistered",
+                                is_profile=False
+                            ))
+                # Also compare against official profiles
+                profs = db.query(Profile).join(Embedding).all()
+                for p in profs:
+                    if p.id == subject_id:
+                        continue
+                    for emb in p.embeddings:
+                        if emb.vector is not None:
+                            pv = emb.vector
+                            if isinstance(pv, str):
+                                pv = json.loads(pv)
+                            pv_arr = np.asarray(pv, dtype=np.float32).flatten()
+                            pv_norm = np.linalg.norm(pv_arr)
+                            if pv_norm >= 1e-6:
+                                sim = float(np.dot(norm_vec, pv_arr / pv_norm))
+                                if sim >= 0.55:
+                                    candidate_matches.append(SubjectVectorMatch(
+                                        id=p.id,
+                                        name=p.name,
+                                        similarity=round(sim * 100.0, 1),
+                                        role=p.role.value if hasattr(p.role, 'value') else str(p.role),
+                                        is_profile=True
+                                    ))
+                                    break
+                candidate_matches.sort(key=lambda x: x.similarity, reverse=True)
+                candidate_matches = candidate_matches[:6]
+        except Exception as e:
+            logger.warning(f"Failed to compute candidate vector matches: {e}")
+
+    return SubjectIntelligenceResponse(
+        subject_id=subject_id,
+        display_name=display_name,
+        status=status_str,
+        total_sightings=len(dets),
+        active_days_count=len(sorted_dates),
+        active_dates=sorted_dates,
+        global_first_seen=global_first_seen,
+        global_last_seen=global_last_seen,
+        presence_span_hours=presence_span_hours,
+        average_daily_dwell_minutes=avg_dwell_min,
+        shift_breakdown=shift_breakdown,
+        hourly_frequency=hourly_freq,
+        daily_punches=daily_punches,
+        observed_cameras=observed_cameras,
+        exemplar_face_image=best_det.face_image if best_det else None,
+        exemplar_quality=round(best_det.quality_score, 1) if (best_det and best_det.quality_score) else None,
+        exemplar_timestamp=to_ist_iso(best_det.timestamp) if best_det else None,
+        exemplar_camera_id=best_det.camera_id if best_det else None,
+        candidate_vector_matches=candidate_matches
+    )
+
+
+@router.get("/anomalies/temporal", response_model=List[TemporalAnomalyEvent])
+def get_temporal_anomalies(
+    limit: int = Query(50, ge=1, le=200),
+    db: Session = Depends(get_db)
+):
+    """Return unexpected nocturnal or off-hour presence anomalies (e.g. 22:00 to 05:59)."""
+    camera_map = {c.id: c.name for c in db.query(Camera).all()}
+    
+    dets = db.query(Detection).filter(
+        or_(
+            extract('hour', Detection.timestamp) < 6,
+            extract('hour', Detection.timestamp) >= 22
+        )
+    ).order_by(Detection.timestamp.desc()).limit(limit).all()
+    
+    results = []
+    for d in dets:
+        ist_dt = to_ist(d.timestamp)
+        subj_name = "Unknown Individual"
+        subj_id = None
+        if d.unregistered_subject:
+            subj_name = d.unregistered_subject.display_name
+            subj_id = d.unregistered_subject.id
+        elif d.profile:
+            subj_name = d.profile.name
+            subj_id = d.profile.id
+            
+        results.append(TemporalAnomalyEvent(
+            detection_id=d.id,
+            subject_id=subj_id,
+            subject_name=subj_name,
+            timestamp=to_ist_iso(d.timestamp),
+            camera_id=d.camera_id,
+            camera_name=camera_map.get(d.camera_id, d.camera_id),
+            hour_of_day=ist_dt.hour,
+            anomaly_reason=f"Nocturnal Vigilance Detection at {ist_dt.strftime('%H:%M:%S')} (Outside Standard 06:00-22:00 Operations)",
+            quality_score=round(d.quality_score, 1) if d.quality_score is not None else None,
+            face_image=d.face_image
+        ))
+    return results

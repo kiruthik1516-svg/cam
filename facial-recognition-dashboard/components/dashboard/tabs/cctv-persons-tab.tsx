@@ -58,8 +58,10 @@ import {
   Loader2,
   Check,
   Edit3,
+  Activity,
 } from 'lucide-react'
 import { LineageDrawer } from '@/components/dashboard/lineage-drawer'
+import { SubjectDossierDrawer } from '@/components/dashboard/subject-dossier-drawer'
 
 const PAGE_SIZE = 12
 
@@ -99,6 +101,7 @@ export function CctvPersonsTab({
   const [selectedEventId, setSelectedEventId] = useState<string | null>(null)
   const [showRosterModal, setShowRosterModal] = useState(false)
   const [activeSightingsPerson, setActiveSightingsPerson] = useState<UniquePerson | null>(null)
+  const [dossierSubjectId, setDossierSubjectId] = useState<string | null>(null)
 
   // Merge Selection State
   const [selectedPersonKeys, setSelectedPersonKeys] = useState<string[]>([])
@@ -1008,6 +1011,19 @@ export function CctvPersonsTab({
                               <Eye className="mr-1 size-2.5" />
                               {p.totalSightings} {p.totalSightings === 1 ? 'sighting' : 'sightings'}
                             </Badge>
+                            <Button
+                              size="xs"
+                              variant="outline"
+                              className="h-5 px-1.5 gap-1 text-[10px] text-primary border-primary/30 hover:bg-primary/10"
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                setDossierSubjectId(p.key)
+                              }}
+                              title="View temporal, shift, and vector intelligence"
+                            >
+                              <Activity className="size-2.5" />
+                              <span>Dossier</span>
+                            </Button>
                           </div>
                         </div>
                       </TableCell>
@@ -1594,6 +1610,19 @@ export function CctvPersonsTab({
                         <Edit3 className="size-2.5" />
                         <span>Change Name</span>
                       </Button>
+                      <Button
+                        size="xs"
+                        variant="default"
+                        className="h-6 gap-1 bg-primary text-primary-foreground text-[10px] hover:bg-primary/90 font-medium"
+                        onClick={() => {
+                          setDossierSubjectId(activeSightingsPerson.key)
+                          setActiveSightingsPerson(null)
+                        }}
+                        title="View comprehensive temporal, shift, and vector intelligence"
+                      >
+                        <Activity className="size-2.5" />
+                        <span>Forensic Dossier</span>
+                      </Button>
                     </div>
                     <p className="text-xs text-muted-foreground mt-0.5">
                       Extracted from {activeSightingsPerson.sourceVideos.join(', ') || 'Footage'} • First seen {formatTime(activeSightingsPerson.firstSeen)} IST
@@ -2048,6 +2077,27 @@ export function CctvPersonsTab({
       <LineageDrawer
         eventId={selectedEventId}
         onClose={() => setSelectedEventId(null)}
+      />
+
+      {/* Forensic Intelligence Dossier Drawer */}
+      <SubjectDossierDrawer
+        subjectId={dossierSubjectId}
+        onClose={() => setDossierSubjectId(null)}
+        onRename={(id, currentName) => {
+          const target = uniquePersons.find((up) => up.key === id)
+          if (target) {
+            setRenameTargetPerson(target)
+            setCustomNameInput(currentName)
+          }
+        }}
+        onMerge={(targetId, candidateId) => {
+          const candidate = uniquePersons.find((up) => up.key === candidateId)
+          if (candidate) {
+            setMergeTargetKey(targetId)
+            handleOpenMergeSingle(candidate)
+            setDossierSubjectId(null)
+          }
+        }}
       />
     </div>
   )
