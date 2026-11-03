@@ -190,3 +190,4 @@ The platform is calibrated and ground-truth verified against the following verif
 - [x] Supabase cloud PostgreSQL connection tested and verified.
 
 **Project Status:** Production-Ready & Handover Complete.
+
