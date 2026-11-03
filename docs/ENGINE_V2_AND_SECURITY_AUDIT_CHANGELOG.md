@@ -27,6 +27,11 @@
    - Created `scripts/extract_day05_clips.py` for automated extraction directly from physical drive `E:\RO WATER SEP\5`.
    - Extracted 4 native 3K 30FPS H.264 clips and forensic overlay snapshots, including the user-verified Day 5 `07:49:29` switch touch clip.
    - Fully synchronized to both Engine 2 (`incident_evidence_v2/day_05/`) and Engine 1 (`incident_evidence/day_05/` and root `incident_evidence/`).
+5. **JarvisLabs Cloud GPU 30-Day Execution & Mode B Workflow:**
+   - Engineered cross-platform path resolution across all modules, eliminating hardcoded Windows drive letters (`D:\facial`, `E:\RO WATER SEP`).
+   - Implemented `scripts/run_30day_jarvislabs.py` with multi-worker parallelism, GPU Tensor Core acceleration, and auto-shutdown cost controls.
+   - Standardized **Mode B (Stage 1 Candidate Frames — 28.99 GB)** enabling complete 30-day surveillance audits on cloud GPU instances without requiring the 954 GB raw CCTV archive.
+   - Published comprehensive deployment guide: [`docs/JARVISLABS_30DAY_EXECUTION_GUIDE.md`](JARVISLABS_30DAY_EXECUTION_GUIDE.md).
 
 ---
 
