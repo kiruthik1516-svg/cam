@@ -76,8 +76,9 @@ class NumberedCanvas(canvas.Canvas):
 
 
 def run_security_audit():
-    summary_path = Path(r"D:\facial\data\stage1_candidates\pipeline_summary_days_1_to_30.json")
-    physical_audit_path = Path(r"D:\facial\data\physical_drive_audit_results.json")
+    repo_root = Path(__file__).resolve().parent.parent
+    summary_path = Path(os.getenv("STAGE1_SUMMARY_PATH", str(repo_root / "data" / "stage1_candidates" / "pipeline_summary_days_1_to_30.json")))
+    physical_audit_path = Path(os.getenv("PHYSICAL_AUDIT_PATH", str(repo_root / "data" / "physical_drive_audit_results.json")))
     if not summary_path.exists():
         raise FileNotFoundError(f"Missing summary file: {summary_path}")
     if not physical_audit_path.exists():

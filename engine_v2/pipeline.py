@@ -3,11 +3,16 @@ Continuous HOI Incident Detection and Trimming Pipeline for Engine v2.
 Standalone - keeps all legacy systems completely untouched.
 """
 from typing import List, Dict, Tuple, Optional
+from pathlib import Path
 import os
 import re
 import cv2
 import numpy as np
 from datetime import datetime, timedelta
+
+REPO_ROOT = Path(__file__).resolve().parent.parent
+STAGE1_CANDIDATES_DIR = os.getenv("STAGE1_CANDIDATES_DIR", str(REPO_ROOT / "data" / "stage1_candidates"))
+INCIDENT_EVIDENCE_DIR = os.getenv("INCIDENT_EVIDENCE_DIR", str(REPO_ROOT / "incident_evidence"))
 
 from .config import (
     CCTV_MASTER_DIR,
@@ -263,8 +268,8 @@ def scan_day_candidate_frames(day_num: int, detector: Optional[PoseInteractionDe
     if detector is None:
         detector = PoseInteractionDetector()
 
-    idx_path = f"D:/facial/incident_evidence/day_{day_num:02d}/Day{day_num}_Extracted_Frames_Timestamp_Index.csv"
-    cand_dir = f"D:/facial/data/stage1_candidates/day_{day_num:02d}"
+    idx_path = os.path.join(INCIDENT_EVIDENCE_DIR, f"day_{day_num:02d}", f"Day{day_num}_Extracted_Frames_Timestamp_Index.csv")
+    cand_dir = os.path.join(STAGE1_CANDIDATES_DIR, f"day_{day_num:02d}")
 
     if not os.path.exists(idx_path) or not os.path.exists(cand_dir):
         return []
@@ -363,7 +368,8 @@ def process_day(
     day_num: int,
     output_base_dir: str = OUTPUT_MASTER_DIR,
     max_workers: int = 1,
-    hour_range: Optional[Tuple[int, int]] = None
+    hour_range: Optional[Tuple[int, int]] = None,
+    cctv_dir: Optional[str] = None
 ) -> List[Dict[str, any]]:
     """
     Executes full Engine v2 pipeline for a specified day.
@@ -372,8 +378,9 @@ def process_day(
     day_output_dir = os.path.join(output_base_dir, f"day_{day_num:02d}")
     os.makedirs(day_output_dir, exist_ok=True)
 
-    print(f"[Engine v2] Scanning Day {day_num} video chunks...", flush=True)
-    chunks = list_day_chunks(day_num)
+    target_cctv_dir = cctv_dir or CCTV_MASTER_DIR
+    print(f"[Engine v2] Scanning Day {day_num} video chunks in {target_cctv_dir}...", flush=True)
+    chunks = list_day_chunks(day_num, cctv_dir=target_cctv_dir)
     print(f"[Engine v2] Found {len(chunks)} physical chunks for Day {day_num}", flush=True)
 
     if hour_range is not None:
@@ -430,7 +437,7 @@ def process_day(
                 ret, frame = cap.read()
                 cap.release()
         elif peak.get("frame_file"):
-            cand_p = os.path.join(f"D:/facial/data/stage1_candidates/day_{day_num:02d}", peak["frame_file"])
+            cand_p = os.path.join(STAGE1_CANDIDATES_DIR, f"day_{day_num:02d}", peak["frame_file"])
             if os.path.exists(cand_p):
                 frame = cv2.imread(cand_p)
 

@@ -19,7 +19,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
 # Add workspace root to sys.path
-WORKSPACE_ROOT = Path("d:/facial").resolve()
+WORKSPACE_ROOT = Path(__file__).resolve().parent.parent
 if str(WORKSPACE_ROOT) not in sys.path:
     sys.path.insert(0, str(WORKSPACE_ROOT))
 
@@ -209,6 +209,7 @@ def run_orchestrator():
                 day_num=day,
                 output_base_dir=str(output_dir),
                 max_workers=args.workers,
+                cctv_dir=str(source_dir)
             )
             print(f"[{pct}%] Day {day:02d} completed: {len(incidents)} confirmed operational incidents generated.", flush=True)
             processed_count += 1

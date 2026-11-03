@@ -8,11 +8,21 @@ import cv2
 import numpy as np
 from datetime import datetime, timedelta
 
+from pathlib import Path
+import shutil
+
 from .config import LEAD_IN_BUFFER_SEC, LEAD_OUT_BUFFER_SEC
 
-FFMPEG_EXE = r"C:\Users\mkiru\AppData\Local\Microsoft\WinGet\Links\ffmpeg.exe"
-if not os.path.exists(FFMPEG_EXE):
-    FFMPEG_EXE = "ffmpeg"
+REPO_ROOT = Path(__file__).resolve().parent.parent
+
+FFMPEG_EXE = os.getenv("FFMPEG_EXE")
+if not FFMPEG_EXE or not shutil.which(FFMPEG_EXE):
+    if shutil.which("ffmpeg"):
+        FFMPEG_EXE = "ffmpeg"
+    elif os.path.exists(r"C:\Users\mkiru\AppData\Local\Microsoft\WinGet\Links\ffmpeg.exe"):
+        FFMPEG_EXE = r"C:\Users\mkiru\AppData\Local\Microsoft\WinGet\Links\ffmpeg.exe"
+    else:
+        FFMPEG_EXE = "ffmpeg"
 
 def run_ffmpeg_command(cmd: List[str]) -> Tuple[bool, str]:
     """Executes FFmpeg command safely."""
@@ -40,8 +50,10 @@ def extract_from_candidate_frames(
     extracts all stage-1 candidate frames for day_num within [target_start, target_end]
     and encodes them into a seamless MP4 evidence video.
     """
-    idx_path = f"D:/facial/incident_evidence/day_{day_num:02d}/Day{day_num}_Extracted_Frames_Timestamp_Index.csv"
-    cand_dir = f"D:/facial/data/stage1_candidates/day_{day_num:02d}"
+    evidence_dir = os.getenv("INCIDENT_EVIDENCE_DIR", str(REPO_ROOT / "incident_evidence"))
+    cand_base_dir = os.getenv("STAGE1_CANDIDATES_DIR", str(REPO_ROOT / "data" / "stage1_candidates"))
+    idx_path = os.path.join(evidence_dir, f"day_{day_num:02d}", f"Day{day_num}_Extracted_Frames_Timestamp_Index.csv")
+    cand_dir = os.path.join(cand_base_dir, f"day_{day_num:02d}")
 
     if not os.path.exists(idx_path) or not os.path.exists(cand_dir):
         return False

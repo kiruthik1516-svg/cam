@@ -13,7 +13,10 @@ import glob
 import re
 from datetime import datetime, timedelta
 from pathlib import Path
+import os
 import numpy as np
+
+REPO_ROOT = Path(__file__).resolve().parent.parent
 
 # Calibrated Critical Plant Zones (Native 3K Coordinates [x1, y1, x2, y2])
 CRITICAL_ZONES = {
@@ -86,7 +89,7 @@ def check_spatial_collision(native_bbox, margin=20.0):
     return hits
 
 def rebuild_clipping_indices():
-    master_json_path = Path("D:/facial/data/30day_personas/30day_personas_master.json")
+    master_json_path = REPO_ROOT / "data" / "30day_personas" / "30day_personas_master.json"
     if not master_json_path.exists():
         print(f"[ERROR] Master catalog not found: {master_json_path}")
         return
@@ -123,9 +126,9 @@ def rebuild_clipping_indices():
     SEVERITY_ORDER = {"SEVERE": 3, "CRITICAL": 2, "ELEVATED": 1, "NOMINAL": 0}
 
     for day_num in range(1, 31):
-        crops_dir = Path(f"D:/facial/data/day{day_num:02d}_all_face_crops")
-        cand_dir = Path(f"D:/facial/data/stage1_candidates/day_{day_num:02d}")
-        idx_file = Path(f"D:/facial/incident_evidence/day_{day_num:02d}/Day{day_num}_Extracted_Frames_Timestamp_Index.csv")
+        crops_dir = REPO_ROOT / f"data/day{day_num:02d}_all_face_crops"
+        cand_dir = REPO_ROOT / f"data/stage1_candidates/day_{day_num:02d}"
+        idx_file = REPO_ROOT / f"incident_evidence/day_{day_num:02d}/Day{day_num}_Extracted_Frames_Timestamp_Index.csv"
 
         # Collect day events from baseline
         day_events = [e for e in all_events if e["dt"].day == day_num and e["dt"].month == 9 and e["dt"].year == 2026]
@@ -146,7 +149,7 @@ def rebuild_clipping_indices():
                     day_events.append(dict(g_ev))
 
         # Cross-pollinate verified Engine v2 incident manifests if available
-        manifest_path = Path(f"D:/facial/incident_evidence_v2/day_{day_num:02d}/Day{day_num:02d}_Incident_Manifest.csv")
+        manifest_path = REPO_ROOT / f"incident_evidence_v2/day_{day_num:02d}/Day{day_num:02d}_Incident_Manifest.csv"
         if manifest_path.exists():
             try:
                 import csv as csv_m
@@ -235,7 +238,7 @@ def rebuild_clipping_indices():
             sessions.append(curr_session)
 
         # Write clean, strictly chronological clipping index
-        csv_out = Path(f"D:/facial/Day{day_num}_Persona_Video_Clipping_Index.csv")
+        csv_out = REPO_ROOT / f"Day{day_num}_Persona_Video_Clipping_Index.csv"
         with open(csv_out, "w", newline="", encoding="utf-8") as f:
             writer = csv.writer(f)
             writer.writerow([
@@ -281,7 +284,7 @@ def rebuild_clipping_indices():
         print(f"  [Day {day_num:02d}] Generated {len(sessions)} clean chronological events -> {csv_out.name}")
         
         # Also sync to incident_evidence/day_XX
-        ev_dir = Path(f"D:/facial/incident_evidence/day_{day_num:02d}")
+        ev_dir = REPO_ROOT / f"incident_evidence/day_{day_num:02d}"
         if ev_dir.exists():
             import shutil
             try:

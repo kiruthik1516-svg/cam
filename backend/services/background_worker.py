@@ -22,7 +22,8 @@ from typing import Any, Dict, List, Optional
 
 logger = logging.getLogger("sentinel.background_worker")
 
-DATA_DIR = Path("d:/facial/backend/data").resolve()
+_DEFAULT_DATA_DIR = Path(__file__).resolve().parent.parent / "data"
+DATA_DIR = Path(os.getenv("BACKEND_DATA_DIR", str(_DEFAULT_DATA_DIR))).resolve()
 DATA_DIR.mkdir(parents=True, exist_ok=True)
 QUEUE_FILE = DATA_DIR / "task_queue.json"
 

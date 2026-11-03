@@ -2,6 +2,7 @@
 Human Pose & Interaction Detector for Engine v2.
 """
 from typing import List, Dict, Tuple, Optional
+import os
 import cv2
 import numpy as np
 from ultralytics import YOLO
@@ -39,7 +40,14 @@ class MotionFilter:
 
 class PoseInteractionDetector:
     """Loads YOLOv8-pose and detects Human-Object Interactions within the plant envelope."""
-    def __init__(self, model_path: str = MODEL_POSE_PATH, conf: float = CONF_PERSON_MIN):
+    def __init__(self, model_path: str = MODEL_POSE_PATH, conf: float = CONF_PERSON_MIN, device: Optional[str] = None):
+        if device is None:
+            try:
+                import torch
+                device = "0" if torch.cuda.is_available() else "cpu"
+            except Exception:
+                device = "cpu"
+        self.device = os.getenv("CUDA_DEVICE", device)
         self.model = YOLO(model_path)
         self.conf = conf
         self.motion_filter = MotionFilter()
@@ -61,7 +69,7 @@ class PoseInteractionDetector:
         if not force_detect and not self.motion_filter.has_motion(roi):
             return False, []
 
-        results = self.model(roi, conf=self.conf, verbose=False)[0]
+        results = self.model(roi, conf=self.conf, device=self.device, verbose=False)[0]
         if len(results.boxes) == 0:
             return True, []
 

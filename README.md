@@ -30,6 +30,7 @@ Engine v2 (engine_v2/) is our second-generation forensic surveillance engine des
 
 - **Architecture Specification:** [docs/ENGINE_V2_ARCHITECTURE_SPECIFICATION.md](docs/ENGINE_V2_ARCHITECTURE_SPECIFICATION.md)
 - **Regression Testing & Precision Audit:** [docs/06_REGRESSION_TESTING_AND_GLOBAL_CALIBRATION_AUDIT.md](docs/06_REGRESSION_TESTING_AND_GLOBAL_CALIBRATION_AUDIT.md)
+- **JarvisLabs Cloud GPU 30-Day Execution Guide:** [docs/JARVISLABS_30DAY_EXECUTION_GUIDE.md](docs/JARVISLABS_30DAY_EXECUTION_GUIDE.md)
 - **Security Audit & Engine v2 Changelog:** [docs/ENGINE_V2_AND_SECURITY_AUDIT_CHANGELOG.md](docs/ENGINE_V2_AND_SECURITY_AUDIT_CHANGELOG.md)
 - **Full 30-Day Forensic Security Audit:** [30_day_security_audit.md](30_day_security_audit.md) | [PDF Report](30_day_security_audit.pdf)
 - **Official Forensic Video Evidence Drive:** [Google Drive Archive](https://drive.google.com/drive/folders/1uhX9iv6-uBRRgBP4xMopMYQNWnKL6oYo)
@@ -50,6 +51,27 @@ python scripts/run_surveillance_regression_test.py
 
 # Extract physical Day 5 incident clips directly from physical archive drive E:
 python scripts/extract_day05_clips.py
+`
+
+
+### Cloud GPU Production Execution (JarvisLabs 30-Day Batch Runner)
+For rapid multi-day processing on dedicated NVIDIA Cloud GPUs (RTX 4090 / A5000 / A6000), use the automated JarvisLabs orchestrator:
+
+`ash
+# 1. Automated cloud environment provisioning
+bash scripts/setup_jarvislabs.sh
+
+# 2. Run both Engine 1 and Engine 2 across all 30 days
+python3 scripts/run_30day_jarvislabs.py --engine all --days 1-30 --cctv-dir /workspace/cctv --workers 4
+
+# 3. Run Engine 2 only (HOI Computer Vision & Switch Incident Recovery)
+python3 scripts/run_30day_jarvislabs.py --engine 2 --days 1-30 --cctv-dir /workspace/cctv
+
+# 4. Run Engine 1 only (Face Vectorization & Persona Clustering)
+python3 scripts/run_30day_jarvislabs.py --engine 1 --days 1-30 --workers 4
+
+# 5. Long-running overnight execution with automatic instance shutdown
+python3 scripts/run_30day_jarvislabs.py --engine all --days 1-30 --cctv-dir /workspace/cctv --auto-shutdown
 `
 
 ### Engine v1: 4-Stage Distributed Pipeline (Legacy Baseline)

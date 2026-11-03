@@ -6,10 +6,11 @@ from pathlib import Path
 from datetime import datetime
 from sqlalchemy import create_engine, text
 
-# Load DATABASE_URL from .env
-env_file = Path("D:/facial/.env")
-db_url = None
-if env_file.exists():
+# Load DATABASE_URL from environment or .env
+repo_root = Path(__file__).resolve().parent.parent
+env_file = repo_root / ".env"
+db_url = os.getenv("DATABASE_URL")
+if not db_url and env_file.exists():
     with open(env_file, "r", encoding="utf-8") as f:
         for line in f:
             line = line.strip()

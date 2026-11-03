@@ -27,7 +27,8 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/hoi", tags=["HOI Equipment Evidence"])
 
 # Master evidence root directory
-EVIDENCE_ROOT = Path("d:/facial/incident_evidence_v2").resolve()
+_DEFAULT_EVIDENCE_ROOT = Path(__file__).resolve().parent.parent.parent / "incident_evidence_v2"
+EVIDENCE_ROOT = Path(os.getenv("OUTPUT_MASTER_DIR", str(_DEFAULT_EVIDENCE_ROOT))).resolve()
 
 
 class HoiIncidentSummary(BaseModel):

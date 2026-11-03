@@ -4,12 +4,23 @@ Standalone module - keeps all legacy systems untouched.
 """
 from dataclasses import dataclass
 from typing import Dict, List, Tuple
+from pathlib import Path
 import os
 
-# Physical File Paths
-CCTV_MASTER_DIR = r"E:\RO WATER SEP"
-OUTPUT_MASTER_DIR = r"d:\facial\incident_evidence_v2"
-MODEL_POSE_PATH = r"d:\facial\yolov8n-pose.pt"
+REPO_ROOT = Path(__file__).resolve().parent.parent
+
+# Physical File Paths (Environment Variable Overrides + Cross-Platform Fallbacks)
+_default_cctv = r"E:\RO WATER SEP"
+if not os.path.exists(_default_cctv):
+    # Check Linux/Cloud (JarvisLabs) or local relative paths
+    for cand in ["/workspace/cctv", "/workspace/RO_WATER_SEP", "/data/RO_WATER_SEP", str(REPO_ROOT / "cctv")]:
+        if os.path.exists(cand):
+            _default_cctv = cand
+            break
+
+CCTV_MASTER_DIR = os.getenv("CCTV_MASTER_DIR", _default_cctv)
+OUTPUT_MASTER_DIR = os.getenv("OUTPUT_MASTER_DIR", str(REPO_ROOT / "incident_evidence_v2"))
+MODEL_POSE_PATH = os.getenv("MODEL_POSE_PATH", str(REPO_ROOT / "yolov8n-pose.pt") if (REPO_ROOT / "yolov8n-pose.pt").exists() else "yolov8n-pose.pt")
 
 # Frame Geometry (Native 3K CCTV)
 NATIVE_WIDTH = 2880
