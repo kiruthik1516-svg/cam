@@ -217,27 +217,27 @@ def run_security_audit():
 
     # 2. Critical Plant Zone Collision Findings
     # Calibrated coordinates (Native 3K):
-    # Zone 1: Multiport Valves [755, 200, 1050, 420]
-    # Zone 2: Ultimate Power Switch [760, 140, 980, 420]
-    # Zone 3: RO Skid Controls [945, 200, 1420, 720]
+    # Zone 1: Multiport Valves [550, 260, 800, 520]
+    # Zone 2: Ultimate Power Switch [1020, 170, 1125, 265]
+    # Zone 3: RO Skid Controls [960, 260, 1420, 720]
     zone_audit = {
         "zone_1_multiport_valves": {
             "name": "Two Multiport Backwash Valves",
-            "bbox": [755, 200, 1050, 420],
+            "bbox": [550, 260, 800, 520],
             "unauthorized_breaches": 0,
             "physical_touches": 0,
             "verdict": "MONITORED / CRITICAL HAZARD COMPLIANT",
         },
         "zone_2_power_switch": {
             "name": "Ultimate Plant Power Switch",
-            "bbox": [760, 140, 980, 420],
+            "bbox": [1020, 170, 1125, 265],
             "unauthorized_breaches": 0,
             "physical_touches": 0,
             "verdict": "MONITORED / SEVERE HAZARD COMPLIANT",
         },
         "zone_3_ro_skid": {
             "name": "RO Skid Controls & Walkway",
-            "bbox": [945, 200, 1420, 720],
+            "bbox": [960, 260, 1420, 720],
             "inspection_events": "Routine operator inspections during Morning/Afternoon shifts",
             "unauthorized_after_hours_touch": 0,
             "verdict": "OPERATIONAL / NORMAL TECHNICAL VISITS",

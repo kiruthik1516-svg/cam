@@ -1,0 +1,79 @@
+{
+  "metadata": {
+    "engine": "Engine v2 (Precision-Gated HOI)",
+    "day": 5,
+    "calibrated": true,
+    "processed_at": "2026-11-03T13:02:26.318531"
+  },
+  "total_incidents": 4,
+  "incidents": [
+    {
+      "incident_id": "EVT-V2-D05-001",
+      "day": 5,
+      "start_time": "2026-09-05T07:19:42",
+      "peak_time": "2026-09-05T07:20:42",
+      "end_time": "2026-09-05T07:21:42",
+      "duration_sec": 120.0,
+      "zone_id": "ZONE_RO_SKID",
+      "zone_name": "RO Skid Controls & Pump Deck",
+      "severity": "ELEVATED",
+      "interaction_type": "WRIST_CONTACT",
+      "active_hand": "BOTH",
+      "min_wrist_dist": 0.0,
+      "track_id": "SUBJ-312;REAL-07",
+      "clip_path": "D:/facial/incident_evidence_v2/day_05/Day05_EVT-V2-D05-001_ELEVATED_RO_SKID_20260905_072042.mp4",
+      "snapshot_path": "D:/facial/incident_evidence_v2/day_05/Day05_EVT-V2-D05-001_ELEVATED_RO_SKID_20260905_072042_Snapshot.jpg"
+    },
+    {
+      "incident_id": "EVT-V2-D05-002",
+      "day": 5,
+      "start_time": "2026-09-05T07:48:29",
+      "peak_time": "2026-09-05T07:49:29",
+      "end_time": "2026-09-05T07:50:29",
+      "duration_sec": 120.0,
+      "zone_id": "ZONE_SWITCH",
+      "zone_name": "Plant Main Power Switch Breaker",
+      "severity": "SEVERE",
+      "interaction_type": "WRIST_CONTACT",
+      "active_hand": "RIGHT",
+      "min_wrist_dist": 0.0,
+      "track_id": "SUBJ-313;REAL-25;REAL-44",
+      "clip_path": "D:/facial/incident_evidence_v2/day_05/Day05_EVT-V2-D05-002_SEVERE_SWITCH_20260905_074929.mp4",
+      "snapshot_path": "D:/facial/incident_evidence_v2/day_05/Day05_EVT-V2-D05-002_SEVERE_SWITCH_20260905_074929_Snapshot.jpg"
+    },
+    {
+      "incident_id": "EVT-V2-D05-003",
+      "day": 5,
+      "start_time": "2026-09-05T08:41:38",
+      "peak_time": "2026-09-05T08:42:38",
+      "end_time": "2026-09-05T08:43:38",
+      "duration_sec": 120.0,
+      "zone_id": "ZONE_RO_SKID",
+      "zone_name": "RO Skid Controls & Pump Deck",
+      "severity": "ELEVATED",
+      "interaction_type": "WRIST_CONTACT",
+      "active_hand": "LEFT",
+      "min_wrist_dist": 0.0,
+      "track_id": "SUBJ-315;REAL-29",
+      "clip_path": "D:/facial/incident_evidence_v2/day_05/Day05_EVT-V2-D05-003_ELEVATED_RO_SKID_20260905_084238.mp4",
+      "snapshot_path": "D:/facial/incident_evidence_v2/day_05/Day05_EVT-V2-D05-003_ELEVATED_RO_SKID_20260905_084238_Snapshot.jpg"
+    },
+    {
+      "incident_id": "EVT-V2-D05-004",
+      "day": 5,
+      "start_time": "2026-09-05T09:11:57",
+      "peak_time": "2026-09-05T09:12:57",
+      "end_time": "2026-09-05T09:13:57",
+      "duration_sec": 120.0,
+      "zone_id": "ZONE_VALVES",
+      "zone_name": "Multiport Backwash Valves",
+      "severity": "CRITICAL",
+      "interaction_type": "WRIST_CONTACT",
+      "active_hand": "RIGHT",
+      "min_wrist_dist": 0.0,
+      "track_id": "SUBJ-315;REAL-14",
+      "clip_path": "D:/facial/incident_evidence_v2/day_05/Day05_EVT-V2-D05-004_CRITICAL_VALVES_20260905_091257.mp4",
+      "snapshot_path": "D:/facial/incident_evidence_v2/day_05/Day05_EVT-V2-D05-004_CRITICAL_VALVES_20260905_091257_Snapshot.jpg"
+    }
+  ]
+}

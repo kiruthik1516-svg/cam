@@ -67,10 +67,10 @@ def generate_roi_mesh():
             "name": "Two Multiport Backwash Valves",
             "hazard": "CRITICAL HAZARD",
             "detail": "Dual Media Filtration Multiport Valve Heads",
-            "bbox": [755, 200, 1050, 420],
+            "bbox": [550, 260, 800, 520],
             "color_bgr": (0, 140, 255),     # Vibrant Orange
             "bg_badge": (0, 90, 180),
-            "badge_pos": (755, 435),
+            "badge_pos": (550, 535),
             "badge_size": (370, 58)
         },
         {
@@ -78,10 +78,10 @@ def generate_roi_mesh():
             "name": "Ultimate Plant Power Switch",
             "hazard": "SEVERE HAZARD",
             "detail": "Wall-Mounted Main Electrical Power Breaker",
-            "bbox": [760, 140, 980, 420],
+            "bbox": [1020, 170, 1125, 265],
             "color_bgr": (0, 30, 235),      # Crisp Red
             "bg_badge": (0, 15, 160),
-            "badge_pos": (760, 120),
+            "badge_pos": (1020, 145),
             "badge_size": (360, 58)
         },
         {
@@ -89,7 +89,7 @@ def generate_roi_mesh():
             "name": "RO Skid Controls & Walkway",
             "hazard": "ELEVATED MONITORING",
             "detail": "RO High Pressure Pumps & Control Levers",
-            "bbox": [945, 200, 1420, 720],
+            "bbox": [960, 260, 1420, 720],
             "color_bgr": (0, 215, 255),     # Bright Yellow-Orange
             "bg_badge": (0, 140, 180),
             "badge_pos": (1080, 735),
@@ -100,7 +100,7 @@ def generate_roi_mesh():
             "name": "RO Water Plant Evaluated Unit",
             "hazard": "FACILITY BOUNDARY",
             "detail": "Comprehensive RO Skid & Filtration Perimeter",
-            "bbox": [740, 140, 1450, 780],
+            "bbox": [295, 20, 1489, 780],
             "color_bgr": (220, 190, 0),     # Bright Cyan / Aqua
             "bg_badge": (130, 110, 0),
             "badge_pos": (740, 795),
@@ -202,7 +202,7 @@ def generate_roi_mesh():
     print(f"[OK] Generated: {out_png} ({out_png.stat().st_size / (1024*1024):.2f} MB)")
 
     # Copy to brain artifact directory
-    artifact_dir = Path("C:/Users/mkiru/.gemini/antigravity/brain/8c6e85a2-8ea1-4c6c-bb23-a9aed5b45fc6")
+    artifact_dir = Path("C:/Users/mkiru/.gemini/antigravity/brain/dfddef8a-f7b0-40de-8369-234a8d44ad7a")
     if artifact_dir.exists():
         shutil.copy2(str(out_jpg), str(artifact_dir / "RO_Plant_Surveillance_ROI_Mesh.jpg"))
         shutil.copy2(str(out_png), str(artifact_dir / "RO_Plant_Surveillance_ROI_Mesh.png"))

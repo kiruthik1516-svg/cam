@@ -34,3 +34,4 @@ export function getHoiVideoUrl(day: number, clipFilename: string): string {
 export function getHoiSnapshotUrl(day: number, snapshotFilename: string): string {
   return getBackendUrl(`/api/hoi/evidence/snapshot/${day}/${encodeURIComponent(snapshotFilename)}`);
 }
+

@@ -29,6 +29,7 @@ For forensic ingestion of continuous multi-day 3K surveillance footage (30 unbro
 Engine v2 (engine_v2/) is our second-generation forensic surveillance engine designed specifically to eliminate bounding-box limitations on critical plant assets. Using Ultralytics YOLOv8-pose 17-keypoint skeletal tracking and sub-pixel Euclidean distance metrics from operator wrists to equipment zones, Engine v2 achieves **100% ground-truth recovery** of micro-switch toggles, automated cross-chunk FFmpeg video stitching, and multi-zone operational session clustering.
 
 - **Architecture Specification:** [docs/ENGINE_V2_ARCHITECTURE_SPECIFICATION.md](docs/ENGINE_V2_ARCHITECTURE_SPECIFICATION.md)
+- **Regression Testing & Precision Audit:** [docs/06_REGRESSION_TESTING_AND_GLOBAL_CALIBRATION_AUDIT.md](docs/06_REGRESSION_TESTING_AND_GLOBAL_CALIBRATION_AUDIT.md)
 - **Security Audit & Engine v2 Changelog:** [docs/ENGINE_V2_AND_SECURITY_AUDIT_CHANGELOG.md](docs/ENGINE_V2_AND_SECURITY_AUDIT_CHANGELOG.md)
 - **Full 30-Day Forensic Security Audit:** [30_day_security_audit.md](30_day_security_audit.md) | [PDF Report](30_day_security_audit.pdf)
 - **Official Forensic Video Evidence Drive:** [Google Drive Archive](https://drive.google.com/drive/folders/1uhX9iv6-uBRRgBP4xMopMYQNWnKL6oYo)
@@ -43,6 +44,12 @@ python -m engine_v2.run_engine_v2 --day 25 --hours 6 13
 
 # Production batch processing across all 30 days
 python -m engine_v2.run_engine_v2 --all-days --workers 4
+
+# Run the 4-tier automated surveillance regression test suite
+python scripts/run_surveillance_regression_test.py
+
+# Extract physical Day 5 incident clips directly from physical archive drive E:
+python scripts/extract_day05_clips.py
 `
 
 ### Engine v1: 4-Stage Distributed Pipeline (Legacy Baseline)

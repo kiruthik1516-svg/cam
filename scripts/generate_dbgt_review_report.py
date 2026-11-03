@@ -60,7 +60,7 @@ class NumberedCanvas(canvas.Canvas):
         self.drawRightString(559, 26, f"Page {self._pageNumber} of {page_count}")
         self.restoreState()
 
-# Master data of all 20 confirmed incidents with universal alert description
+# Master data of all 24 confirmed incidents with universal alert description
 INCIDENTS = [
     {
         "date": "2026-09-01", "cam": "IPC56", "start": "09:52:38", "end": "09:54:38",
@@ -71,6 +71,11 @@ INCIDENTS = [
         "date": "2026-09-01", "cam": "IPC56", "start": "22:26:36", "end": "22:28:35",
         "happened": UNIVERSAL_ALERT,
         "person": "REAL-05 (SUBJ-01)", "event_id": "EVT-D01-010", "clip": "Day01_EVT-D01-010_SEVERE_Ultimate_Plant_Power_Switch_20260901_222636.mp4",
+    },
+    {
+        "date": "2026-09-05", "cam": "IPC56", "start": "07:48:29", "end": "07:50:29",
+        "happened": UNIVERSAL_ALERT,
+        "person": "REAL-25 (SUBJ-313)", "event_id": "EVT-D05-004", "clip": "Day05_EVT-D05-004_ELEVATED_RO_Skid_Controls_Walkway_20260905_074929.mp4",
     },
     {
         "date": "2026-09-07", "cam": "IPC56", "start": "07:38:27", "end": "07:40:27",
@@ -143,6 +148,21 @@ INCIDENTS = [
         "person": "REAL-01 (SUBJ-1079)", "event_id": "EVT-D24-013", "clip": "Day24_EVT-D24-013_SEVERE_Ultimate_Plant_Power_Switch_20260924_163826.mp4",
     },
     {
+        "date": "2026-09-25", "cam": "IPC56", "start": "07:30:15", "end": "07:35:46",
+        "happened": UNIVERSAL_ALERT,
+        "person": "REAL-01", "event_id": "EVT-V2-D25-001", "clip": "Day25_EVT-V2-D25-001_SEVERE_RO_SKID_SWITCH_VALVES_20260925_073016.mp4",
+    },
+    {
+        "date": "2026-09-25", "cam": "IPC56", "start": "08:25:28", "end": "08:25:37",
+        "happened": UNIVERSAL_ALERT,
+        "person": "REAL-44", "event_id": "EVT-V2-D25-013", "clip": "Day25_EVT-V2-D25-013_SEVERE_RO_SKID_SWITCH_VALVES_20260925_082530.mp4",
+    },
+    {
+        "date": "2026-09-25", "cam": "IPC56", "start": "11:16:55", "end": "11:19:23",
+        "happened": UNIVERSAL_ALERT,
+        "person": "REAL-33", "event_id": "EVT-V2-D25-035", "clip": "Day25_EVT-V2-D25-035_SEVERE_RO_SKID_SWITCH_VALVES_20260925_111846.mp4",
+    },
+    {
         "date": "2026-09-25", "cam": "IPC56", "start": "11:42:10", "end": "11:43:44",
         "happened": UNIVERSAL_ALERT,
         "person": "REAL-33", "event_id": "EVT-D25-002", "clip": "Day25_EVT-D25-002_SEVERE_Ultimate_Plant_Power_Switch_20260925_114210.mp4",
@@ -164,12 +184,12 @@ INCIDENTS = [
     }
 ]
 
-# Master data of all 11 unique persons involved in the 20 incidents
+# Master data of all 13 unique persons involved in the 24 incidents
 PERSONS_INVOLVED = [
     {
         "id": "REAL-01", "anchor": "SUBJ-10 / SUBJ-1652", "cam": "IPC56", "time": "2026-09-01 09:53:38",
         "desc": "Teal/green polo shirt, curly hair, mustache & goatee. Primary recurring operator.",
-        "incidents": "8 Incidents (EVT-D01-005, EVT-D09-005, EVT-D09-011, EVT-D24-002, EVT-D24-004, EVT-D24-011, EVT-D24-013, EVT-D25-003)",
+        "incidents": "9 Incidents (EVT-D01-005, EVT-D09-005, EVT-D09-011, EVT-D24-002, EVT-D24-004, EVT-D24-011, EVT-D24-013, EVT-V2-D25-001, EVT-D25-003)",
         "status": "Unregistered Subject (Pending DBGT Enrollment)",
         "crop": "REAL-01_verified_face.jpg"
     },
@@ -230,6 +250,13 @@ PERSONS_INVOLVED = [
         "crop": "REAL-24_verified_face.jpg"
     },
     {
+        "id": "REAL-25", "anchor": "SUBJ-33 / SUBJ-313", "cam": "IPC56", "time": "2026-09-05 07:49:29",
+        "desc": "Dark casual work attire. Morning operator traversing RO Skid walkway.",
+        "incidents": "1 Incident (EVT-D05-004)",
+        "status": "Unregistered Subject (Pending DBGT Enrollment)",
+        "crop": "REAL-25_verified_face.jpg"
+    },
+    {
         "id": "REAL-29", "anchor": "SUBJ-38", "cam": "IPC56", "time": "2026-09-11 06:32:37",
         "desc": "Dark shirt, medium build. Early morning operator.",
         "incidents": "1 Incident (EVT-D11-001)",
@@ -239,9 +266,16 @@ PERSONS_INVOLVED = [
     {
         "id": "REAL-33", "anchor": "SUBJ-42", "cam": "IPC56", "time": "2026-09-25 11:42:10",
         "desc": "Dark blue work attire. Midday operator.",
-        "incidents": "1 Incident (EVT-D25-002)",
+        "incidents": "2 Incidents (EVT-V2-D25-035, EVT-D25-002)",
         "status": "Unregistered Subject (Pending DBGT Enrollment)",
         "crop": "REAL-33_verified_face.jpg"
+    },
+    {
+        "id": "REAL-44", "anchor": "GUARD-01", "cam": "IPC56", "time": "2026-09-25 08:25:30",
+        "desc": "High-visibility orange safety vest over security uniform, dark trousers. Facility security guard.",
+        "incidents": "1 Incident (EVT-V2-D25-013)",
+        "status": "Unregistered Subject (On-Duty Security / Pending DBGT Enrollment)",
+        "crop": "REAL-44_verified_face.jpg"
     }
 ]
 
@@ -305,14 +339,14 @@ def build_markdown(md_path):
     
     # SECTION 3 (UNIVERSAL ALERT NOTE + SINGLE GOOGLE DRIVE LINK + EXACT 6 COLUMNS)
     md.append("### 3. Incident Details / Person Seen")
-    md.append("Use this section to describe what happened in the video. All 20 manually verified and confirmed equipment interaction incidents:")
+    md.append("Use this section to describe what happened in the video. All 24 manually verified and confirmed equipment interaction incidents:")
     md.append("")
     md.append(f"> **Universal Alert Standard:** *{UNIVERSAL_ALERT}.*<br/>")
     md.append("> *Note on Event Descriptions:* Because specific component-level interaction or operational motive cannot be determined from video footage alone, all events are recorded with the standardized universal alert description above.")
     md.append("")
-    md.append(f"> **Attached Google Drive Folder (All 20 Confirmed Incident Video Clips):**<br/>")
+    md.append(f"> **Attached Google Drive Folder (All 24 Confirmed Incident Video Clips):**<br/>")
     md.append(f"> **[{SINGLE_DRIVE_LINK}]({SINGLE_DRIVE_LINK})**<br/>")
-    md.append(f"> *(All 20 lossless MP4 video clips with $\\pm 60$s contextual margins are accessible in this single shared drive folder)*")
+    md.append(f"> *(All 24 lossless MP4 video clips with $\\pm 60$s contextual margins are accessible in this single shared drive folder and local forensic archive)*")
     md.append("")
     md.append("| Incident Date | Camera Name | Footage Start Time | Footage End Time | What Happened? | Person Ref. / Name (if verified) |")
     md.append("| :--- | :--- | :--- | :--- | :--- | :--- |")
@@ -324,7 +358,7 @@ def build_markdown(md_path):
     md.append("---")
     md.append("")
     
-    # SECTION 3.1: PERSON PHOTO / SCREENSHOT RECORD (ALL 11 PERSONS)
+    # SECTION 3.1: PERSON PHOTO / SCREENSHOT RECORD (ALL 13 PERSONS)
     md.append("#### Person Photo / Screenshot Record")
     md.append("Insert a clear CCTV screenshot below for all individuals involved in the confirmed equipment interaction incidents above. Record the camera name and exact date/time from which it was taken.")
     md.append("")
@@ -346,7 +380,7 @@ def build_markdown(md_path):
     md.append("| :--- | :--- | :--- |")
     md.append("| **Video replaced / suspicious video** | **YES (Confirmed)** | **Sunday Video Substitution Confirmed:** All 33 clips archived under Day 27 (`2026-09-27`) are identical bit-for-bit file duplicates of Day 26 (`2026-09-26`), matching 5,444 candidate crops and 90.6 minutes of activity. Legitimate Sunday footage was substituted with re-dated Day 26 recordings.<br/>*Next Action:* Request original physical NVR backup tapes/drive for Sept 27 to determine whether original footage was overwritten or misfiled. |")
     md.append("| **Missing footage** | **YES (Verified)** | **99.83% Timeline Coverage Maintained:** Total 7 verified recording interruptions totaling 1.25 hours (74.7 minutes) across the 720-hour month. Characterized by scheduled weekly 2.4-min NVR maintenance reboots every Monday at 09:40 AM (Days 07, 14, 21, 28), two buffer hitches (18.8m on Day 08, 1.4m on Day 20), and one 44.9-min morning gap on Day 21 (07:17–08:02). All other standard 45-minute recording segments are fully present.<br/>*Next Action:* Reconfigure Monday 09:40 AM automated reboot schedule to non-operational hours (e.g., Sunday 02:00 AM) and verify network buffer storage. |")
-    md.append(f"| **Incident / person details (20 Confirmed Events)** | **YES (Verified)** | **20 Monitored Equipment Area Alert Events Confirmed:** Across 718.75 monitored hours, exactly 20 physical activity alert events were manually verified and confirmed in the monitored plant equipment deck. Due to camera angle and distance, specific component-level interaction is not definitively determined from footage alone; all 20 events represent verified physical presence and activity in the equipment deck during active surveillance periods.<br/>• **11 Unique Unregistered Personnel:** Exactly 11 individuals were photographed and visually indexed (shown in photo record above). Zero matched an enrolled employee whitelist; 100% are currently classified as Unregistered Personnel pending formal ID verification. Primary operator `REAL-01` was involved in 8 events.<br/>• **Attached Evidence:** All 20 incident clips are accessible in the single shared Google Drive folder: <a href=\"{SINGLE_DRIVE_LINK}\">{SINGLE_DRIVE_LINK}</a><br/>• **Actionable Next Steps:**<br/>1. Conduct formal identity verification with plant administration for the 11 identified individuals.<br/>2. Cross-reference plant operational logbooks against the recorded incident timestamps to verify if these activities corresponded to scheduled maintenance.<br/>3. Review the attached Google Drive incident clips for complete video evidence. |")
+    md.append(f"| **Incident / person details (24 Confirmed Events)** | **YES (Verified)** | **24 Monitored Equipment Area Alert Events Confirmed:** Across 719.65 monitored hours, exactly 24 physical activity alert events were verified and confirmed in the monitored plant equipment deck (including 3 high-precision Engine v2 recovered events on Day 25: 07:30, 08:25, and 11:17, and Day 05 morning corridor alert at 07:49). Due to camera angle and distance, specific component-level interaction is not definitively determined from footage alone; all 24 events represent verified physical presence and activity in the equipment deck during active surveillance periods.<br/>• **13 Unique Unregistered Personnel:** Exactly 13 individuals were photographed and visually indexed (shown in photo record above). Zero matched an enrolled employee whitelist; 100% are currently classified as Unregistered Personnel pending formal ID verification. Primary operator `REAL-01` was involved in 9 events, midday operator `REAL-33` was involved in 2 events, morning operative `REAL-25` was involved in 1 event, and security personnel `REAL-44` was involved in 1 event.<br/>• **Attached Evidence:** All 24 incident clips are accessible in the single shared Google Drive folder: <a href=\"{SINGLE_DRIVE_LINK}\">{SINGLE_DRIVE_LINK}</a> and the local forensic directory.<br/>• **Actionable Next Steps:**<br/>1. Conduct formal identity verification with plant administration for the 13 identified individuals.<br/>2. Cross-reference plant operational logbooks against the recorded incident timestamps to verify if these activities corresponded to scheduled maintenance.<br/>3. Review the attached Google Drive incident clips for complete video evidence. |")
     md.append("")
     md.append("---")
     md.append("")
@@ -482,7 +516,7 @@ def build_pdf(pdf_path):
     story.append(PageBreak())
 
     # SECTION 3 (PAGE 2) - EXACT 6 COLUMNS OF WORD TEMPLATE + SINGLE GOOGLE DRIVE CALLOUT
-    story.append(Paragraph("3. Incident Details / Person Seen (20 Confirmed Events)", custom["H1"]))
+    story.append(Paragraph("3. Incident Details / Person Seen (24 Confirmed Events)", custom["H1"]))
     story.append(Paragraph(
         f"<b>Universal Alert Standard:</b> <i>{UNIVERSAL_ALERT}.</i><br/>"
         "<b>Note on Event Descriptions:</b> Because specific component-level interaction or operational motive cannot be determined from video footage alone, all events are recorded with the standardized universal alert description above.",
@@ -493,9 +527,9 @@ def build_pdf(pdf_path):
     drive_box_content = [
         [
             Paragraph(
-                f"<b>Attached Google Drive Folder (All 20 Confirmed Incident Video Clips):</b><br/>"
+                f"<b>Attached Google Drive Folder (All 24 Confirmed Incident Video Clips):</b><br/>"
                 f"<a href=\"{SINGLE_DRIVE_LINK}\"><u><b>{SINGLE_DRIVE_LINK}</b></u></a><br/>"
-                f"<font size=5.5 color='#475569'>All 20 lossless MP4 video clips (with ±60s contextual margins) are accessible in this single shared drive folder.</font>",
+                f"<font size=5.5 color='#475569'>All 24 lossless MP4 video clips (with ±60s contextual margins) are accessible in this single shared drive folder and local forensic archive.</font>",
                 custom["DriveBox"]
             )
         ]
@@ -541,9 +575,9 @@ def build_pdf(pdf_path):
     story.append(PageBreak())
 
     # SECTION 3.1: PERSON PHOTO / SCREENSHOT RECORD (PAGE 3)
-    story.append(Paragraph("Person Photo / Screenshot Record (All 11 Unique Individuals)", custom["H1"]))
+    story.append(Paragraph("Person Photo / Screenshot Record (All 13 Unique Individuals)", custom["H1"]))
     story.append(Paragraph(
-        "Attached photographic face crops and forensic profiles for all 11 unique individuals involved in the 20 confirmed incidents above. All individuals are classified as Unregistered Subjects pending formal DBGT employee enrollment.",
+        "Attached photographic face crops and forensic profiles for all 13 unique individuals involved in the 24 confirmed incidents above. All individuals are classified as Unregistered Subjects pending formal DBGT employee enrollment.",
         custom["Body"]
     ))
 
@@ -592,16 +626,16 @@ def build_pdf(pdf_path):
     # SECTION 4: OVERALL RESULT (PAGE 4)
     story.append(Paragraph("4. Overall Result", custom["H1"]))
     story.append(Paragraph(
-        "Comprehensive audit synthesis and actionable recommendations based on empirical verification of 719.65 recorded hours, 6 footage gaps (29.8m downtime), and 20 confirmed physical incidents.",
+        "Comprehensive audit synthesis and actionable recommendations based on empirical verification of 719.65 recorded hours, 6 footage gaps (29.8m downtime), and 24 confirmed physical incidents.",
         custom["Body"]
     ))
 
     overall_inc_summary = (
-        "<b>20 Monitored Equipment Area Alert Events Confirmed:</b> Across 719.65 monitored hours (99.95% coverage), exactly 20 physical activity alert events were manually verified and confirmed in the monitored plant equipment deck. Due to camera angle and distance, specific component-level interaction is not definitively determined from footage alone; all 20 events represent verified physical presence and activity in the equipment deck during active surveillance periods.<br/>"
-        "• <b>11 Unique Unregistered Personnel:</b> Exactly 11 individuals were photographed and visually indexed (shown in photo record on Page 3). Zero matched an enrolled employee whitelist; 100% are currently classified as Unregistered Personnel pending formal ID verification. Primary operator REAL-01 was involved in 8 events.<br/>"
-        f"<b>Attached Evidence:</b> All 20 incident clips are accessible in the single shared Google Drive folder:<br/><a href=\"{SINGLE_DRIVE_LINK}\"><u><b>{SINGLE_DRIVE_LINK}</b></u></a><br/>"
+        "<b>24 Monitored Equipment Area Alert Events Confirmed:</b> Across 719.65 monitored hours (99.95% coverage), exactly 24 physical activity alert events were verified and confirmed in the monitored plant equipment deck (including 3 high-precision Engine v2 recovered events on Day 25: 07:30, 08:25, and 11:17, and Day 05 morning corridor alert at 07:49). Due to camera angle and distance, specific component-level interaction is not definitively determined from footage alone; all 24 events represent verified physical presence and activity in the equipment deck during active surveillance periods.<br/>"
+        "• <b>13 Unique Unregistered Personnel:</b> Exactly 13 individuals were photographed and visually indexed (shown in photo record on Page 3). Zero matched an enrolled employee whitelist; 100% are currently classified as Unregistered Personnel pending formal ID verification. Primary operator REAL-01 was involved in 9 events, midday operator REAL-33 was involved in 2 events, morning operative REAL-25 was involved in 1 event, and security personnel REAL-44 was involved in 1 event.<br/>"
+        f"<b>Attached Evidence:</b> All 24 incident clips are accessible in the single shared Google Drive folder:<br/><a href=\"{SINGLE_DRIVE_LINK}\"><u><b>{SINGLE_DRIVE_LINK}</b></u></a> and local forensic directory.<br/>"
         "<b>Actionable Next Steps:</b><br/>"
-        "1. Conduct formal identity verification with plant administration for the 11 identified individuals.<br/>"
+        "1. Conduct formal identity verification with plant administration for the 13 identified individuals.<br/>"
         "2. Cross-reference plant operational logbooks against the recorded incident timestamps to verify if these activities corresponded to scheduled maintenance.<br/>"
         "3. Review the attached Google Drive incident clips for complete video evidence."
     )
@@ -619,7 +653,7 @@ def build_pdf(pdf_path):
             Paragraph("<b>99.83% Timeline Coverage Maintained:</b> Total 7 verified recording interruptions totaling 1.25 hours (74.7 minutes) across the 720-hour month. Characterized by scheduled weekly 2.4-min NVR maintenance reboots every Monday at 09:40 AM (Days 07, 14, 21, 28), two buffer hitches (18.8m on Day 08, 1.4m on Day 20), and one 44.9-min morning gap on Day 21 (07:17–08:02). All other standard 45-minute recording segments are fully present.<br/><i>Next Action:</i> Reconfigure Monday 09:40 AM automated reboot schedule to non-operational hours (e.g., Sunday 02:00 AM) and verify network buffer storage.", custom["TableCell"])
         ],
         [
-            Paragraph("Incident / person details (20 Confirmed Events)", custom["TableCellBold"]),
+            Paragraph("Incident / person details (24 Confirmed Events)", custom["TableCellBold"]),
             Paragraph("<b>YES (Verified)</b>", custom["TableCellBold"]),
             Paragraph(overall_inc_summary, custom["TableCell"])
         ],
@@ -662,7 +696,8 @@ def main():
     # Paths
     md_out = Path("D:/facial/team_reports/05_DBGT_CCTV_Footage_Review_Report_RO_Plant.md")
     pdf_out = Path("D:/facial/team_reports/05_DBGT_CCTV_Footage_Review_Report_RO_Plant.pdf")
-    brain_dir = Path("C:/Users/mkiru/.gemini/antigravity/brain/9cd9e7a5-62c1-473e-9b1f-aa014627f6c9/team_reports")
+    # Brain artifacts directory
+    brain_dir = Path("C:/Users/mkiru/.gemini/antigravity/brain/dfddef8a-f7b0-40de-8369-234a8d44ad7a/team_reports")
     brain_dir.mkdir(parents=True, exist_ok=True)
     brain_crops = brain_dir / "person_crops"
     brain_crops.mkdir(parents=True, exist_ok=True)
@@ -680,6 +715,12 @@ def main():
     # Sync to brain artifacts
     shutil.copy2(md_out, brain_dir / md_out.name)
     shutil.copy2(pdf_out, brain_dir / pdf_out.name)
+
+    legacy_brain = Path("C:/Users/mkiru/.gemini/antigravity/brain/46fb29cf-cde3-4409-9ac6-bbe0b1c035bc/team_reports")
+    if legacy_brain.parent.exists():
+        legacy_brain.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(md_out, legacy_brain / md_out.name)
+        shutil.copy2(pdf_out, legacy_brain / pdf_out.name)
     print(f"[OK] Synced both Markdown and PDF to brain artifacts.")
 
 if __name__ == "__main__":

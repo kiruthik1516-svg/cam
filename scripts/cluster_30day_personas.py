@@ -25,19 +25,19 @@ from sqlalchemy import create_engine, text
 CRITICAL_ZONES = {
     "multiport_valves": {
         "name": "Two Multiport Backwash Valves",
-        "bbox": [755, 200, 1050, 420],
+        "bbox": [550, 260, 800, 520],
         "category": "Hydraulic Filtration Control",
         "hazard_level": "CRITICAL",
     },
     "ultimate_power_switch": {
         "name": "Ultimate Plant Power Switch",
-        "bbox": [760, 140, 980, 420],
+        "bbox": [1020, 170, 1125, 265],
         "category": "Main Electrical Breaker",
         "hazard_level": "SEVERE",
     },
     "ro_skid_controls": {
         "name": "RO Skid Controls & Walkway",
-        "bbox": [945, 200, 1420, 720],
+        "bbox": [960, 260, 1420, 720],
         "category": "Operational Monitoring Deck",
         "hazard_level": "ELEVATED",
     },

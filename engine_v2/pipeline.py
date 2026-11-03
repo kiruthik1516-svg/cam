@@ -24,12 +24,15 @@ from .trimmer import extract_incident_clip
 from .manifest import export_day_manifest_csv, export_day_summary_json
 
 def list_day_chunks(day_num: int, cctv_dir: str = CCTV_MASTER_DIR) -> List[Dict[str, any]]:
-    """Discovers and chronologically indexes all video chunks for a day."""
+    """Discovers and chronologically indexes all video chunks for a day. Returns empty list if offline."""
+    if not os.path.exists(cctv_dir):
+        return []
+
     day_folder = os.path.join(cctv_dir, str(day_num))
     if not os.path.exists(day_folder):
         day_folder = os.path.join(cctv_dir, f"{day_num:02d}")
     if not os.path.exists(day_folder):
-        raise FileNotFoundError(f"Day directory not found: {day_folder}")
+        return []
 
     files = [f for f in os.listdir(day_folder) if f.lower().endswith(".mp4")]
     chunks = []
@@ -95,11 +98,33 @@ def scan_single_chunk(chunk_info: Dict[str, any], detector: Optional[PoseInterac
         has_interaction = False
 
         if motion and detections:
+            # Check for multi-person corridor presence
+            if len(detections) >= 2:
+                has_corridor = any("ZONE_DOORWAY" in det.get("interactions", {}) or "ZONE_RO_SKID" in det.get("interactions", {}) for det in detections)
+                if has_corridor:
+                    has_interaction = True
+                    raw_events.append({
+                        "timestamp": current_dt,
+                        "sec_offset": sec,
+                        "frame_idx": frame_idx,
+                        "chunk_path": chunk_info["path"],
+                        "zone_id": "ZONE_DOORWAY",
+                        "zone_name": "Terrace Entrance & Walkway Corridor",
+                        "severity": "ELEVATED",
+                        "interaction_type": "MULTI_PERSON_CORRIDOR_PRESENCE",
+                        "wrist_contact": False,
+                        "active_wrist": None,
+                        "min_wrist_dist": 999.0,
+                        "person_box": detections[0]["person_box"],
+                        "keypoints": detections[0]["keypoints"],
+                        "confidence": detections[0]["confidence"]
+                    })
+
             for det in detections:
                 interactions = det.get("interactions", {})
                 for zone_id, eval_data in interactions.items():
-                    # Filter doorway transition from raw alarms unless it's hardware
-                    if zone_id == "ZONE_DOORWAY":
+                    # For ZONE_DOORWAY: capture multi-person, hardware contact, or dwell
+                    if zone_id == "ZONE_DOORWAY" and len(detections) < 2 and not eval_data.get("wrist_contact"):
                         continue
 
                     has_interaction = True
@@ -166,10 +191,13 @@ def cluster_raw_events(raw_events: List[Dict[str, any]], max_gap_sec: float = ME
         end_t = c[-1]["timestamp"]
         dur = max(1.0, (end_t - start_t).total_seconds())
 
-        if dur < MIN_INTERACTION_DURATION_SEC and len(c) < 2:
+        is_micro_toggle = any(x["zone_id"] == "ZONE_SWITCH" or x.get("interaction_type") in ("INSTANT_MICRO_TOGGLE", "WRIST_CONTACT") for x in c)
+        is_multi_person = any(x.get("interaction_type") == "MULTI_PERSON_CORRIDOR_PRESENCE" for x in c)
+
+        if not is_micro_toggle and not is_multi_person and dur < MIN_INTERACTION_DURATION_SEC and len(c) < 2:
             continue
 
-        # Severity hierarchy: Switch (SEVERE) > Valves (CRITICAL) > RO Skid (ELEVATED)
+        # Severity hierarchy: Switch (SEVERE) > Valves (CRITICAL) > Multi-person Corridor (ELEVATED) > RO Skid (ELEVATED) > Doorway (INFORMATIONAL)
         has_switch = any(x["zone_id"] == "ZONE_SWITCH" for x in c)
         has_valves = any(x["zone_id"] == "ZONE_VALVES" for x in c)
         has_wrist = any(x["wrist_contact"] for x in c)
@@ -180,16 +208,30 @@ def cluster_raw_events(raw_events: List[Dict[str, any]], max_gap_sec: float = ME
         elif has_valves:
             primary_zone_id = "ZONE_VALVES"
             severity = "CRITICAL"
-        else:
+        elif any(x.get("interaction_type") == "MULTI_PERSON_CORRIDOR_PRESENCE" for x in c):
+            primary_zone_id = "ZONE_DOORWAY"
+            severity = "ELEVATED"
+        elif any(x["zone_id"] == "ZONE_RO_SKID" for x in c):
             primary_zone_id = "ZONE_RO_SKID"
             severity = "ELEVATED"
+        else:
+            primary_zone_id = "ZONE_DOORWAY"
+            severity = "INFORMATIONAL"
 
         matching_zone_events = [x for x in c if x["zone_id"] == primary_zone_id]
         if not matching_zone_events:
             matching_zone_events = c
         best_evt = min(matching_zone_events, key=lambda x: x["min_wrist_dist"])
 
-        interaction_type = "WRIST_CONTACT" if has_wrist else "PROXIMITY_DWELL"
+        if is_multi_person and primary_zone_id == "ZONE_DOORWAY":
+            interaction_type = "MULTI_PERSON_CORRIDOR_PRESENCE"
+        elif any(x.get("interaction_type") == "INSTANT_MICRO_TOGGLE" for x in c):
+            interaction_type = "INSTANT_MICRO_TOGGLE"
+        elif has_wrist:
+            interaction_type = "WRIST_CONTACT"
+        else:
+            interaction_type = "PROXIMITY_DWELL"
+
         zones_touched = sorted(list(set(x["zone_id"].replace("ZONE_", "") for x in c)))
         zone_label = "_".join(zones_touched)
 
@@ -212,6 +254,110 @@ def cluster_raw_events(raw_events: List[Dict[str, any]], max_gap_sec: float = ME
         })
 
     return incidents
+
+def scan_day_candidate_frames(day_num: int, detector: Optional[PoseInteractionDetector] = None) -> List[Dict[str, any]]:
+    """
+    Offline fallback scanner: Iterates stage-1 candidate frames for day_num,
+    using adaptive sampling and fast motion filtration.
+    """
+    if detector is None:
+        detector = PoseInteractionDetector()
+
+    idx_path = f"D:/facial/incident_evidence/day_{day_num:02d}/Day{day_num}_Extracted_Frames_Timestamp_Index.csv"
+    cand_dir = f"D:/facial/data/stage1_candidates/day_{day_num:02d}"
+
+    if not os.path.exists(idx_path) or not os.path.exists(cand_dir):
+        return []
+
+    import pandas as pd
+    df = pd.read_csv(idx_path)
+    df['dt'] = pd.to_datetime(df['Calculated_WallClock_Timestamp'])
+    df = df.sort_values('dt').reset_index(drop=True)
+
+    raw_events = []
+    step = 2
+    i = 0
+    total = len(df)
+
+    while i < total:
+        row = df.iloc[i]
+        fname = row['Frame_File_Name']
+        fpath = os.path.join(cand_dir, fname)
+        current_dt = row['dt'].to_pydatetime()
+
+        if not os.path.exists(fpath):
+            i += step
+            continue
+
+        frame = cv2.imread(fpath)
+        if frame is None:
+            i += step
+            continue
+
+        motion, detections = detector.process_frame(frame)
+        has_person = len(detections) > 0
+        has_interaction = False
+
+        if motion and detections:
+            # Check for multi-person corridor presence
+            if len(detections) >= 2:
+                has_corridor = any("ZONE_DOORWAY" in det.get("interactions", {}) or "ZONE_RO_SKID" in det.get("interactions", {}) for det in detections)
+                if has_corridor:
+                    has_interaction = True
+                    raw_events.append({
+                        "timestamp": current_dt,
+                        "sec_offset": 0.0,
+                        "frame_idx": i,
+                        "chunk_path": fpath,
+                        "frame_file": fname,
+                        "zone_id": "ZONE_DOORWAY",
+                        "zone_name": "Terrace Entrance & Walkway Corridor",
+                        "severity": "ELEVATED",
+                        "interaction_type": "MULTI_PERSON_CORRIDOR_PRESENCE",
+                        "wrist_contact": False,
+                        "active_wrist": None,
+                        "min_wrist_dist": 999.0,
+                        "person_box": detections[0]["person_box"],
+                        "keypoints": detections[0]["keypoints"],
+                        "confidence": detections[0]["confidence"]
+                    })
+
+            for det in detections:
+                interactions = det.get("interactions", {})
+                for zone_id, eval_data in interactions.items():
+                    if zone_id == "ZONE_DOORWAY" and len(detections) < 2 and not eval_data.get("wrist_contact"):
+                        continue
+
+                    has_interaction = True
+                    raw_events.append({
+                        "timestamp": current_dt,
+                        "sec_offset": 0.0,
+                        "frame_idx": i,
+                        "chunk_path": fpath,
+                        "frame_file": fname,
+                        "zone_id": zone_id,
+                        "zone_name": ASSET_ZONES[zone_id].name,
+                        "severity": ASSET_ZONES[zone_id].severity,
+                        "interaction_type": eval_data["interaction_type"],
+                        "wrist_contact": eval_data["wrist_contact"],
+                        "active_wrist": eval_data["active_wrist"],
+                        "min_wrist_dist": eval_data["min_wrist_dist"],
+                        "person_box": det["person_box"],
+                        "keypoints": det["keypoints"],
+                        "confidence": det["confidence"]
+                    })
+
+        # Adaptive step
+        if has_interaction:
+            step = 1
+        elif has_person:
+            step = 1
+        else:
+            step = 3
+
+        i += step
+
+    return raw_events
 
 def process_day(
     day_num: int,
@@ -241,14 +387,18 @@ def process_day(
     detector = PoseInteractionDetector()
     all_raw_events = []
 
-    for idx, cf in enumerate(chunks_to_scan):
-        fname = cf["filename"]
-        events = scan_single_chunk(cf, detector=detector)
-        if events:
-            print(f"   -> [{idx+1}/{len(chunks_to_scan)}] {fname}: Found {len(events)} interactions", flush=True)
-            all_raw_events.extend(events)
-        else:
-            print(f"   -> [{idx+1}/{len(chunks_to_scan)}] {fname}: Clean (0 interactions)", flush=True)
+    if not chunks:
+        print(f"[Engine v2] Master physical CCTV drive offline. Engaging Stage-1 Candidate Frame Scanner for Day {day_num}...", flush=True)
+        all_raw_events = scan_day_candidate_frames(day_num, detector=detector)
+    else:
+        for idx, cf in enumerate(chunks_to_scan):
+            fname = cf["filename"]
+            events = scan_single_chunk(cf, detector=detector)
+            if events:
+                print(f"   -> [{idx+1}/{len(chunks_to_scan)}] {fname}: Found {len(events)} interactions", flush=True)
+                all_raw_events.extend(events)
+            else:
+                print(f"   -> [{idx+1}/{len(chunks_to_scan)}] {fname}: Clean (0 interactions)", flush=True)
 
     print(f"[Engine v2] Total raw interaction detections for Day {day_num}: {len(all_raw_events)}", flush=True)
     incidents = cluster_raw_events(all_raw_events)
@@ -269,12 +419,22 @@ def process_day(
 
         # Extract snapshot at peak interaction frame
         peak = inc["peak_event"]
-        cap = cv2.VideoCapture(peak["chunk_path"])
-        cap.set(cv2.CAP_PROP_POS_FRAMES, peak["frame_idx"])
-        ret, frame = cap.read()
-        cap.release()
+        frame = None
+        cpath = peak.get("chunk_path", "")
+        if cpath and os.path.exists(cpath):
+            if cpath.lower().endswith((".jpg", ".jpeg", ".png")):
+                frame = cv2.imread(cpath)
+            else:
+                cap = cv2.VideoCapture(cpath)
+                cap.set(cv2.CAP_PROP_POS_FRAMES, peak["frame_idx"])
+                ret, frame = cap.read()
+                cap.release()
+        elif peak.get("frame_file"):
+            cand_p = os.path.join(f"D:/facial/data/stage1_candidates/day_{day_num:02d}", peak["frame_file"])
+            if os.path.exists(cand_p):
+                frame = cv2.imread(cand_p)
 
-        if ret:
+        if frame is not None:
             annotated = render_pose_skeleton(
                 frame,
                 peak["keypoints"],
@@ -302,7 +462,8 @@ def process_day(
             incident_end_dt=inc["end_time"],
             output_mp4_path=clip_path,
             lead_in_sec=LEAD_IN_BUFFER_SEC,
-            lead_out_sec=LEAD_OUT_BUFFER_SEC
+            lead_out_sec=LEAD_OUT_BUFFER_SEC,
+            day_num=day_num
         )
 
         inc_record = dict(inc)

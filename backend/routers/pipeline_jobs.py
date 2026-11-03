@@ -142,3 +142,4 @@ def clear_finished_jobs():
     manager = BackgroundWorkerManager.get_instance()
     cleared_count = manager.clear_finished()
     return {"status": "cleared", "count": cleared_count}
+

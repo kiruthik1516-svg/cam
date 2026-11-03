@@ -36,33 +36,33 @@ ASSET_ZONES: Dict[str, AssetZone] = {
         id="ZONE_SWITCH",
         name="Plant Main Power Switch Breaker",
         severity="SEVERE",
-        hardware_box=(1020, 180, 1085, 260),
-        operational_envelope=(960, 150, 1260, 680),
-        wrist_reach_radius=100
+        hardware_box=(1020, 170, 1125, 265),
+        operational_envelope=(980, 150, 1180, 650),
+        wrist_reach_radius=50
     ),
     "ZONE_VALVES": AssetZone(
         id="ZONE_VALVES",
         name="Multiport Backwash Valves",
         severity="CRITICAL",
-        hardware_box=(720, 210, 960, 430),
-        operational_envelope=(680, 200, 1050, 750),
-        wrist_reach_radius=110
+        hardware_box=(550, 260, 800, 520),
+        operational_envelope=(520, 240, 840, 750),
+        wrist_reach_radius=50
     ),
     "ZONE_RO_SKID": AssetZone(
         id="ZONE_RO_SKID",
         name="RO Skid Controls & Pump Deck",
         severity="ELEVATED",
-        hardware_box=(940, 260, 1450, 720),
-        operational_envelope=(900, 240, 1500, 850),
-        wrist_reach_radius=120
+        hardware_box=(960, 260, 1420, 720),
+        operational_envelope=(920, 240, 1480, 820),
+        wrist_reach_radius=50
     ),
     "ZONE_DOORWAY": AssetZone(
         id="ZONE_DOORWAY",
-        name="Terrace Entrance Doorway",
-        severity="INFORMATIONAL",
-        hardware_box=(1220, 150, 1480, 680),
-        operational_envelope=(1180, 140, 1520, 750),
-        wrist_reach_radius=80
+        name="Terrace Entrance & Walkway Corridor",
+        severity="ELEVATED",
+        hardware_box=(1180, 140, 1500, 700),
+        operational_envelope=(900, 140, 1520, 780),
+        wrist_reach_radius=50
     )
 }
 
@@ -94,7 +94,7 @@ MOTION_PIXEL_COUNT_THRESHOLD = 500
 # Temporal Clustering & Trimming
 SAMPLING_RATE_SCAN_FPS = 2.0         # 2 FPS during scan (1 frame every 15 frames)
 SAMPLING_RATE_ACTIVE_FPS = 5.0       # 5 FPS when human presence detected
-MIN_INTERACTION_DURATION_SEC = 2.0   # Require at least 2.0s contact / dwell
+MIN_INTERACTION_DURATION_SEC = 1.0   # Require at least 1.0s contact / dwell or instant micro-toggle
 MERGE_INCIDENT_GAP_SEC = 45.0        # Group interactions within 45s into single session
 LEAD_IN_BUFFER_SEC = 30.0            # 30s pre-event buffer
 LEAD_OUT_BUFFER_SEC = 30.0           # 30s post-event buffer

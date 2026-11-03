@@ -66,27 +66,27 @@ def generate_zoomed_roi():
             "id": "ZONE 1",
             "name": "Two Multiport Backwash Valves",
             "hazard": "CRITICAL",
-            "bbox_native": [755, 200, 1050, 420],
+            "bbox_native": [550, 260, 800, 520],
             "color": (0, 140, 255),
             "bg_badge": (0, 90, 180),
-            "badge_pos": (p_x1 + 280, p_y1 + 430),
+            "badge_pos": (p_x1 + 10, p_y1 + 430),
             "badge_size": (350, 48)
         },
         {
             "id": "ZONE 2",
             "name": "Ultimate Power Switch (Wall Electrical Breaker)",
             "hazard": "SEVERE",
-            "bbox_native": [760, 140, 980, 420],
+            "bbox_native": [1020, 170, 1125, 265],
             "color": (0, 30, 235),
             "bg_badge": (0, 15, 160),
-            "badge_pos": (p_x1 + 280, p_y1 + 120),
+            "badge_pos": (p_x1 + 380, p_y1 + 120),
             "badge_size": (360, 48)
         },
         {
             "id": "ZONE 3",
             "name": "RO Skid Controls & Walkway",
             "hazard": "ELEVATED",
-            "bbox_native": [945, 200, 1420, 720],
+            "bbox_native": [960, 260, 1420, 720],
             "color": (0, 215, 255),
             "bg_badge": (0, 140, 180),
             "badge_pos": (p_x1 + 680, p_y1 + 730),
@@ -96,10 +96,10 @@ def generate_zoomed_roi():
             "id": "ZONE 4",
             "name": "RO Water Plant Evaluated Unit",
             "hazard": "MONITORING",
-            "bbox_native": [740, 140, 1450, 780],
+            "bbox_native": [295, 20, 1489, 780],
             "color": (220, 190, 0),
             "bg_badge": (130, 110, 0),
-            "badge_pos": (p_x1 + 10, p_y1 + 790),
+            "badge_pos": (p_x1 + 10, p_y1 + 750),
             "badge_size": (360, 48)
         }
     ]
@@ -165,7 +165,7 @@ def generate_zoomed_roi():
     print(f"[OK] Saved Zoomed ROI Mesh: {out_jpg} ({out_jpg.stat().st_size / (1024*1024):.2f} MB)")
 
     # Copy to brain artifact directory
-    artifact_dir = Path("C:/Users/mkiru/.gemini/antigravity/brain/8c6e85a2-8ea1-4c6c-bb23-a9aed5b45fc6")
+    artifact_dir = Path("C:/Users/mkiru/.gemini/antigravity/brain/dfddef8a-f7b0-40de-8369-234a8d44ad7a")
     if artifact_dir.exists():
         shutil.copy2(str(out_jpg), str(artifact_dir / "RO_Plant_Zoomed_ROI_Mesh.jpg"))
         print(f"[OK] Copied to artifact directory: {artifact_dir / 'RO_Plant_Zoomed_ROI_Mesh.jpg'}")

@@ -41,16 +41,8 @@ def evaluate_asset_interaction(
     min_kpt_conf: float = 0.35
 ) -> Dict[str, any]:
     """
-    Evaluates whether a detected person is physically interacting with an asset zone.
-    Returns:
-      {
-        "interacted": bool,
-        "interaction_type": "WRIST_CONTACT" | "PROXIMITY_DWELL" | "NONE",
-        "wrist_contact": bool,
-        "active_wrist": "LEFT" | "RIGHT" | "BOTH" | None,
-        "min_wrist_dist": float,
-        "overlap_ratio": float
-      }
+    Evaluates whether a detected person is physically interacting with an asset zone,
+    enforcing rigorous physical geometry, vertical elevation, and stance gates.
     """
     lw = keypoints[KPT_LEFT_WRIST]   # [x, y, conf]
     rw = keypoints[KPT_RIGHT_WRIST]  # [x, y, conf]
@@ -60,39 +52,105 @@ def evaluate_asset_interaction(
 
     lw_dist = point_to_box_distance((lw[0], lw[1]), zone.hardware_box) if lw_valid else 9999.0
     rw_dist = point_to_box_distance((rw[0], rw[1]), zone.hardware_box) if rw_valid else 9999.0
-
     min_wrist_dist = min(lw_dist, rw_dist)
-    lw_contact = lw_valid and (lw_dist <= zone.wrist_reach_radius)
-    rw_contact = rw_valid and (rw_dist <= zone.wrist_reach_radius)
 
-    wrist_contact = lw_contact or rw_contact
-    active_wrist = None
-    if lw_contact and rw_contact:
-        active_wrist = "BOTH"
-    elif lw_contact:
-        active_wrist = "LEFT"
-    elif rw_contact:
-        active_wrist = "RIGHT"
-
-    # Evaluate body operational envelope overlap
-    overlap = box_intersection_ratio(person_box, zone.operational_envelope)
-    
-    # Body center
     cx = (person_box[0] + person_box[2]) / 2.0
     cy = (person_box[1] + person_box[3]) / 2.0
+    overlap = box_intersection_ratio(person_box, zone.operational_envelope)
     body_center_in_envelope = point_in_box((cx, cy), zone.operational_envelope)
 
-    # Determine interaction classification
     interacted = False
     interaction_type = "NONE"
+    wrist_contact = False
+    active_wrist = None
 
-    if wrist_contact:
-        interacted = True
-        interaction_type = "WRIST_CONTACT"
-    elif body_center_in_envelope and (overlap > 0.40):
-        # Upper body dwelling in the operational pocket
-        interacted = True
-        interaction_type = "PROXIMITY_DWELL"
+    if zone.id == "ZONE_SWITCH":
+        # 1. Physical Perspective & Elevation Gate for Wall Power Switch:
+        # A) Perspective Ground-Plane Gate: The wall switch sits on the foreground pillar.
+        # An operator standing at the switch has feet on the deck floor (person_box[3] >= 480px).
+        # Background pedestrians (person_box[3] < 480px) are 15m away in the background doorway/stairs.
+        if person_box[3] < 480.0:
+            return {
+                "interacted": False,
+                "interaction_type": "NONE",
+                "wrist_contact": False,
+                "active_wrist": None,
+                "min_wrist_dist": min_wrist_dist,
+                "overlap_ratio": overlap
+            }
+
+        # B) Vertical Elevation Gate: Switch toggle handle is at Y in [170, 265].
+        # Wrist MUST reach into the toggle casing (Y <= 270px) to touch or toggle the breaker.
+        # Walking arms swinging at hip/waist height (Y >= 280px) are physically rejected.
+        lw_contact = lw_valid and (lw[1] <= 270.0) and (lw_dist <= zone.wrist_reach_radius)
+        rw_contact = rw_valid and (rw[1] <= 270.0) and (rw_dist <= zone.wrist_reach_radius)
+
+        if lw_contact and rw_contact:
+            wrist_contact = True
+            active_wrist = "BOTH"
+            interacted = True
+            interaction_type = "WRIST_CONTACT"
+        elif lw_contact:
+            wrist_contact = True
+            active_wrist = "LEFT"
+            interacted = True
+            interaction_type = "WRIST_CONTACT"
+        elif rw_contact:
+            wrist_contact = True
+            active_wrist = "RIGHT"
+            interacted = True
+            interaction_type = "WRIST_CONTACT"
+        elif (lw_valid and lw[1] <= 270.0 and lw_dist <= 55.0) or (rw_valid and rw[1] <= 270.0 and rw_dist <= 55.0):
+            interacted = True
+            interaction_type = "INSTANT_MICRO_TOGGLE"
+            active_wrist = "LEFT" if (lw_valid and lw[1] <= 270.0 and lw_dist <= 55.0) else "RIGHT"
+
+    elif zone.id == "ZONE_VALVES":
+        # 2. Operator Stance & Valve Reach Gate:
+        # Operator must be stationed on the valve maintenance deck (person_box x1 <= 850 or cx <= 820)
+        # and wrist must penetrate the valve manipulation plane (x <= 820, y in [260, 550]).
+        operator_on_deck = (person_box[0] <= 850.0) or (cx <= 820.0)
+        if operator_on_deck:
+            lw_v_contact = lw_valid and (lw[0] <= 820.0 and 260.0 <= lw[1] <= 550.0) and (lw_dist <= zone.wrist_reach_radius)
+            rw_v_contact = rw_valid and (rw[0] <= 820.0 and 260.0 <= rw[1] <= 550.0) and (rw_dist <= zone.wrist_reach_radius)
+            if lw_v_contact and rw_v_contact:
+                wrist_contact = True
+                active_wrist = "BOTH"
+                interacted = True
+                interaction_type = "WRIST_CONTACT"
+            elif lw_v_contact:
+                wrist_contact = True
+                active_wrist = "LEFT"
+                interacted = True
+                interaction_type = "WRIST_CONTACT"
+            elif rw_v_contact:
+                wrist_contact = True
+                active_wrist = "RIGHT"
+                interacted = True
+                interaction_type = "WRIST_CONTACT"
+            elif body_center_in_envelope and overlap > 0.40:
+                interacted = True
+                interaction_type = "PROXIMITY_DWELL"
+
+    elif zone.id == "ZONE_RO_SKID":
+        # 3. RO Skid Controls:
+        # Equipment deck controls are at Y in [340, 700]. Walking in corridor entrance (Y < 340) is not deck control contact.
+        lw_skid = lw_valid and (960.0 <= lw[0] <= 1420.0 and 340.0 <= lw[1] <= 700.0) and (lw_dist <= zone.wrist_reach_radius)
+        rw_skid = rw_valid and (960.0 <= rw[0] <= 1420.0 and 340.0 <= rw[1] <= 700.0) and (rw_dist <= zone.wrist_reach_radius)
+        if lw_skid or rw_skid:
+            wrist_contact = True
+            active_wrist = "BOTH" if (lw_skid and rw_skid) else ("LEFT" if lw_skid else "RIGHT")
+            interacted = True
+            interaction_type = "WRIST_CONTACT"
+        elif body_center_in_envelope and overlap > 0.35:
+            interacted = True
+            interaction_type = "PROXIMITY_DWELL"
+
+    elif zone.id == "ZONE_DOORWAY":
+        # 4. Corridor Walkway:
+        if body_center_in_envelope and overlap > 0.25:
+            interacted = True
+            interaction_type = "CORRIDOR_PRESENCE"
 
     return {
         "interacted": interacted,

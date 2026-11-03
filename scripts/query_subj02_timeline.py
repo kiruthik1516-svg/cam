@@ -26,17 +26,17 @@ print(f"[OK] Database URL loaded.")
 CRITICAL_ZONES = {
     "multiport_valves": {
         "name": "Two Multiport Backwash Valves",
-        "bbox": [755, 220, 985, 360],
+        "bbox": [550, 260, 800, 520],
         "hazard_level": "CRITICAL"
     },
     "ultimate_power_switch": {
         "name": "Ultimate Plant Power Switch",
-        "bbox": [998, 155, 1090, 265],
+        "bbox": [1020, 170, 1125, 265],
         "hazard_level": "SEVERE"
     },
     "ro_skid_controls": {
         "name": "RO Skid Controls & Walkway",
-        "bbox": [945, 345, 1210, 510],
+        "bbox": [960, 260, 1420, 720],
         "hazard_level": "ELEVATED"
     }
 }

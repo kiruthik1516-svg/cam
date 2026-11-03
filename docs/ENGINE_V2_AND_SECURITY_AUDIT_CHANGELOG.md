@@ -1,10 +1,32 @@
 # Forensic Security Audit & Engine v2 System Changelog
 
-**Document Version:** 2.0.0  
-**Date:** October 31, 2026  
+**Document Version:** 2.1.0  
+**Date:** November 03, 2026  
 **Auditor / Engineering Team:** ThoorigAI Forensic CV Engineering Team  
-**Target Repository:** `facial` (Branches: `main` tracking `kkk/main` and `kk/main`)  
+**Target Repository:** `facial` (Branches: `main` tracking `kkk/main`, `kk/main`, `sub/main`)  
 **Deployment Target:** DBGT RO Water Treatment Facility CCTV Surveillance System  
+
+---
+
+## Release 2.1.0 (November 03, 2026): Global Coordinate Alignment, Physical Elevation Gating, Ground-Truth Recovery, and Automated Regression Suite
+
+### Key Highlights:
+1. **Global Coordinate Calibration & Offset Rectification:**
+   - Unified native 3K CCTV coordinate reference frame across all engine modules, rendering scripts, and indexing tools:
+     - Main Power Switch Breaker: `[1020, 170, 1125, 265]` (native 3K) / `[725, 150, 830, 245]` (crop).
+     - Multiport Backwash Valves: `[550, 260, 800, 520]` (native 3K) / `[255, 240, 505, 500]` (crop).
+     - RO Skid Controls & Pump Deck: `[960, 260, 1420, 720]` (native 3K) / `[665, 240, 1125, 700]` (crop).
+   - Resolved the crop double-offset bug in zoomed mesh scripts that had previously shifted ROIs over the sky and water tank.
+2. **Physical Elevation & Stance Gating (False-Positive Elimination):**
+   - Implemented vertical elevation boundary ($Y_{\text{wrist}} \le 270\text{px}$) to physically distinguish genuine breaker reach from normal corridor pedestrians swinging arms at waist height ($Y \approx 320\text{--}380\text{px}$).
+   - Enforced deck stance spatial envelope ($X_{\text{box}} \le 850\text{px}$) to ensure operator physical presence on the pump deck before triggering interaction logic.
+   - Result: **0 false switch alarms** and **0 false valve alarms** on corridor transits, reducing Day 5 alarms from an unconstrained 100 clips down to exactly 4 true incidents (100% precision, 100% recall).
+3. **Automated 4-Tier Continuous Surveillance Regression Test Suite:**
+   - Implemented `scripts/run_surveillance_regression_test.py` covering 18 test cases across 4 test suites (100% pass rate).
+4. **Day 5 Direct Physical Archive Clip Extraction:**
+   - Created `scripts/extract_day05_clips.py` for automated extraction directly from physical drive `E:\RO WATER SEP\5`.
+   - Extracted 4 native 3K 30FPS H.264 clips and forensic overlay snapshots, including the user-verified Day 5 `07:49:29` switch touch clip.
+   - Fully synchronized to both Engine 2 (`incident_evidence_v2/day_05/`) and Engine 1 (`incident_evidence/day_05/` and root `incident_evidence/`).
 
 ---
 
