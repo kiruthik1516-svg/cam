@@ -311,6 +311,18 @@ def ensure_mode_b_candidates(cand_dir_str: str) -> str:
         logger.info(f"[Mode B] Found candidate frames in: {alt_cand}")
         return str(alt_cand)
 
+    # Check for split stage1_candidates.tar parts
+    tar_parts = sorted(list(REPO_ROOT.glob("stage1_candidates.tar.part*")))
+    master_tar = REPO_ROOT / "stage1_candidates.tar"
+    if tar_parts and not master_tar.exists():
+        logger.info(f"[Mode B] Detected {len(tar_parts)} split archive parts. Auto-reassembling {master_tar.name}...")
+        with open(master_tar, "wb") as outfile:
+            for part in tar_parts:
+                logger.info(f"  Appending {part.name} ({part.stat().st_size / (1024**2):.1f} MB)...")
+                with open(part, "rb") as infile:
+                    shutil.copyfileobj(infile, outfile, length=16*1024*1024)
+        logger.info(f"[Mode B] Master archive reassembled successfully ({master_tar.stat().st_size / (1024**3):.2f} GB).")
+
     # Check for stage1_candidates.tar / .zip / .tar.gz
     for archive_name in ["stage1_candidates.tar", "stage1_candidates.tar.gz", "stage1_candidates.zip"]:
         arc_p = REPO_ROOT / archive_name
