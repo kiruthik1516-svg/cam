@@ -16,3 +16,4 @@ fi
 
 # Forward all arguments to the Python orchestrator
 python3 scripts/run_30day_jarvislabs.py "$@"
+

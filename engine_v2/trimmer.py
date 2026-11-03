@@ -51,7 +51,12 @@ def extract_from_candidate_frames(
     and encodes them into a seamless MP4 evidence video.
     """
     evidence_dir = os.getenv("INCIDENT_EVIDENCE_DIR", str(REPO_ROOT / "incident_evidence"))
-    cand_base_dir = os.getenv("STAGE1_CANDIDATES_DIR", str(REPO_ROOT / "data" / "stage1_candidates"))
+    cand_base_dir = os.getenv("STAGE1_CANDIDATES_DIR")
+    if not cand_base_dir or not os.path.exists(cand_base_dir):
+        if (REPO_ROOT / "stage1_candidates").exists():
+            cand_base_dir = str(REPO_ROOT / "stage1_candidates")
+        else:
+            cand_base_dir = str(REPO_ROOT / "data" / "stage1_candidates")
     idx_path = os.path.join(evidence_dir, f"day_{day_num:02d}", f"Day{day_num}_Extracted_Frames_Timestamp_Index.csv")
     cand_dir = os.path.join(cand_base_dir, f"day_{day_num:02d}")
 

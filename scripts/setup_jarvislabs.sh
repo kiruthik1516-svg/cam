@@ -86,3 +86,4 @@ echo " JARVISLABS SETUP COMPLETE!"
 echo " You can now run the 30-day pipeline using:"
 echo "   bash run_30day_jarvislabs.sh --engine all --days 1-30"
 echo "======================================================================"
+

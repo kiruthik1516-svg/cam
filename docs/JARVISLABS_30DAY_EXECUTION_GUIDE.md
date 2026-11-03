@@ -89,57 +89,46 @@ EOF
 
 ---
 
-## 5. CCTV Footage Ingestion on JarvisLabs
+## 5. Mode B (Stage 1 Candidate Frames — Recommended Mode)
 
-Select the method that matches how you store your 30-day footage:
+In **Mode B**, you do **not** need the 954 GB raw 24/7 CCTV footage. Instead, you only transfer the compressed candidate frames archive (**`stage1_candidates.tar`**, **28.99 GB**), which contains all motion-detected and person-present frames across all 30 days.
 
-### Method A: Google Drive Master Footage (Recommended)
-You can mount or sync the 30-day footage folder from Google Drive:
+### Uploading / Preparing Mode B Archive:
 ```bash
-# Using rclone to mount Google Drive:
-rclone config  # Configure your Google Drive remote 'gdrive'
-mkdir -p /workspace/cctv
-rclone copy "gdrive:RO WATER SEP" /workspace/cctv --transfers=8 --progress
-```
+# Option 1: If stage1_candidates.tar was uploaded to instance root:
+# The runner script automatically detects and extracts it:
+python3 scripts/run_30day_jarvislabs.py --mode b --days 1-30
 
-### Method B: Direct S3 / Rsync
-If streaming from an S3 bucket or local NAS:
-```bash
-mkdir -p /workspace/cctv
-# Example AWS S3 sync:
-aws s3 sync s3://my-cctv-archive/RO_WATER_SEP/ /workspace/cctv/
-```
-
-### Method C: Offline Candidate Mode (No Raw Video Needed)
-If raw 3K video files are not uploaded, the pipeline can run using the included Stage 1 lossless candidate frames:
-```bash
-# Extract candidates if packaged as a tarball:
+# Option 2: Manual extraction (if preferred):
 tar -xf stage1_candidates.tar -C ./
 ```
 
+> [!NOTE]
+> **Single Day Testing:** If testing only individual days (e.g. Day 5 or Day 25), you can upload just `day05_candidates.tar` (979 MB) or `day25_candidates.tar` (1.15 GB). The runner unpacks them automatically.
+
 ---
 
-## 6. Running the 30-Day Pipeline (`run_30day_jarvislabs.py`)
+## 6. Running the 30-Day Pipeline in Mode B (`run_30day_jarvislabs.py`)
 
 The unified master orchestrator (`scripts/run_30day_jarvislabs.py`) handles execution across Days 1 to 30.
 
 ### 6.1 Full 30-Day Dual Engine Execution (Engine 1 + Engine 2)
-Runs the complete audit pipeline across all 30 days:
+Runs the complete audit pipeline across all 30 days using Mode B candidate frames:
 ```bash
 python3 scripts/run_30day_jarvislabs.py \
+    --mode b \
     --engine all \
     --days 1-30 \
-    --cctv-dir /workspace/cctv \
     --workers 4
 ```
 
 ### 6.2 Engine 2 Only (HOI Equipment Surveillance & Switch Touch Recovery)
-Performs continuous pose-estimation auditing across all equipment zones (Power Switch Breaker, Valves, RO Skid):
+Performs continuous pose-estimation auditing across all equipment zones (Power Switch Breaker, Valves, RO Skid) using candidate frames:
 ```bash
 python3 scripts/run_30day_jarvislabs.py \
+    --mode b \
     --engine 2 \
     --days 1-30 \
-    --cctv-dir /workspace/cctv \
     --workers 4
 ```
 
@@ -147,28 +136,29 @@ python3 scripts/run_30day_jarvislabs.py \
 Performs GPU-accelerated ArcFace vectorization, DBSCAN clustering, and regenerates all 30 clipping indices:
 ```bash
 python3 scripts/run_30day_jarvislabs.py \
+    --mode b \
     --engine 1 \
     --days 1-30 \
     --workers 4
 ```
 
-### 6.4 Targeted Shift & Day Audits
-To inspect specific days or operational windows (e.g., Days 5 and 25 during morning maintenance hours):
+### 6.4 Targeted Shift & Day Audits (e.g. Day 5 & Day 25)
+To inspect specific days during morning maintenance hours:
 ```bash
 python3 scripts/run_30day_jarvislabs.py \
+    --mode b \
     --engine 2 \
     --days 5,25 \
-    --hours 6 13 \
-    --cctv-dir /workspace/cctv
+    --hours 6 13
 ```
 
 ### 6.5 Cost-Saving Cloud Auto-Shutdown
-To run a long overnight batch job and automatically terminate the JarvisLabs instance when finished:
+To run an overnight batch job and automatically terminate the JarvisLabs instance when finished:
 ```bash
 python3 scripts/run_30day_jarvislabs.py \
+    --mode b \
     --engine all \
     --days 1-30 \
-    --cctv-dir /workspace/cctv \
     --auto-shutdown
 ```
 
@@ -221,3 +211,4 @@ ALL 4 REGRESSION SUITES PASSED (18/18 TESTS - 100.0% PASS RATE)
 SURVEILLANCE ARCHITECTURE CERTIFIED REGRESSION-FREE
 ================================================================================
 ```
+

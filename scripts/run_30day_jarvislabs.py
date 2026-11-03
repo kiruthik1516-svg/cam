@@ -298,6 +298,51 @@ def run_engine_2(
     return True
 
 
+def ensure_mode_b_candidates(cand_dir_str: str) -> str:
+    """Ensures stage1_candidates directory exists in Mode B, unpacking archives if present."""
+    cand_path = Path(cand_dir_str)
+    if cand_path.exists() and any(cand_path.iterdir()):
+        logger.info(f"[Mode B] Found candidate frames directory: {cand_path}")
+        return str(cand_path)
+    
+    # Check if alternative data/stage1_candidates exists
+    alt_cand = REPO_ROOT / "data" / "stage1_candidates"
+    if alt_cand.exists() and any(alt_cand.iterdir()):
+        logger.info(f"[Mode B] Found candidate frames in: {alt_cand}")
+        return str(alt_cand)
+
+    # Check for stage1_candidates.tar / .zip / .tar.gz
+    for archive_name in ["stage1_candidates.tar", "stage1_candidates.tar.gz", "stage1_candidates.zip"]:
+        arc_p = REPO_ROOT / archive_name
+        if arc_p.exists():
+            logger.info(f"[Mode B] Auto-extracting candidate archive: {arc_p}...")
+            if archive_name.endswith(".zip"):
+                import zipfile
+                with zipfile.ZipFile(arc_p, "r") as z:
+                    z.extractall(REPO_ROOT)
+            else:
+                import tarfile
+                with tarfile.open(arc_p, "r") as t:
+                    t.extractall(REPO_ROOT)
+            logger.info(f"[Mode B] Extraction complete to {cand_path}")
+            return str(cand_path)
+
+    # Check individual day tar files (e.g. day05_candidates.tar)
+    day_tars = list(REPO_ROOT.glob("day*_candidates.tar"))
+    if day_tars:
+        logger.info(f"[Mode B] Found {len(day_tars)} per-day candidate archives. Extracting...")
+        cand_path.mkdir(parents=True, exist_ok=True)
+        import tarfile
+        for dt in day_tars:
+            with tarfile.open(dt, "r") as t:
+                t.extractall(cand_path)
+        logger.info(f"[Mode B] Per-day archives unpacked to {cand_path}")
+        return str(cand_path)
+
+    logger.warning(f"[Mode B] No candidate archive found at {cand_path} or {REPO_ROOT}/stage1_candidates.tar")
+    return str(cand_path)
+
+
 def trigger_auto_shutdown():
     """Shuts down the JarvisLabs instance to terminate hourly compute charges."""
     logger.warning("==================================================================")
@@ -317,6 +362,12 @@ def trigger_auto_shutdown():
 def main():
     parser = argparse.ArgumentParser(
         description="JarvisLabs 30-Day Production Master Runner for Surveillance Engine 1 & 2"
+    )
+    parser.add_argument(
+        "--mode",
+        choices=["b", "a", "candidates", "raw"],
+        default="b",
+        help="Operation mode: 'b' (or 'candidates') uses 28.99 GB stage1_candidates archive (Recommended); 'a' (or 'raw') uses master 3K CCTV video"
     )
     parser.add_argument(
         "--engine",
@@ -392,16 +443,29 @@ def main():
     # Pre-flight check
     env_info = check_system_environment()
 
+    # Mode B Resolution: If Mode B is selected, auto-resolve/unpack candidate frames
+    is_mode_b = args.mode in ("b", "candidates")
+    effective_candidates_dir = args.candidates_dir
+    effective_cctv_dir = args.cctv_dir
+
+    if is_mode_b:
+        effective_candidates_dir = ensure_mode_b_candidates(args.candidates_dir)
+        os.environ["STAGE1_CANDIDATES_DIR"] = effective_candidates_dir
+        # In Mode B, bypass raw CCTV chunk lookup so Engine 2 uses candidate frames
+        effective_cctv_dir = ""
+
     target_days = parse_days(args.days)
     skip = not args.force_reprocess and args.skip_completed
     hour_range = tuple(args.hours) if args.hours else None
 
     print("\n" + "=" * 75, flush=True)
     print(" JARVISLABS 30-DAY SURVEILLANCE RUNNER CONFIGURATION", flush=True)
+    print(f" Execution Mode:      {'MODE B (Stage 1 Candidates)' if is_mode_b else 'MODE A (Master 3K CCTV Video)'}", flush=True)
     print(f" Target Engine(s):    {args.engine.upper()}", flush=True)
     print(f" Target Days:         {len(target_days)} days ({target_days[0]} to {target_days[-1]})", flush=True)
-    print(f" CCTV Raw Footage:    {args.cctv_dir}", flush=True)
-    print(f" Candidates Folder:   {args.candidates_dir}", flush=True)
+    print(f" Candidates Folder:   {effective_candidates_dir}", flush=True)
+    if not is_mode_b:
+        print(f" CCTV Raw Footage:    {effective_cctv_dir}", flush=True)
     print(f" Output Location:     {args.output_dir}", flush=True)
     print(f" Worker Processes:    {args.workers}", flush=True)
     print(f" Compute Device:      {env_info['device_name']}", flush=True)
@@ -420,14 +484,14 @@ def main():
             days=target_days,
             workers=args.workers,
             resume=skip,
-            candidates_dir=args.candidates_dir
+            candidates_dir=effective_candidates_dir
         )
 
     # Execute Engine 2
     if args.engine in ("2", "both", "all"):
         run_engine_2(
             days=target_days,
-            cctv_dir=args.cctv_dir,
+            cctv_dir=effective_cctv_dir,
             output_dir=args.output_dir,
             workers=args.workers,
             skip_completed=skip,
@@ -444,3 +508,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+

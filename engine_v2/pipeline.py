@@ -11,7 +11,20 @@ import numpy as np
 from datetime import datetime, timedelta
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
-STAGE1_CANDIDATES_DIR = os.getenv("STAGE1_CANDIDATES_DIR", str(REPO_ROOT / "data" / "stage1_candidates"))
+
+def _resolve_candidates_dir() -> str:
+    env_dir = os.getenv("STAGE1_CANDIDATES_DIR")
+    if env_dir and os.path.exists(env_dir):
+        return env_dir
+    c1 = REPO_ROOT / "stage1_candidates"
+    if c1.exists():
+        return str(c1)
+    c2 = REPO_ROOT / "data" / "stage1_candidates"
+    if c2.exists():
+        return str(c2)
+    return str(c1)
+
+STAGE1_CANDIDATES_DIR = _resolve_candidates_dir()
 INCIDENT_EVIDENCE_DIR = os.getenv("INCIDENT_EVIDENCE_DIR", str(REPO_ROOT / "incident_evidence"))
 
 from .config import (
