@@ -11,5 +11,6 @@ export * from './video-audit';
 export * from './access-control';
 export * from './hoi';
 export * from './pipeline-jobs';
+export * from './reports';
 
 export { fetchSubjectIntelligence, fetchTemporalAnomalies } from './analytics';

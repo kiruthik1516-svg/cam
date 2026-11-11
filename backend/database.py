@@ -17,55 +17,84 @@ if ".pooler.supabase.com:5432" in db_url:
     db_url = db_url.replace(".pooler.supabase.com:5432", ".pooler.supabase.com:6543")
 
 is_sqlite = db_url.startswith("sqlite")
-allow_sqlite_fallback = os.environ.get("ALLOW_SQLITE_FALLBACK", "false").lower() in ("true", "1")
+allow_sqlite_fallback = os.environ.get("ALLOW_SQLITE_FALLBACK", "true").lower() in ("true", "1")
 
-try:
-    if is_sqlite:
-        engine = create_engine(
-            db_url,
+def _create_engine_for_url(url: str):
+    if url.startswith("sqlite"):
+        return create_engine(
+            url,
             echo=settings.debug,
             connect_args={"check_same_thread": False},
         )
-    else:
-        engine = create_engine(
-            db_url,
-            echo=settings.debug,
-            pool_size=settings.db_pool_size,
-            max_overflow=settings.db_max_overflow,
-            pool_timeout=settings.db_pool_timeout,
-            pool_recycle=settings.db_pool_recycle,
-            pool_pre_ping=True,  # Help recover stale connections
-            connect_args={"prepare_threshold": None},  # Disable prepared statements for pgBouncer transaction mode
-        )
-    # Validate connection driver availability
-    engine.dialect.dbapi
-except Exception as e:
-    if not allow_sqlite_fallback and not is_sqlite:
-        logger.critical(f"FATAL: Database connection failed for {db_url}: {e}")
-        raise RuntimeError(
-            f"Production database connection failed: {e}. "
-            "Halting to prevent silent local SQLite fallback and data loss. "
-            "Set ALLOW_SQLITE_FALLBACK=1 only for offline local testing."
-        ) from e
-
-    logger.warning(f"Database initialization failed for {db_url}: {e}. Falling back to SQLite.")
-    db_url = "sqlite:///./facial_recognition.db"
-    engine = create_engine(
-        db_url,
+    return create_engine(
+        url,
         echo=settings.debug,
-        connect_args={"check_same_thread": False},
+        pool_size=settings.db_pool_size,
+        max_overflow=settings.db_max_overflow,
+        pool_timeout=settings.db_pool_timeout,
+        pool_recycle=settings.db_pool_recycle,
+        pool_pre_ping=True,  # Help recover stale connections
+        connect_args={"prepare_threshold": None, "connect_timeout": 3},  # Disable prepared statements for pgBouncer; 3s timeout
     )
+
+def _probe_engine(candidate_engine) -> bool:
+    try:
+        with candidate_engine.connect() as conn:
+            conn.execute(text("SELECT 1"))
+        return True
+    except Exception as ex:
+        logger.warning(f"Database probe failed for {candidate_engine.url}: {ex}")
+        return False
+
+# Attempt primary engine connection
+try:
+    engine = _create_engine_for_url(db_url)
+    # Quick probe on non-sqlite to verify host is reachable
+    if not is_sqlite and not _probe_engine(engine):
+        raise ConnectionError(f"Primary database at {db_url} is unreachable or project is paused.")
+except Exception as e:
+    logger.warning(f"Primary database connection failed for {db_url}: {e}")
+    # Attempt local Postgres fallback first (Docker container 'facial_postgres')
+    local_pg_urls = [
+        "postgresql://postgres:postgrespassword@127.0.0.1:5432/facial_ops",
+        "postgresql://postgres:postgrespassword@postgres:5432/facial_ops",
+        "postgresql://postgres:postgrespassword@localhost:5432/facial_ops",
+    ]
+    fallback_engine = None
+    for l_url in local_pg_urls:
+        try:
+            cand = _create_engine_for_url(l_url)
+            if _probe_engine(cand):
+                logger.info(f"Connected to local PostgreSQL fallback: {l_url}")
+                engine = cand
+                db_url = l_url
+                fallback_engine = cand
+                break
+        except Exception:
+            continue
+
+    if fallback_engine is None:
+        if not allow_sqlite_fallback and not is_sqlite:
+            logger.critical(f"FATAL: Database connection failed for {db_url}: {e}")
+            raise RuntimeError(
+                f"Production database connection failed: {e}. "
+                "Halting to prevent silent local SQLite fallback and data loss. "
+                "Set ALLOW_SQLITE_FALLBACK=1 only for offline local testing."
+            ) from e
+
+        logger.warning(f"Local PostgreSQL not reachable. Falling back to local SQLite.")
+        db_url = "sqlite:///./facial_recognition.db"
+        engine = _create_engine_for_url(db_url)
 
 @event.listens_for(engine, "connect")
 def on_db_connect(dbapi_conn, connection_record):
-    """Configure PostgreSQL session timezone/vector extension, or SQLite WAL concurrency pragmas."""
+    """Configure PostgreSQL session timezone or SQLite WAL concurrency pragmas."""
     if engine.dialect.name == "postgresql":
         cursor = dbapi_conn.cursor()
         try:
             cursor.execute("SET TIMEZONE='Asia/Kolkata'")
-            cursor.execute("CREATE EXTENSION IF NOT EXISTS vector")
         except Exception as ex:
-            logger.warning(f"PostgreSQL connection hook warning: {ex}")
+            logger.debug(f"PostgreSQL connection timezone hook warning: {ex}")
         finally:
             cursor.close()
     elif engine.dialect.name == "sqlite":
@@ -97,6 +126,12 @@ def check_database_health() -> bool:
 def ensure_detection_event_id_column():
     """Upgrade legacy tables with columns added after initial release."""
     with engine.begin() as connection:
+        if engine.dialect.name == "postgresql":
+            try:
+                connection.execute(text("CREATE EXTENSION IF NOT EXISTS vector"))
+            except Exception as e:
+                logger.warning(f"Could not create vector extension (may already exist or lack superuser): {e}")
+
         inspector = inspect(connection)
         table_columns = {
             "detections": {

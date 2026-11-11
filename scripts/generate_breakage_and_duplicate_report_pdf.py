@@ -14,7 +14,7 @@ from reportlab.platypus import (
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.pdfgen import canvas
 
-REPO_ROOT = Path(r"D:\facial")
+REPO_ROOT = Path(__file__).resolve().parent.parent
 OUTPUT_PDF = REPO_ROOT / "team_reports" / "08_CCTV_Duplicate_Footage_and_Timeline_Breakage_Proof_Report.pdf"
 LOGO_PATH = REPO_ROOT / "assets" / "thoorigai_logo.jpg"
 PROOF_IMG = REPO_ROOT / "team_reports" / "day26_vs_day27_duplicate_proof.jpg"

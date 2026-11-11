@@ -60,7 +60,7 @@ def generate_for_day(day_num: int, master_data: dict, root: Path):
         for ev in p.get("zone_events_log", []):
             try:
                 dt = datetime.strptime(ev["timestamp"], "%Y-%m-%d %H:%M:%S")
-                if dt.day == day_num and dt.month == 9 and dt.year == 2026:
+                if dt.day == day_num:
                     day_zone_events.append({
                         "dt": dt,
                         "persona_id": pid,

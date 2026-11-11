@@ -241,7 +241,7 @@ class BackgroundWorkerManager:
                 cmd.extend(["--days", str(params["days"])])
 
         elif task_type == TaskType.REINDEX_CENTROIDS:
-            cmd = [py_exe, "-c", "import backend.database as db; print('Vector Centroids Synced')"]
+            cmd = [py_exe, "scripts/cluster_30day_personas.py"]
 
         elif task_type == TaskType.CUSTOM_SCRIPT:
             script_path = params.get("script")

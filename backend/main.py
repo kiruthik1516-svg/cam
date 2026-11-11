@@ -445,6 +445,9 @@ app.include_router(hoi_evidence_router)
 from routers.pipeline_jobs import router as pipeline_jobs_router
 app.include_router(pipeline_jobs_router)
 
+from routers.reports import router as reports_router
+app.include_router(reports_router)
+
 class SecurityHeadersMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
         response = await call_next(request)

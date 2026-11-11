@@ -1,4 +1,4 @@
-import { authFetch, handleResponse, getBackendUrl } from './config';
+import { authFetch, handleResponse, apiUrl } from './config';
 import type { HoiIncidentItem } from '@/lib/types';
 
 export async function fetchHoiIncidents(params?: {
@@ -28,10 +28,10 @@ export async function fetchHoiDaySummary(day: number): Promise<Record<string, an
 }
 
 export function getHoiVideoUrl(day: number, clipFilename: string): string {
-  return getBackendUrl(`/api/hoi/evidence/video/${day}/${encodeURIComponent(clipFilename)}`);
+  return apiUrl(`/api/hoi/evidence/video/${day}/${encodeURIComponent(clipFilename)}`);
 }
 
 export function getHoiSnapshotUrl(day: number, snapshotFilename: string): string {
-  return getBackendUrl(`/api/hoi/evidence/snapshot/${day}/${encodeURIComponent(snapshotFilename)}`);
+  return apiUrl(`/api/hoi/evidence/snapshot/${day}/${encodeURIComponent(snapshotFilename)}`);
 }
 

@@ -61,6 +61,7 @@ services:
       - ./backend:/app/backend
       - ./facial_recognition:/app/facial_recognition
       - ./data:/app/data
+      - ./incident_evidence_v2:/app/incident_evidence_v2:ro
       - ${HOST_FOOTAGE_DIR:-./data}:/footage:ro
       - D:\:/d:ro
       - E:\:/e:ro

@@ -98,17 +98,17 @@ export function useCurrentUser(): CurrentUserSession {
   if (!ctx) {
     // Graceful fallback for components rendered outside AuthProvider (e.g. tests or isolated SSR)
     return {
-      username: 'admin',
-      role: 'admin',
-      userId: 'root-admin',
+      username: 'guest',
+      role: 'viewer',
+      userId: 'guest',
       token: null,
       isAuthenticated: false,
       isLoaded: true,
-      isAdmin: true,
+      isAdmin: false,
       isOperator: false,
-      isViewer: false,
-      canEdit: true,
-      canAdmin: true,
+      isViewer: true,
+      canEdit: false,
+      canAdmin: false,
       logout: async () => {},
       refreshSession: () => {},
     }

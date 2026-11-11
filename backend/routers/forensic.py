@@ -6,6 +6,7 @@ from datetime import datetime, timedelta
 import uuid
 import json
 import hashlib
+import numpy as np
 
 from database import get_db
 from models import *

@@ -50,7 +50,8 @@ const nextConfig = {
     NEXT_PUBLIC_WS_URL: process.env.NEXT_PUBLIC_WS_URL || 'ws://localhost:1223',
   },
   async rewrites() {
-    const defaultBackend = process.env.NODE_ENV === 'production' ? 'http://backend:1223' : 'http://localhost:1223'
+    const isDocker = fs.existsSync('/.dockerenv') || process.env.DOCKER_CONTAINER === 'true'
+    const defaultBackend = isDocker ? 'http://backend:1223' : 'http://localhost:1223'
     const backendUrl = process.env.INTERNAL_BACKEND_URL || defaultBackend
     return [
       {
