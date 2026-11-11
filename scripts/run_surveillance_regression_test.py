@@ -17,8 +17,8 @@ import json
 from pathlib import Path
 import numpy as np
 
-# Add repo root to path
-REPO_ROOT = Path("d:/facial")
+# Add repo root to path dynamically
+REPO_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(REPO_ROOT))
 
 from engine_v2.config import ASSET_ZONES, KPT_RIGHT_WRIST, KPT_LEFT_WRIST
