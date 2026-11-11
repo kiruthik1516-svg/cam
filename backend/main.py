@@ -10,8 +10,12 @@ import json
 import hashlib
 from typing import Optional, List, Dict, Any
 
-# Add parent directory to sys.path to access facial_recognition module
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+# Add backend directory and parent directory to sys.path
+backend_dir = os.path.dirname(os.path.abspath(__file__))
+parent_dir = os.path.dirname(backend_dir)
+for p in [backend_dir, parent_dir]:
+    if p not in sys.path:
+        sys.path.insert(0, p)
 
 try:
     from config import IST
@@ -55,8 +59,12 @@ except ImportError:
 import yaml
 from pathlib import Path
 
-# Add parent directory to sys.path to access facial_recognition module
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+# Add backend directory and parent directory to sys.path
+backend_dir = os.path.dirname(os.path.abspath(__file__))
+parent_dir = os.path.dirname(backend_dir)
+for p in [backend_dir, parent_dir]:
+    if p not in sys.path:
+        sys.path.insert(0, p)
 try:
     from facial_recognition.detector import InsightFaceDetector
     from facial_recognition.recognizer import Recognizer
